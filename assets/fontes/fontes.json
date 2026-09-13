@@ -1,0 +1,21 @@
+{
+  "formato": "buradesign.fontes",
+  "versao": 1,
+  "familias": [
+    {
+      "id": "poppins",
+      "nome": "Redonda",
+      "arquivos": { "normal": "poppins-regular.ttf", "negrito": "poppins-bold.ttf" }
+    },
+    {
+      "id": "caladea",
+      "nome": "Com serifa",
+      "arquivos": { "normal": "caladea-regular.ttf", "negrito": "caladea-bold.ttf" }
+    },
+    {
+      "id": "mono",
+      "nome": "Terminal",
+      "arquivos": { "normal": "mono-regular.ttf", "negrito": "mono-bold.ttf" }
+    }
+  ]
+}

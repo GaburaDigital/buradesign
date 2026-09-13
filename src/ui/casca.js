@@ -60,15 +60,31 @@ function montarBase() {
     </a>`;
 }
 
+let moduloAtivo = null;
+
+function encerrarModuloAtivo() {
+  if (moduloAtivo && typeof moduloAtivo.encerrar === "function") {
+    try {
+      moduloAtivo.encerrar();
+    } catch (erro) {
+      console.warn("Falha ao encerrar o setor", erro);
+    }
+  }
+  moduloAtivo = null;
+}
+
 export function irParaInicio() {
+  encerrarModuloAtivo();
   montarInicio(conteudo(), abrirSetor);
   conteudo().focus({ preventScroll: true });
   window.scrollTo({ top: 0 });
 }
 
 async function abrirSetor(setor) {
+  encerrarModuloAtivo();
   const modulo = await setor.carregar();
-  modulo.montar(conteudo(), setor, irParaInicio);
+  moduloAtivo = modulo;
+  await modulo.montar(conteudo(), setor, irParaInicio);
   conteudo().focus({ preventScroll: true });
   window.scrollTo({ top: 0 });
 }

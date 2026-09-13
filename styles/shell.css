@@ -53,8 +53,8 @@
 /* Estrutura ----------------------------------------------------------- */
 
 .aplicacao {
-  min-height: 100%;
-  min-height: 100dvh;
+  height: 100%;
+  height: 100dvh;
   display: grid;
   grid-template-rows: var(--altura-topo) 1fr auto;
 }
@@ -87,7 +87,8 @@
 .barra-topo__espaco { flex: 1; }
 .barra-topo__acoes { display: flex; gap: var(--e-2); }
 
-.conteudo { padding: var(--e-5) var(--e-4); overflow-x: hidden; }
+.conteudo { padding: var(--e-5) var(--e-4); overflow-x: hidden; overflow-y: auto; min-height: 0; }
+.conteudo--cheio { padding: 0; display: flex; overflow: hidden; }
 
 .barra-base {
   border-top: var(--borda) solid var(--linha-forte);
@@ -133,14 +134,17 @@
   padding: var(--e-2) var(--e-3);
   border-bottom: var(--borda) solid var(--linha-forte);
   background: var(--fundo-3);
+  flex: 0 0 auto;
+  min-height: 0;
 }
+.painel__topo .icone { width: 1.25rem; height: 1.25rem; }
 .painel__titulo {
   font-family: var(--fonte-mono);
   font-size: var(--t-14);
   margin: 0;
   flex: 1;
 }
-.painel__corpo { padding: var(--e-4); overflow: auto; }
+.painel__corpo { padding: var(--e-4); overflow: auto; flex: 1 1 auto; min-height: 0; }
 .painel__rodape {
   display: flex;
   gap: var(--e-2);
@@ -148,6 +152,7 @@
   padding: var(--e-3);
   border-top: var(--borda) solid var(--linha);
   background: var(--fundo-2);
+  flex: 0 0 auto;
 }
 .painel__secao { border-top: var(--borda) solid var(--linha); padding-top: var(--e-4); margin-top: var(--e-4); }
 .painel__secao:first-child { border-top: 0; padding-top: 0; margin-top: 0; }

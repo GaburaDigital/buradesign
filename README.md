@@ -60,8 +60,32 @@ de substituir.
 
 ### Estado atual
 
-Esta é a fase 0: a casca da oficina. Os quatro setores aparecem, mas ainda
-estão em obras. O cronograma está logo abaixo.
+A fase 1 está no ar: o setor **Criação Livre** já funciona em 2D. Dá para
+desenhar formas, escrever texto com acento, curvar caminhos com a caneta,
+combinar peças com peça negativa, ajustar tudo por número e exportar o SVG
+para a cortadora. Os outros três setores ainda estão em obras.
+
+### O que fazer no setor Criação Livre
+
+Escolha uma forma na caixa de ferramentas e clique na mesa. Com a peça
+selecionada, as alças giram e redimensionam; segurando Shift o movimento sai
+reto, o giro pula de 45 em 45 graus e a escala mantém a proporção. A roda do
+mouse aproxima, com Ctrl sobe e desce, com Shift vai para os lados.
+
+Para furar uma peça, marque a outra como **negativa** e clique em combinar: o
+que a negativa encostar some. A peça combinada guarda as originais, então o
+botão desunir volta atrás quando o aluno se arrepende.
+
+O botão de exportar gera o SVG em milímetros, só com o contorno, no tamanho
+real da mesa. A cor de preenchimento é apenas para enxergar na tela e não sai
+no corte. Se houver peças selecionadas, exporta só elas; se não houver,
+exporta a mesa inteira.
+
+### Atalhos de teclado
+
+V seleciona, N remodela, P é a caneta. Ctrl+Z desfaz, Ctrl+Shift+Z refaz,
+Ctrl+A seleciona tudo, Ctrl+D duplica, Delete apaga, as setas empurram a peça
+de um passo do grid.
 
 | Fase | Entrega |
 | --- | --- |

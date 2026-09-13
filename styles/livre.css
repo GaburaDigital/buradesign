@@ -1,0 +1,177 @@
+/* Bancada de Criação Livre em 2D. Carregado só quando o setor abre. */
+
+.livre {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 0;
+  width: 100%;
+}
+
+.livre__barra {
+  display: flex;
+  align-items: center;
+  gap: var(--e-1);
+  padding: var(--e-2);
+  border-bottom: var(--borda) solid var(--linha-forte);
+  background: var(--fundo-2);
+  overflow-x: auto;
+}
+.livre__barra .botao { min-height: 2.25rem; white-space: nowrap; }
+.livre__barra .rotulo-acao { display: none; }
+.separador {
+  width: var(--borda);
+  align-self: stretch;
+  background: var(--linha);
+  margin: 0 var(--e-1);
+  flex: none;
+}
+
+.livre__corpo {
+  display: grid;
+  grid-template-columns: 9rem 1fr 20rem;
+  min-height: 0;
+}
+
+.livre__ferramentas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-1);
+  padding: var(--e-2);
+  border-right: var(--borda) solid var(--linha-forte);
+  background: var(--fundo-2);
+  overflow: auto;
+}
+.ferramenta {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  font-family: var(--fonte-mono);
+  font-size: var(--t-12);
+  color: var(--texto);
+  background: transparent;
+  border: var(--borda) solid transparent;
+  padding: var(--e-2);
+  cursor: pointer;
+  text-align: left;
+}
+.ferramenta:hover { border-color: var(--linha-forte); }
+.ferramenta--ativa { border-color: var(--verde); color: var(--verde); background: var(--fundo-3); }
+.ferramenta .icone { width: 1.25rem; height: 1.25rem; flex: none; }
+
+.livre__palco {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  background: var(--fundo);
+}
+.livre__palco canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.livre__painel {
+  border-left: var(--borda) solid var(--linha-forte);
+  background: var(--fundo-2);
+  padding: var(--e-3);
+  overflow: auto;
+  min-width: 0;
+}
+
+.livre__status {
+  font-family: var(--fonte-mono);
+  font-size: var(--t-12);
+  color: var(--texto-2);
+  border-top: var(--borda) solid var(--linha);
+  padding: var(--e-2) var(--e-3);
+  margin: 0;
+  background: var(--fundo-2);
+}
+
+/* Painel de propriedades ---------------------------------------------- */
+
+.grupo-propriedades {
+  border-top: var(--borda) solid var(--linha);
+  padding-top: var(--e-3);
+  margin-top: var(--e-3);
+}
+.grupo-propriedades:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
+.grupo-propriedades h3 {
+  font-family: var(--fonte-mono);
+  font-size: var(--t-14);
+  color: var(--verde);
+  margin-bottom: var(--e-2);
+}
+
+.propriedade {
+  display: grid;
+  grid-template-columns: 1fr 6rem;
+  align-items: center;
+  gap: var(--e-2);
+  margin-bottom: var(--e-2);
+  font-family: var(--fonte-mono);
+  font-size: var(--t-12);
+  color: var(--texto-2);
+}
+.propriedade input,
+.propriedade select {
+  font-family: var(--fonte-mono);
+  font-size: var(--t-12);
+  color: var(--texto);
+  background: var(--fundo);
+  border: var(--borda) solid var(--linha);
+  padding: var(--e-1) var(--e-2);
+  min-height: 2rem;
+  width: 100%;
+}
+.propriedade input[type="text"] { grid-column: 1 / -1; }
+
+.linha-botoes { display: flex; flex-wrap: wrap; gap: var(--e-1); margin-bottom: var(--e-2); }
+.linha-botoes .botao { min-height: 2.25rem; padding: var(--e-2); }
+.linha-botoes .rotulo-acao { display: none; }
+
+.dica {
+  font-family: var(--fonte-mono);
+  font-size: var(--t-12);
+  color: var(--texto-3);
+  margin: 0 0 var(--e-2);
+}
+
+.paleta { display: flex; flex-wrap: wrap; gap: var(--e-1); margin-bottom: var(--e-2); }
+.tinta {
+  width: 1.75rem;
+  height: 1.75rem;
+  border: var(--borda) solid var(--linha-forte);
+  cursor: pointer;
+  padding: 0;
+}
+.tinta:hover { border-color: var(--verde); }
+
+.so-estreito { display: none; }
+
+/* Tablet e celular ----------------------------------------------------- */
+
+@media (max-width: 64rem) {
+  .livre__corpo { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .livre__ferramentas {
+    flex-direction: row;
+    border-right: 0;
+    border-bottom: var(--borda) solid var(--linha-forte);
+    overflow-x: auto;
+  }
+  .ferramenta { flex-direction: column; gap: var(--e-1); min-width: 4.25rem; text-align: center; }
+  .livre__painel {
+    position: absolute;
+    inset: auto 0 0 0;
+    max-height: 60%;
+    border-left: 0;
+    border-top: var(--borda) solid var(--verde);
+    display: none;
+    z-index: 5;
+  }
+  .livre--painel-aberto .livre__painel { display: block; }
+  .so-estreito { display: inline-flex; }
+  .livre__corpo { position: relative; }
+}

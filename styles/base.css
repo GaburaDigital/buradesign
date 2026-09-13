@@ -58,7 +58,7 @@ a { color: var(--verde); }
 .botao--destaque { border-color: var(--verde); color: var(--verde); }
 .botao--perigo:hover { border-color: var(--perigo); color: var(--perigo); }
 .botao--icone { padding: var(--e-2); min-width: 2.5rem; justify-content: center; }
-.botao .icone { width: 1.25rem; height: 1.25rem; flex: none; }
+.botao .icone { width: 1.25rem; height: 1.25rem; }
 
 /* Campos ------------------------------------------------------------- */
 
@@ -81,7 +81,13 @@ select, input[type="text"], input[type="file"] {
 .interruptor { display: flex; align-items: center; justify-content: space-between; gap: var(--e-3); }
 .interruptor input { width: 1.25rem; height: 1.25rem; accent-color: var(--verde); }
 
-.icone { display: block; }
+.icone {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: none;
+}
+.alien { display: block; width: 100%; height: auto; }
 
 .oculto-visual {
   position: absolute;

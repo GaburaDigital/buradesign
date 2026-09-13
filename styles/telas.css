@@ -31,8 +31,8 @@
 }
 .setor:hover:not([disabled]), .setor:focus-visible { border-color: var(--verde); background: var(--fundo-3); }
 .setor[disabled] { cursor: not-allowed; opacity: 0.6; }
-.setor__alien { width: 100%; height: 7rem; }
-.setor__alien svg { width: 100%; height: 100%; }
+.setor__alien { display: block; width: 100%; height: 7.5rem; }
+.setor__alien .alien { width: auto; height: 100%; margin: 0 auto; }
 .setor__nome { font-family: var(--fonte-mono); font-size: var(--t-16); font-weight: 700; }
 .setor__descricao { font-size: var(--t-14); color: var(--texto-2); margin: 0; }
 .setor__estado {
@@ -92,6 +92,6 @@
   padding-left: var(--e-3);
   margin-bottom: var(--e-4);
 }
-.fala-alien svg { width: 4rem; height: 4rem; flex: none; }
+.fala-alien .alien { width: 4.5rem; height: 4.5rem; flex: none; }
 .fala-alien p { font-size: var(--t-14); margin: 0; }
 .fala-alien strong { font-family: var(--fonte-mono); color: var(--verde); }

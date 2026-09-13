@@ -7,9 +7,9 @@ export const SETORES = [
     alien: "zorp",
     chaveNome: "setores.livre.nome",
     chaveDescricao: "setores.livre.descricao",
-    aberto: false,
+    aberto: true,
     fase: 1,
-    carregar: () => import("./em-obras.js"),
+    carregar: () => import("./livre/indice.js"),
   },
   {
     id: "blocos",
