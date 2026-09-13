@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-tema="escuro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BuraDESIGN</title>
+<meta name="description" content="Oficina de CAD e modelagem 3D para uso em sala de aula. Funciona sem internet e sem conta.">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icones/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles/tokens.css">
+<link rel="stylesheet" href="styles/base.css">
+<link rel="stylesheet" href="styles/shell.css">
+<link rel="stylesheet" href="styles/telas.css">
+</head>
+<body>
+<a class="pular-para-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<div id="boot" class="boot" role="status" aria-live="polite">
+  <div class="boot__tela">
+    <pre id="boot-linhas" class="boot__linhas"></pre>
+    <p class="boot__dica" id="boot-dica">Pressione qualquer tecla para continuar</p>
+  </div>
+</div>
+
+<div id="aplicacao" class="aplicacao" hidden>
+  <header class="barra-topo" id="barra-topo"></header>
+  <main id="conteudo" class="conteudo" tabindex="-1"></main>
+  <footer class="barra-base" id="barra-base"></footer>
+</div>
+
+<div id="camada-paineis" class="camada-paineis"></div>
+<div id="avisos" class="avisos" role="status" aria-live="polite"></div>
+
+<noscript>
+  <p style="padding:2rem;font-family:monospace">O BuraDESIGN precisa de JavaScript ativado para funcionar.</p>
+</noscript>
+
+<script type="module" src="src/core/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+{
+  "formato": "buradesign.catalogo",
+  "versao": 1,
+  "atualizadoEm": "2026-09-12",
+  "leiaMe": "Este arquivo descreve o que existe dentro da pasta ATIVIDADES. O nome do arquivo continua sendo o nome mostrado no site; aqui ficam só as informações que o site não consegue adivinhar sozinho.",
+  "colecoes": {
+    "DESAFIOS_2D": {
+      "pasta": "ATIVIDADES/DESAFIOS_2D",
+      "titulo": "Desafios de desenho em 2D",
+      "usadoEm": ["blocos"],
+      "extensao": ".json",
+      "itens": []
+    },
+    "DESAFIOS_3D": {
+      "pasta": "ATIVIDADES/DESAFIOS_3D",
+      "titulo": "Desafios de modelagem em 3D",
+      "usadoEm": ["blocos"],
+      "extensao": ".json",
+      "itens": []
+    },
+    "PECAS_PRONTAS": {
+      "pasta": "ATIVIDADES/PECAS_PRONTAS",
+      "titulo": "Peças prontas para montagem",
+      "usadoEm": ["corte", "fisica"],
+      "extensao": ".json",
+      "itens": []
+    },
+    "MODELOS_EXEMPLO": {
+      "pasta": "ATIVIDADES/MODELOS_EXEMPLO",
+      "titulo": "Modelos de exemplo",
+      "usadoEm": ["livre", "corte"],
+      "extensao": ".stl",
+      "itens": []
+    }
+  },
+  "exemploDeItem": {
+    "arquivo": "01-martelo.json",
+    "nome": "Martelo",
+    "nivel": 1,
+    "dimensao": "3D",
+    "tempoSugeridoMin": 10,
+    "dica": "Comece pelo cabo. O martelo é um bloco em cima de um prisma comprido.",
+    "tags": ["ferramenta", "formas rígidas"]
+  }
+}

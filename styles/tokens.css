@@ -1,0 +1,68 @@
+/* Tokens do BuraDESIGN.
+   Tudo que é cor, fonte ou medida base fica aqui.
+   Trocar o tema é trocar o atributo data-tema no elemento <html>. */
+
+:root {
+  --fonte-mono: ui-monospace, "Cascadia Mono", "Consolas", "DejaVu Sans Mono", "Courier New", monospace;
+  --fonte-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --t-12: 0.75rem;
+  --t-14: 0.875rem;
+  --t-16: 1rem;
+  --t-20: 1.25rem;
+  --t-28: 1.75rem;
+  --t-40: 2.5rem;
+
+  --e-1: 0.25rem;
+  --e-2: 0.5rem;
+  --e-3: 0.75rem;
+  --e-4: 1rem;
+  --e-5: 1.5rem;
+  --e-6: 2rem;
+  --e-7: 3rem;
+
+  --borda: 2px;
+  --altura-topo: 3.25rem;
+  --altura-base: 3.5rem;
+
+  --alien-zorp: #7bd14a;
+  --alien-nibla: #45b7d1;
+  --alien-krux: #e0a200;
+  --alien-pip: #e2607a;
+}
+
+html[data-tema="escuro"] {
+  --fundo: #000000;
+  --fundo-2: #0c0c0c;
+  --fundo-3: #17191b;
+  --texto: #ffffff;
+  --texto-2: #b9c0c6;
+  --texto-3: #7c858c;
+  --linha: #3a4046;
+  --linha-forte: #7c858c;
+  --verde: #3fbf5f;
+  --verde-fraco: #1d3d27;
+  --ambar: #e0a200;
+  --perigo: #ff6b6b;
+  --metal-claro: #dde2e6;
+  --metal-medio: #aab2b8;
+  --metal-escuro: #7c858c;
+}
+
+html[data-tema="claro"] {
+  --fundo: #ffffff;
+  --fundo-2: #f2f4f6;
+  --fundo-3: #e6eaed;
+  --texto: #000000;
+  --texto-2: #3e464b;
+  --texto-3: #6b747a;
+  --linha: #c2cad0;
+  --linha-forte: #5c656b;
+  --verde: #0a7a33;
+  --verde-fraco: #d8f0e0;
+  --ambar: #8a6400;
+  --perigo: #b00020;
+  --metal-claro: #5c656b;
+  --metal-medio: #8d959b;
+  --metal-escuro: #c2cad0;
+}

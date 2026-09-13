@@ -1,0 +1,97 @@
+/* Tela inicial -------------------------------------------------------- */
+
+.inicio { max-width: 72rem; margin: 0 auto; }
+.inicio__cabecalho { margin-bottom: var(--e-5); }
+.inicio__cabecalho h1 { font-size: clamp(var(--t-28), 5vw, var(--t-40)); }
+.inicio__cabecalho p { color: var(--texto-2); font-family: var(--fonte-mono); font-size: var(--t-14); }
+
+.setores {
+  display: grid;
+  gap: var(--e-4);
+  grid-template-columns: repeat(4, 1fr);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+@media (max-width: 64rem) { .setores { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 34rem) { .setores { grid-template-columns: 1fr; } }
+
+.setor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-3);
+  text-align: left;
+  background: var(--fundo-2);
+  border: var(--borda) solid var(--linha-forte);
+  padding: var(--e-4);
+  color: var(--texto);
+  font: inherit;
+  cursor: pointer;
+  min-height: 100%;
+}
+.setor:hover:not([disabled]), .setor:focus-visible { border-color: var(--verde); background: var(--fundo-3); }
+.setor[disabled] { cursor: not-allowed; opacity: 0.6; }
+.setor__alien { width: 100%; height: 7rem; }
+.setor__alien svg { width: 100%; height: 100%; }
+.setor__nome { font-family: var(--fonte-mono); font-size: var(--t-16); font-weight: 700; }
+.setor__descricao { font-size: var(--t-14); color: var(--texto-2); margin: 0; }
+.setor__estado {
+  font-family: var(--fonte-mono);
+  font-size: var(--t-12);
+  color: var(--texto-3);
+  border-top: var(--borda) solid var(--linha);
+  padding-top: var(--e-2);
+  margin-top: auto;
+}
+.setor__estado--aberto { color: var(--verde); }
+
+.tira-aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--e-3);
+  border: var(--borda) solid var(--ambar);
+  background: var(--fundo-2);
+  padding: var(--e-3);
+  margin-bottom: var(--e-4);
+  font-family: var(--fonte-mono);
+  font-size: var(--t-14);
+}
+.tira-aviso p { margin: 0; }
+.tira-aviso .icone { color: var(--ambar); width: 1.5rem; height: 1.5rem; flex: none; }
+
+/* Bolsa --------------------------------------------------------------- */
+
+.bolsa-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-2); }
+.bolsa-item {
+  display: flex;
+  align-items: center;
+  gap: var(--e-3);
+  border: var(--borda) solid var(--linha);
+  padding: var(--e-2) var(--e-3);
+}
+.bolsa-item__dados { flex: 1; min-width: 0; }
+.bolsa-item__nome { font-family: var(--fonte-mono); font-size: var(--t-14); word-break: break-word; }
+.bolsa-item__meta { font-family: var(--fonte-mono); font-size: var(--t-12); color: var(--texto-3); }
+.bolsa-item .icone { color: var(--metal-medio); width: 1.75rem; height: 1.75rem; }
+
+.vazio {
+  border: var(--borda) dashed var(--linha-forte);
+  padding: var(--e-5);
+  text-align: center;
+  font-family: var(--fonte-mono);
+  font-size: var(--t-14);
+  color: var(--texto-2);
+}
+.vazio p { margin: 0 auto var(--e-3); }
+
+.fala-alien {
+  display: flex;
+  gap: var(--e-3);
+  align-items: flex-start;
+  border-left: var(--borda) solid var(--verde);
+  padding-left: var(--e-3);
+  margin-bottom: var(--e-4);
+}
+.fala-alien svg { width: 4rem; height: 4rem; flex: none; }
+.fala-alien p { font-size: var(--t-14); margin: 0; }
+.fala-alien strong { font-family: var(--fonte-mono); color: var(--verde); }
