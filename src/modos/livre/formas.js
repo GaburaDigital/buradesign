@@ -74,30 +74,45 @@ function engrenagemCaminho({ diametro, dentes, altura, furo, formato }) {
   const paper = cena.paper;
   const raioExterno = diametro / 2;
   const alturaDente = raioExterno * (altura / 100);
-  const raioInterno = raioExterno - alturaDente;
+  const raioInterno = Math.max(raioExterno * 0.2, raioExterno - alturaDente);
   const passo = (Math.PI * 2) / dentes;
-  const caminho = new paper.Path({ closed: true });
+  const roda = new paper.Path({ closed: true });
+  const pontasDoDente = [];
 
   const ponto = (raio, angulo) =>
     new paper.Point(Math.cos(angulo) * raio, Math.sin(angulo) * raio);
 
+  const larguraTopo = formato === "quadrado" ? 0.5 : 0.3;
+  const larguraBase = 0.5;
+
   for (let indice = 0; indice < dentes; indice += 1) {
     const base = indice * passo;
-    const larguraTopo = formato === "quadrado" ? 0.5 : 0.3;
-    const larguraBase = 0.5;
-    caminho.add(ponto(raioInterno, base - passo * larguraBase * 0.5));
-    caminho.add(ponto(raioExterno, base - passo * larguraTopo * 0.5));
-    const topo = caminho.add(ponto(raioExterno, base + passo * larguraTopo * 0.5));
-    if (formato === "arredondado") topo.smooth({ type: "catmull-rom", factor: 0.4 });
-    caminho.add(ponto(raioInterno, base + passo * larguraBase * 0.5));
+    roda.add(ponto(raioInterno, base - passo * larguraBase * 0.5));
+    roda.add(ponto(raioExterno, base - passo * larguraTopo * 0.5));
+    pontasDoDente.push(roda.segments.length - 1);
+    roda.add(ponto(raioExterno, base + passo * larguraTopo * 0.5));
+    pontasDoDente.push(roda.segments.length - 1);
+    roda.add(ponto(raioInterno, base + passo * larguraBase * 0.5));
+  }
+
+  // O arredondamento só pode ser aplicado com o caminho inteiro montado.
+  // Suavizar durante a construção deixava cada dente com um formato.
+  if (formato === "arredondado") {
+    for (const indice of pontasDoDente) {
+      roda.segments[indice].smooth({ type: "catmull-rom", factor: 0.3 });
+    }
   }
 
   if (furo > 0 && furo < raioInterno * 1.9) {
     const buraco = new paper.Path.Circle(new paper.Point(0, 0), furo / 2);
-    const composto = new paper.CompoundPath({ children: [caminho, buraco] });
-    return composto;
+    // Subtrair abre um furo de verdade. Só empilhar os dois caminhos deixava
+    // o miolo cheio, porque os dois giravam no mesmo sentido.
+    const vazada = roda.subtract(buraco, { insert: false });
+    roda.remove();
+    buraco.remove();
+    return vazada;
   }
-  return caminho;
+  return roda;
 }
 
 // Devolve o caminho cru da forma, centrado na origem.

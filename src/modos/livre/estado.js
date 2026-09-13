@@ -35,6 +35,33 @@ export const CORES = {
     contorno: "#101417",
     guia: "#0a7a33",
   },
+  sistema: {
+    fundoMesa: "#2c3136",
+    gradeFina: "#3b424a",
+    gradeGrossa: "#576069",
+    borda: "#8d979e",
+    texto: "#c3cbd1",
+    contorno: "#ffffff",
+    guia: "#00e5a0",
+  },
+  rosa: {
+    fundoMesa: "#3a1545",
+    gradeFina: "#4d2059",
+    gradeGrossa: "#713287",
+    borda: "#b167c9",
+    texto: "#e6b9de",
+    contorno: "#ffe9f7",
+    guia: "#ff5f8d",
+  },
+  flash: {
+    fundoMesa: "#fffdfd",
+    gradeFina: "#ffdedb",
+    gradeGrossa: "#f2b3ae",
+    borda: "#b21f1f",
+    texto: "#8c1c1c",
+    contorno: "#5e0a0a",
+    guia: "#e6a800",
+  },
 };
 
 export const NEGATIVO = { contorno: "#e03131", preenchimento: "#ff9f43" };
@@ -50,7 +77,13 @@ export const CORES_PECA = [
 ];
 
 export function paleta() {
-  return CORES[document.documentElement.dataset.tema === "claro" ? "claro" : "escuro"];
+  return CORES[document.documentElement.dataset.tema] || CORES.escuro;
+}
+
+// Alças maiores ajudam quem está começando e quem usa o dedo na tela.
+export function escalaDasAlcas() {
+  const escala = Number(valor("alcas"));
+  return Number.isFinite(escala) && escala > 0 ? escala : 1;
 }
 
 // --- Unidades ---------------------------------------------------------

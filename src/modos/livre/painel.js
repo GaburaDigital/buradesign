@@ -30,12 +30,17 @@ function campoNumero(rotulo, valorAtual, aoAplicar, opcoes = {}) {
   const campo = document.createElement("input");
   campo.type = "number";
   campo.value = String(Number(valorAtual.toFixed(opcoes.inteiro ? 0 : 2)));
-  campo.step = opcoes.inteiro ? "1" : unidade() === "cm" ? "0.1" : "1";
+  // Campo sem unidade (porcentagem, quantidade) anda de 1 em 1. Antes ele
+  // herdava o passo de 0,1 do centímetro, e clicar na setinha parecia não
+  // fazer nada na forma.
+  campo.step = opcoes.inteiro || opcoes.semUnidade ? "1" : unidade() === "cm" ? "0.1" : "1";
+  campo.dataset.campo = rotulo;
   if (opcoes.min !== undefined) campo.min = String(opcoes.min);
   if (opcoes.max !== undefined) campo.max = String(opcoes.max);
   const aplicar = () => {
     const numero = Number(campo.value);
     if (!Number.isFinite(numero)) return;
+    ultimoCampoEditado = rotulo;
     aoAplicar(numero);
   };
   campo.addEventListener("change", aplicar);
@@ -391,7 +396,44 @@ function blocoRemodelar() {
   return secao;
 }
 
+function blocoCaminhoAberto(item) {
+  const secao = grupo("Caminho aberto");
+  const nota = document.createElement("p");
+  nota.className = "dica";
+  nota.textContent = "Este caminho não está fechado. Dá para continuar do ponto onde parou.";
+  secao.append(
+    nota,
+    linhaBotoes(
+      botao("caneta", "Continuar desenho", () => aoPedirContinuar(item)),
+      botao("fecharForma", "Fechar forma", () => {
+        item.closed = true;
+        registrar();
+        desenhar();
+      }),
+    ),
+  );
+  return secao;
+}
+
+let aoPedirContinuar = () => {};
+
+export function ligarContinuacao(funcao) {
+  aoPedirContinuar = funcao;
+}
+
 // --- Montagem ----------------------------------------------------------
+
+let ultimoCampoEditado = null;
+
+function devolverFoco() {
+  if (!ultimoCampoEditado || !area) return;
+  const alvo = area.querySelector(`input[data-campo="${ultimoCampoEditado}"]`);
+  if (alvo) {
+    alvo.focus();
+    alvo.select();
+  }
+  ultimoCampoEditado = null;
+}
 
 export function desenhar() {
   if (!area) return;
@@ -418,7 +460,11 @@ export function desenhar() {
     const parametros =
       item.data.tipo === "texto" ? blocoTexto(item) : blocoParametros(item);
     if (parametros) area.append(parametros);
+    if (item.segments && !item.closed && item.segments.length >= 2) {
+      area.append(blocoCaminhoAberto(item));
+    }
     area.append(blocoAjusteFino(item), blocoAparencia(item), blocoAcoesPeca(itens));
+    devolverFoco();
     return;
   }
 

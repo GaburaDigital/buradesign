@@ -82,6 +82,9 @@ export function abrirAjustes() {
     seletor("tema", t("ajustes.tema"), [
       { valor: "escuro", rotulo: t("ajustes.temaEscuro") },
       { valor: "claro", rotulo: t("ajustes.temaClaro") },
+      { valor: "sistema", rotulo: t("ajustes.temaSistema") },
+      { valor: "rosa", rotulo: t("ajustes.temaRosa") },
+      { valor: "flash", rotulo: t("ajustes.temaFlash") },
     ]),
     interruptor("som", t("ajustes.somAtivo")),
     seletor("volume", t("ajustes.volume"), [
@@ -122,6 +125,17 @@ export function abrirAjustes() {
       ],
       "Quanto menor o passo, mais fino o ajuste das peças.",
     ),
+    seletor(
+      "alcas",
+      t("ajustes.alcas"),
+      [
+        { valor: 1, rotulo: t("ajustes.alcasNormal") },
+        { valor: 1.6, rotulo: t("ajustes.alcasGrande") },
+        { valor: 2.4, rotulo: t("ajustes.alcasEnorme") },
+      ],
+      t("ajustes.alcasAjuda"),
+    ),
+    interruptor("salvarSozinho", t("ajustes.salvarSozinho")),
     interruptor("bootRapido", t("ajustes.bootRapido")),
     interruptor("avisoDispositivo", t("ajustes.avisoDispositivo")),
   );

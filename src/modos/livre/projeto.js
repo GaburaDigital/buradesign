@@ -1,7 +1,7 @@
 // Guardar e sair: cache do navegador, arquivo do projeto, exportação em SVG
 // e envio de peças para a Bolsa.
 
-import { cena, limparSelecao } from "./estado.js";
+import { cena, limparSelecao, definirSelecao, paleta, proximaCor } from "./estado.js";
 import * as deposito from "../../core/deposito.js";
 import { adicionar as guardarNaBolsa } from "../../core/bolsa.js";
 import { baixarTexto, baixarJSON, carimboDeData } from "../../core/arquivos.js";
@@ -10,11 +10,12 @@ export const FORMATO = "buradesign.projeto";
 export const VERSAO = 1;
 export const ID_CACHE = "livre2d:atual";
 
-export function empacotar() {
+export function empacotar(nome) {
   return {
     formato: FORMATO,
     versao: VERSAO,
     modo: "livre2d",
+    nome: nome || "Projeto sem nome",
     mesa: { ...cena.mesa },
     pecas: cena.camadaPecas.exportJSON({ asString: true, precision: 4 }),
     salvoEm: new Date().toISOString(),
@@ -38,15 +39,40 @@ export function desempacotar(pacote) {
   return cena.mesa;
 }
 
-export async function salvarNoCache() {
-  const pacote = empacotar();
+// Salvamento automático: sempre na mesma gaveta, para o aluno não perder o
+// trabalho se o computador travar ou a aba fechar.
+export async function salvarNoCache(nome) {
+  const pacote = empacotar(nome);
   await deposito.guardar("projetos", {
     id: ID_CACHE,
-    nome: "Criação Livre 2D",
+    nome: pacote.nome,
     criadoEm: Date.now(),
     pacote,
   });
   return pacote;
+}
+
+// Salvamento com nome: cada um vira uma gaveta própria no navegador.
+export async function salvarComNome(nome) {
+  const pacote = empacotar(nome);
+  const registro = {
+    id: deposito.novoId("projeto"),
+    nome: pacote.nome,
+    modo: "livre2d",
+    criadoEm: Date.now(),
+    pacote,
+  };
+  await deposito.guardar("projetos", registro);
+  return registro;
+}
+
+export async function listarSalvos() {
+  const todos = await deposito.listar("projetos");
+  return todos.filter((registro) => registro.id !== ID_CACHE);
+}
+
+export async function apagarSalvo(id) {
+  await deposito.remover("projetos", id);
 }
 
 export async function lerDoCache() {
@@ -66,8 +92,21 @@ export async function limparCache() {
   }
 }
 
-export function baixarProjeto() {
-  baixarJSON(`projeto_2d_${carimboDeData()}.burad.json`, empacotar());
+export function baixarProjeto(nome) {
+  const limpo = nomeDeArquivo(nome || "projeto_2d");
+  baixarJSON(`${limpo}_${carimboDeData()}.burad.json`, empacotar(nome));
+}
+
+// Nome de arquivo seguro: sem acento, sem espaço, sem barra.
+export function nomeDeArquivo(bruto) {
+  return (
+    String(bruto)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9_-]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 40) || "sem_nome"
+  );
 }
 
 // --- Exportação para corte -------------------------------------------
@@ -122,10 +161,43 @@ ${miolo}
 `;
 }
 
-export function exportarSVG(opcoes) {
+export function exportarSVG(opcoes = {}) {
   const texto = montarSVG(opcoes);
-  baixarTexto(`corte_2d_${carimboDeData()}.svg`, texto, "image/svg+xml");
+  const limpo = nomeDeArquivo(opcoes.nome || "corte_2d");
+  baixarTexto(`${limpo}_${carimboDeData()}.svg`, texto, "image/svg+xml");
   return texto;
+}
+
+// Traz uma peça da bolsa para a mesa.
+export function colocarSVGNaMesa(svg, nome) {
+  if (!svg) return null;
+  // Peças antigas da bolsa guardavam só o <g>. O importador precisa de um
+  // documento SVG completo, então embrulhamos quando faltar.
+  const documento = String(svg).trim().startsWith("<svg")
+    ? svg
+    : `<svg xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
+  const importado = cena.paper.project.importSVG(documento, { expandShapes: true, insert: false });
+  if (!importado) return null;
+  cena.camadaPecas.addChild(importado);
+  const tons = paleta();
+  const vestirTudo = (item) => {
+    if (item.children && item.children.length && !item.segments) item.children.forEach(vestirTudo);
+    item.strokeColor = tons.contorno;
+    item.strokeWidth = 0.4;
+    item.strokeScaling = false;
+  };
+  vestirTudo(importado);
+  importado.data = {
+    tipo: "caminho",
+    params: {},
+    rotacao: 0,
+    cor: proximaCor(),
+    negativo: false,
+    veioDaBolsa: nome || "",
+  };
+  importado.position = new cena.paper.Point(cena.mesa.largura / 2, cena.mesa.altura / 2);
+  definirSelecao([importado]);
+  return importado;
 }
 
 // --- Bolsa ------------------------------------------------------------
@@ -135,8 +207,11 @@ export async function enviarParaBolsa(nome) {
   const grupo = new cena.paper.Group(cena.selecao.map((item) => item.clone({ insert: false })));
   cena.camadaPecas.addChild(grupo);
   const caixa = grupo.bounds;
-  const svg = grupo.exportSVG({ asString: true, precision: 4 });
+  const miolo = grupo.exportSVG({ asString: true, precision: 4 });
   grupo.remove();
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${caixa.width.toFixed(2)}mm"` +
+    ` height="${caixa.height.toFixed(2)}mm">${miolo}</svg>`;
 
   return guardarNaBolsa({
     nome: nome || "Peça 2D",

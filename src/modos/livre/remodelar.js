@@ -2,7 +2,7 @@
 // arrasta a própria linha para curvar. Os pontos selecionados podem virar
 // canto ou curva.
 
-import { cena, paleta, encaixarPonto } from "./estado.js";
+import { cena, paleta, encaixarPonto, escalaDasAlcas } from "./estado.js";
 import { registrar } from "./historico.js";
 import { avisar } from "../../core/eventos.js";
 
@@ -42,7 +42,7 @@ export function desenharNos() {
   const tons = paleta();
   const anterior = paper.project.activeLayer;
   cena.camadaGuias.activate();
-  const lado = 7 / paper.view.zoom;
+  const lado = (7 * escalaDasAlcas()) / paper.view.zoom;
 
   alvo.segments.forEach((segmento, indice) => {
     const marcado = segmentosMarcados.has(indice);
@@ -82,7 +82,7 @@ function guiaEm(ponto) {
   const achado = cena.camadaGuias.hitTest(ponto, {
     fill: true,
     stroke: true,
-    tolerance: 6 / cena.paper.view.zoom,
+    tolerance: (6 * escalaDasAlcas()) / cena.paper.view.zoom,
   });
   return achado && achado.item.data && achado.item.data.papel ? achado.item : null;
 }

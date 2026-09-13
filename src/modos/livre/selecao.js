@@ -3,7 +3,15 @@
 // Shift trava o movimento em linha reta, gira de 45 em 45 graus e mantém a
 // proporção ao escalar.
 
-import { cena, definirSelecao, limparSelecao, encaixar, encaixarPonto, paleta } from "./estado.js";
+import {
+  cena,
+  definirSelecao,
+  limparSelecao,
+  encaixar,
+  encaixarPonto,
+  paleta,
+  escalaDasAlcas,
+} from "./estado.js";
 import { registrar } from "./historico.js";
 
 const CANTOS = [
@@ -54,7 +62,7 @@ export function atualizarGuias() {
   moldura.strokeScaling = false;
   moldura.dashArray = [4, 3];
 
-  const lado = 8 / paper.view.zoom;
+  const lado = (8 * escalaDasAlcas()) / paper.view.zoom;
   for (const canto of CANTOS) {
     const centro = new paper.Point(
       caixa.x + caixa.width * canto.x,
@@ -71,7 +79,7 @@ export function atualizarGuias() {
     alca.data = { papel: "escala", canto: canto.id };
   }
 
-  const alturaHaste = 26 / paper.view.zoom;
+  const alturaHaste = (26 * escalaDasAlcas()) / paper.view.zoom;
   const topo = new paper.Point(caixa.center.x, caixa.y);
   const haste = new paper.Path.Line(topo, topo.subtract([0, alturaHaste]));
   haste.strokeColor = tons.guia;
@@ -92,7 +100,7 @@ function alcaEm(ponto) {
   const alvo = cena.camadaGuias.hitTest(ponto, {
     fill: true,
     stroke: true,
-    tolerance: 6 / cena.paper.view.zoom,
+    tolerance: (6 * escalaDasAlcas()) / cena.paper.view.zoom,
   });
   return alvo && alvo.item.data && alvo.item.data.papel ? alvo.item : null;
 }

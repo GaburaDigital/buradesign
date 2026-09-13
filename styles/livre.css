@@ -175,3 +175,9 @@
   .so-estreito { display: inline-flex; }
   .livre__corpo { position: relative; }
 }
+
+/* Botões que só fazem sentido com a caneta na mão. */
+.acao-caneta { display: none; }
+.livre--caneta .acao-caneta { display: inline-flex; }
+.livre--mao .livre__palco canvas { cursor: grab; }
+.livre--mao .livre__palco canvas:active { cursor: grabbing; }

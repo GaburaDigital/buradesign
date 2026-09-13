@@ -114,3 +114,54 @@ export function mostrarAviso(texto, tipo = "ok") {
   caixaDeAvisos().append(aviso);
   setTimeout(() => aviso.remove(), 4200);
 }
+
+// Pergunta um texto curto numa janela própria. Substitui o window.prompt, que
+// alguns navegadores bloqueiam e que não combina com o visual da oficina.
+export function perguntarTexto(titulo, pergunta, valorInicial = "") {
+  return new Promise((resolver) => {
+    const corpo = document.createElement("div");
+    const rotulo = document.createElement("label");
+    rotulo.className = "campo";
+    rotulo.innerHTML = `<span class="campo__rotulo">${pergunta}</span>`;
+    const campo = document.createElement("input");
+    campo.type = "text";
+    campo.value = valorInicial;
+    campo.maxLength = 60;
+    rotulo.append(campo);
+    corpo.append(rotulo);
+
+    let respondido = false;
+    const responder = (resposta) => {
+      if (respondido) return;
+      respondido = true;
+      resolver(resposta);
+      fecharPainel();
+    };
+
+    campo.addEventListener("keydown", (evento) => {
+      if (evento.key === "Enter") {
+        evento.preventDefault();
+        responder(campo.value.trim() || valorInicial);
+      }
+    });
+
+    abrirPainel({
+      titulo,
+      corpo,
+      botoes: [
+        {
+          rotulo: t("acoes.confirmar"),
+          variante: "destaque",
+          aoClicar: () => responder(campo.value.trim() || valorInicial),
+        },
+        { rotulo: t("acoes.cancelar"), aoClicar: () => responder(null) },
+      ],
+      aoFechar: () => responder(null),
+    });
+
+    setTimeout(() => {
+      campo.focus();
+      campo.select();
+    }, 30);
+  });
+}

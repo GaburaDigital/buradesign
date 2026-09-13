@@ -32,7 +32,14 @@ const FERRAMENTAS = {
   menos: `<path d="M5 12 H19" ${D}/>`,
   enquadrar: `<path d="M4 9 V4 H9 M15 4 H20 V9 M20 15 V20 H15 M9 20 H4 V15" ${D}/><rect x="9" y="9" width="6" height="6" ${V}/>`,
   pasta: `<path d="M3 19 V6 H10 L12 8.5 H21 V19 Z" ${D}/>`,
-  exportar: `<path d="M12 15 V4 M8 8 L12 4 L16 8" ${V}/><path d="M4 14 V20 H20 V14" ${D}/>`,
+  exportar: `<path d="M6 3.5 H14 L18 7.5 V15" ${D}/><path d="M14 3.5 V7.5 H18" ${D}/>
+    <path d="M9 8.5 H11 M9 11.5 H14" ${D}/>
+    <path d="M12 15 V21 M9 18 L12 21 L15 18" ${V}/>
+    <path d="M3 15 H21" ${D}/>`,
+  mao: `<path d="M9 12.5 V5.5 a1.6 1.6 0 0 1 3.2 0 V11 V4.6 a1.6 1.6 0 0 1 3.2 0 V11 V6.4 a1.6 1.6 0 0 1 3.2 0 V15 a6 6 0 0 1 -6 6 h-1.6 a5 5 0 0 1 -4 -2 L4 14 a1.7 1.7 0 0 1 2.6 -2.1 z" ${D}/>`,
+  concluir: `<path d="M4 12.5 L9.5 18 L20 6" ${V}/>`,
+  fecharForma: `<path d="M6 18 C 8 6, 16 6, 18 18" ${D}/><path d="M6 18 H18" ${V}/>
+    <rect x="3.5" y="16" width="5" height="5" ${D}/><rect x="15.5" y="16" width="5" height="5" ${D}/>`,
   alinharEsquerda: `<path d="M4 3 V21" ${V}/><rect x="7" y="5.5" width="12" height="4" ${D}/><rect x="7" y="14.5" width="7" height="4" ${D}/>`,
   alinharCentroH: `<path d="M12 3 V21" ${V}/><rect x="4" y="5.5" width="16" height="4" ${D}/><rect x="7.5" y="14.5" width="9" height="4" ${D}/>`,
   alinharDireita: `<path d="M20 3 V21" ${V}/><rect x="5" y="5.5" width="12" height="4" ${D}/><rect x="10" y="14.5" width="7" height="4" ${D}/>`,

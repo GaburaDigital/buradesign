@@ -6,7 +6,19 @@ import { tocar } from "../core/som.js";
 import { baixarJSON, escolherArquivo, lerJSON, carimboDeData } from "../core/arquivos.js";
 import { icone } from "./icones.js";
 import { fala } from "./aliens.js";
-import { abrirPainel, confirmar, mostrarAviso } from "./painel.js";
+import { abrirPainel, confirmar, mostrarAviso, perguntarTexto } from "./painel.js";
+
+// O setor de desenho aberto registra aqui como receber uma peça da bolsa.
+// Sem setor aberto, o botão de colocar na mesa não aparece.
+let destino = null;
+
+export function definirDestino(funcao) {
+  destino = typeof funcao === "function" ? funcao : null;
+}
+
+export function limparDestino() {
+  destino = null;
+}
 
 function quando(marca) {
   try {
@@ -53,6 +65,26 @@ async function desenharLista(area) {
         <div class="bolsa-item__nome">${item.nome}</div>
         <div class="bolsa-item__meta">${bolsa.TIPOS[item.tipo]} · ${quando(item.criadoEm)}</div>
       </div>`;
+    if (destino) {
+      const colocar = document.createElement("button");
+      colocar.type = "button";
+      colocar.className = "botao botao--destaque";
+      colocar.title = t("acoes.colocarNaMesa");
+      colocar.setAttribute("aria-label", `${t("acoes.colocarNaMesa")}: ${item.nome}`);
+      colocar.innerHTML = `${icone("baixar")}<span class="rotulo-acao">${t("acoes.colocarNaMesa")}</span>`;
+      colocar.addEventListener("click", () => {
+        const deu = destino(item);
+        if (deu === false) {
+          mostrarAviso(t("bolsa.semDestino"), "alerta");
+          tocar("erro");
+          return;
+        }
+        tocar("pronto");
+        mostrarAviso(t("bolsa.colocada"));
+      });
+      linha.append(colocar);
+    }
+
     const apagar = document.createElement("button");
     apagar.type = "button";
     apagar.className = "botao botao--icone botao--perigo";
@@ -85,8 +117,20 @@ export function abrirBolsa() {
         rotulo: t("acoes.exportar"),
         icone: "baixar",
         aoClicar: async () => {
+          const nome = await perguntarTexto(
+            t("acoes.exportar"),
+            t("bolsa.nomeArquivo"),
+            "bolsa_buradesign",
+          );
+          if (nome === null) return;
           const pacote = await bolsa.exportar();
-          baixarJSON(`bolsa_buradesign_${carimboDeData()}.json`, pacote);
+          const limpo =
+            nome
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .replace(/[^a-zA-Z0-9_-]+/g, "_")
+              .slice(0, 40) || "bolsa_buradesign";
+          baixarJSON(`${limpo}_${carimboDeData()}.json`, pacote);
           tocar("salvar");
           mostrarAviso(t("bolsa.baixada"));
         },

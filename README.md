@@ -81,11 +81,35 @@ real da mesa. A cor de preenchimento é apenas para enxergar na tela e não sai
 no corte. Se houver peças selecionadas, exporta só elas; se não houver,
 exporta a mesa inteira.
 
-### Atalhos de teclado
+### Atalhos de teclado e mouse
 
-V seleciona, N remodela, P é a caneta. Ctrl+Z desfaz, Ctrl+Shift+Z refaz,
-Ctrl+A seleciona tudo, Ctrl+D duplica, Delete apaga, as setas empurram a peça
-de um passo do grid.
+V seleciona, H arrasta a vista, N remodela, P é a caneta. Ctrl+Z desfaz,
+Ctrl+Shift+Z refaz, Ctrl+A seleciona tudo, Ctrl+D duplica, Delete apaga, as
+setas empurram a peça de um passo do grid.
+
+Segurar o **botão do meio do mouse** arrasta a vista em qualquer ferramenta.
+**Dois cliques** com a seta em cima de uma peça caem direto no remodelador. No
+celular e no tablet, a ferramenta **Arrastar**, com ícone de mãozinha, faz o
+papel do botão do meio.
+
+### Salvamento
+
+O projeto é salvo sozinho no navegador a cada mudança, para o aluno não perder
+nada se o aparelho travar ou a aba fechar. O botão de salvar guarda uma cópia
+com nome, e o de abrir lista tudo que está salvo. O botão vermelho **Limpar
+base** esvazia a mesa e pede confirmação antes.
+
+O salvamento automático pode ser desligado nos Ajustes.
+
+### Temas
+
+Cinco: Escuro, Claro, Sistema (cinzas com marcações vivas), Rosa (rosa e roxo
+com marcações claras) e Flash (vermelho e branco, seleção em amarelo, botões
+com textura). A mesa de corte acompanha o tema escolhido.
+
+Nos Ajustes também dá para aumentar o **tamanho das alças** de seleção, giro e
+dos pontos do remodelador, o que ajuda muito quem está começando e quem usa o
+dedo na tela.
 
 | Fase | Entrega |
 | --- | --- |

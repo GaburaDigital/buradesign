@@ -21,7 +21,7 @@ p { margin: 0 0 var(--e-3); max-width: 68ch; }
 a { color: var(--verde); }
 
 :focus-visible {
-  outline: 2px solid var(--verde);
+  outline: 3px solid var(--selecao, var(--verde));
   outline-offset: 2px;
 }
 
@@ -99,4 +99,32 @@ select, input[type="text"], input[type="file"] {
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+/* Tema Flash: botões com textura listrada, seleção em amarelo. */
+html[data-tema="flash"] .botao,
+html[data-tema="flash"] .ferramenta,
+html[data-tema="flash"] .tinta {
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--linha-forte) 14%, transparent) 0 3px,
+    transparent 3px 7px
+  );
+  border-color: var(--linha-forte);
+  font-weight: 700;
+}
+html[data-tema="flash"] .botao:hover,
+html[data-tema="flash"] .ferramenta:hover {
+  background-color: var(--fundo-3);
+  border-color: var(--perigo);
+}
+html[data-tema="flash"] .ferramenta--ativa,
+html[data-tema="flash"] .botao--destaque {
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--selecao) 55%, transparent) 0 4px,
+    transparent 4px 9px
+  );
+  border-color: var(--selecao);
+  color: var(--texto);
 }

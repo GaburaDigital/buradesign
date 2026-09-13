@@ -13,6 +13,8 @@ export const PADRAO = Object.freeze({
   snap: 5,
   bootRapido: false,
   avisoDispositivo: true,
+  alcas: 1,
+  salvarSozinho: true,
   idioma: "pt-BR",
 });
 
@@ -86,7 +88,14 @@ export function esquecerGuardados() {
 
 function aplicarTema() {
   document.documentElement.dataset.tema = atuais.tema;
-  const cor = atuais.tema === "claro" ? "#ffffff" : "#000000";
+  const cores = {
+    escuro: "#000000",
+    claro: "#ffffff",
+    sistema: "#23272b",
+    rosa: "#2a0f33",
+    flash: "#fffdfd",
+  };
+  const cor = cores[atuais.tema] || "#000000";
   const etiqueta = document.querySelector('meta[name="theme-color"]');
   if (etiqueta) etiqueta.setAttribute("content", cor);
 }

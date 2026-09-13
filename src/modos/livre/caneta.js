@@ -29,9 +29,40 @@ function comecar(ponto) {
   avisar("livre:caneta", { desenhando: true });
 }
 
+// Clicar na ponta de um caminho aberto continua o desenho dele, como no
+// Inkscape. Se a ponta for o começo, o caminho é invertido antes.
+export function continuarDe(item, ponto) {
+  if (!item || !item.segments || item.closed || item.segments.length < 2) return false;
+  const limite = 10 / cena.paper.view.zoom;
+  const inicio = item.firstSegment.point;
+  const fim = item.lastSegment.point;
+  const perto = (alvo) => ponto && ponto.getDistance(alvo) <= limite;
+  if (!ponto || (!perto(inicio) && !perto(fim))) return false;
+  if (perto(inicio) && !perto(fim)) item.reverse();
+  caminho = item;
+  avisar("livre:caneta", { desenhando: true });
+  return true;
+}
+
+export function pontaMaisProxima(item, ponto) {
+  if (!item || !item.segments || item.closed) return null;
+  const limite = 10 / cena.paper.view.zoom;
+  const inicio = item.firstSegment.point;
+  const fim = item.lastSegment.point;
+  if (ponto.getDistance(inicio) <= limite) return "inicio";
+  if (ponto.getDistance(fim) <= limite) return "fim";
+  return null;
+}
+
 export function aoPressionar(evento) {
   const ponto = encaixarPonto(evento.point);
   if (!caminho) {
+    const acertou = cena.camadaPecas.hitTest(evento.point, {
+      segments: true,
+      stroke: true,
+      tolerance: 8 / cena.paper.view.zoom,
+    });
+    if (acertou && continuarDe(acertou.item, evento.point)) return;
     comecar(ponto);
     return;
   }
