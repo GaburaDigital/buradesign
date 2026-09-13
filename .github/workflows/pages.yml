@@ -1,0 +1,43 @@
+# Publica o site no GitHub Pages.
+#
+# Use este arquivo SÓ se, em Settings > Pages, a opção "Source" estiver como
+# "GitHub Actions". Se estiver como "Deploy from a branch", apague este
+# arquivo: o GitHub publica sozinho e este workflow vai falhar por conflito.
+
+name: Publicar no GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@v4
+
+      - name: Preparar o Pages
+        uses: actions/configure-pages@v5
+
+      - name: Empacotar o site inteiro
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Publicar
+        id: deploy
+        uses: actions/deploy-pages@v4

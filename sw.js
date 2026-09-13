@@ -2,7 +2,7 @@
 // Ao somar ou renomear arquivos, atualize a lista ARQUIVOS e suba o número da
 // VERSAO. O cache antigo é apagado sozinho na ativação.
 
-const VERSAO = "0.3.0";
+const VERSAO = "0.3.1";
 const CACHE = `buradesign-${VERSAO}`;
 
 const ARQUIVOS = [
@@ -26,6 +26,8 @@ const ARQUIVOS = [
   "catalogo.json",
   "i18n/pt-BR.js",
   "index.html",
+  "libs/opentype/opentype.min.js",
+  "libs/paper/paper-core.min.js",
   "manifest.webmanifest",
   "src/core/ajustes.js",
   "src/core/app.js",
@@ -67,8 +69,6 @@ const ARQUIVOS = [
   "styles/shell.css",
   "styles/telas.css",
   "styles/tokens.css",
-  "vendor/opentype/opentype.min.js",
-  "vendor/paper/paper-core.min.js",
 ];
 
 self.addEventListener("install", (evento) => {

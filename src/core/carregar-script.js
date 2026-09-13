@@ -1,4 +1,4 @@
-// Carrega as bibliotecas de vendor/ só quando o setor precisa delas.
+// Carrega as bibliotecas de libs/ só quando o setor precisa delas.
 // Assim a tela inicial continua leve e nada depende de internet.
 
 const carregados = new Map();

@@ -105,7 +105,7 @@ de um passo do grid.
 - **Sem etapa de compilação.** Módulos ES nativos servidos direto pelo GitHub
   Pages. Clonar, abrir por um servidor local e já está rodando.
 - **Sem rede em tempo de execução.** Nenhuma CDN, nenhuma fonte externa,
-  nenhum arquivo de áudio. As bibliotecas ficam versionadas em `vendor/`.
+  nenhum arquivo de áudio. As bibliotecas ficam versionadas em `libs/`.
 - **Tudo em módulos pequenos.** Um arquivo por assunto, para que somar um setor
   não exija mexer na casca.
 
@@ -123,7 +123,7 @@ buradesign/
   src/ui/                 casca, painéis, ícones, aliens, tela inicial
   src/modos/              um módulo por setor, carregado sob demanda
   styles/                 tokens, base, casca, telas
-  vendor/                 bibliotecas versionadas (ver vendor/LEIA-ME.md)
+  libs/                 bibliotecas versionadas (ver libs/LEIA-ME.md)
   ATIVIDADES/             conteúdo dos exercícios (ver ATIVIDADES/LEIA-ME.md)
 ```
 
@@ -172,7 +172,7 @@ O seletor de idioma aparece nos Ajustes assim que existir mais de uma opção.
 ### Bibliotecas previstas
 
 Paper.js e opentype.js na fase 1, Three.js e three-bvh-csg na fase 2, Blockly
-na fase 3, Rapier na fase 5. Todas entram em `vendor/`, com a versão anotada.
+na fase 3, Rapier na fase 5. Todas entram em `libs/`, com a versão anotada.
 
 ### Testes manuais
 
@@ -180,6 +180,27 @@ Chrome e Safari, em janela larga, tablet e celular. Vale conferir: abertura e
 pulo da abertura, som ligado e desligado, troca de tema, salvar e recarregar,
 instalação como aplicativo, funcionamento com a rede desligada, e o ciclo
 completo de baixar e importar a Bolsa.
+
+### Publicar no GitHub Pages
+
+O site é estático: não tem etapa de compilação e o `index.html` fica na raiz.
+
+1. Em **Settings > Pages**, escolha **Source: Deploy from a branch**, branch
+   `main`, pasta `/ (root)`.
+2. Confirme que o `index.html` está na **raiz** do repositório, e não dentro de
+   uma pasta `buradesign/`. Se estiver dentro, o endereço não abre.
+3. O arquivo `.nojekyll` precisa estar na raiz. Ele desliga o Jekyll, que é o
+   processador que o GitHub aplica por padrão e que ignora algumas pastas.
+   Cuidado: ao arrastar arquivos para o navegador, o sistema costuma esconder
+   arquivos que começam com ponto. Se ele não subir, crie direto pelo site em
+   **Add file > Create new file**, com o nome `.nojekyll`, e salve vazio.
+4. Se preferir **Source: GitHub Actions**, mantenha o
+   `.github/workflows/pages.yml`. Se usar a opção de branch, **apague** esse
+   arquivo para não conflitar.
+
+As bibliotecas ficam em `libs/`, e não em `vendor/`, de propósito: `vendor` é
+um nome que o Jekyll costuma tratar como pasta de dependências e deixar de
+fora da publicação.
 
 ### Licença
 

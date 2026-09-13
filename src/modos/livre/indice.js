@@ -415,8 +415,8 @@ export async function montar(area, setor, aoVoltar) {
   });
 
   try {
-    await carregarScript("vendor/paper/paper-core.min.js", "paper");
-    await carregarScript("vendor/opentype/opentype.min.js", "opentype");
+    await carregarScript("libs/paper/paper-core.min.js", "paper");
+    await carregarScript("libs/opentype/opentype.min.js", "opentype");
     await texto.carregarCatalogo();
   } catch (erro) {
     console.error(erro);
