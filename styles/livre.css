@@ -181,3 +181,39 @@
 .livre--caneta .acao-caneta { display: inline-flex; }
 .livre--mao .livre__palco canvas { cursor: grab; }
 .livre--mao .livre__palco canvas:active { cursor: grabbing; }
+
+/* Modo 3D ------------------------------------------------------------- */
+
+.livre3d .livre__palco canvas { cursor: default; }
+.livre3d .livre__ferramentas { gap: var(--e-1); }
+.garra-modos {
+  display: flex;
+  gap: var(--e-1);
+  padding-bottom: var(--e-2);
+  border-bottom: var(--borda) solid var(--linha);
+  margin-bottom: var(--e-1);
+}
+.garra-modos .botao { flex: 1; justify-content: center; padding: var(--e-2); }
+
+.cubo-vistas {
+  position: absolute;
+  top: var(--e-2);
+  right: var(--e-2);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--e-1);
+  background: color-mix(in srgb, var(--fundo) 72%, transparent);
+  border: var(--borda) solid var(--linha-forte);
+  padding: var(--e-1);
+  max-width: 11rem;
+}
+.cubo-vistas .botao {
+  font-size: var(--t-12);
+  min-height: 1.9rem;
+  padding: var(--e-1);
+  justify-content: center;
+}
+
+@media (max-width: 64rem) {
+  .cubo-vistas { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: none; left: var(--e-2); }
+}

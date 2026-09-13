@@ -114,6 +114,10 @@ export default {
       nome: "Criação Livre",
       descricao: "Desenhe em 2D para corte e modele em 3D para impressão.",
     },
+    livre3d: {
+      nome: "Criação Livre 3D",
+      descricao: "Modele sólidos e exporte STL para a impressora 3D.",
+    },
     blocos: {
       nome: "Design com Programação",
       descricao: "Monte peças programando em blocos, com desafios para treinar.",

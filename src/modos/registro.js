@@ -12,6 +12,15 @@ export const SETORES = [
     carregar: () => import("./livre/indice.js"),
   },
   {
+    id: "livre3d",
+    alien: "zorp",
+    chaveNome: "setores.livre3d.nome",
+    chaveDescricao: "setores.livre3d.descricao",
+    aberto: true,
+    fase: 2,
+    carregar: () => import("./livre3d/indice.js"),
+  },
+  {
     id: "blocos",
     alien: "nibla",
     chaveNome: "setores.blocos.nome",

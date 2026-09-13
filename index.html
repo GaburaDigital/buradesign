@@ -13,6 +13,20 @@
 <link rel="stylesheet" href="styles/base.css">
 <link rel="stylesheet" href="styles/shell.css">
 <link rel="stylesheet" href="styles/telas.css">
+
+<!-- Mapa de importação: as bibliotecas 3D usam nomes curtos como "three".
+     Sem isto o navegador não sabe onde procurar. Fica aqui porque precisa
+     existir antes de qualquer módulo carregar. -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "./libs/three/three.module.js",
+    "three/addons/": "./libs/three/jsm/",
+    "three-mesh-bvh": "./libs/csg/three-mesh-bvh.module.js",
+    "three-bvh-csg": "./libs/csg/three-bvh-csg.module.js"
+  }
+}
+</script>
 </head>
 <body>
 <a class="pular-para-conteudo" href="#conteudo">Pular para o conteúdo</a>

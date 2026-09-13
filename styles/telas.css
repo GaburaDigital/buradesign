@@ -73,6 +73,28 @@
 .bolsa-item__nome { font-family: var(--fonte-mono); font-size: var(--t-14); word-break: break-word; }
 .bolsa-item__meta { font-family: var(--fonte-mono); font-size: var(--t-12); color: var(--texto-3); }
 .bolsa-item .icone { color: var(--metal-medio); width: 1.75rem; height: 1.75rem; }
+.bolsa-item__previa {
+  flex: none;
+  width: 3.25rem;
+  height: 3.25rem;
+  display: grid;
+  place-items: center;
+  border: var(--borda) solid var(--linha);
+  background: var(--fundo-2);
+  padding: 2px;
+}
+.bolsa-item__previa img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  display: block;
+}
+html[data-tema="escuro"] .bolsa-item__previa img,
+html[data-tema="sistema"] .bolsa-item__previa img,
+html[data-tema="rosa"] .bolsa-item__previa img {
+  filter: invert(1) hue-rotate(180deg);
+}
 
 .vazio {
   border: var(--borda) dashed var(--linha-forte);

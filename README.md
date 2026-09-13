@@ -18,7 +18,8 @@ cuida de um setor:
 
 | Setor | Responsável | O que o aluno faz |
 | --- | --- | --- |
-| Criação Livre | ZORP | desenha em 2D e modela em 3D do jeito tradicional |
+| Criação Livre 2D | ZORP | desenha para corte a laser |
+| Criação Livre 3D | ZORP | modela sólidos para impressão 3D |
 | Design com Programação | NIBLA | cria as mesmas peças programando em blocos |
 | Montagem com Peças Cortadas | KRUX | monta em 3D e gera o plano de corte em chapa |
 | Simulação de Mecânica | PIP | testa alavancas, engrenagens e motores |
@@ -60,7 +61,7 @@ de substituir.
 
 ### Estado atual
 
-A fase 1 está no ar: o setor **Criação Livre** já funciona em 2D. Dá para
+As fases 1 e 2 estão no ar: **Criação Livre 2D** e **Criação Livre 3D**. Dá para
 desenhar formas, escrever texto com acento, curvar caminhos com a caneta,
 combinar peças com peça negativa, ajustar tudo por número e exportar o SVG
 para a cortadora. Os outros três setores ainda estão em obras.
@@ -91,6 +92,22 @@ Segurar o **botão do meio do mouse** arrasta a vista em qualquer ferramenta.
 **Dois cliques** com a seta em cima de uma peça caem direto no remodelador. No
 celular e no tablet, a ferramenta **Arrastar**, com ícone de mãozinha, faz o
 papel do botão do meio.
+
+### Setor Criação Livre 3D
+
+Clique num sólido da lista e ele aparece na base de impressão. Quatorze sólidos
+rígidos, do cubo à engrenagem, passando por palito de picolé e palito de
+churrasco. Botão direito gira a câmera, botão do meio arrasta, roda aproxima, e
+os botões de vista no canto levam a câmera para topo, frente, lados e trás.
+
+A garra tem três modos: mover (G), girar (R) e escalar (E). Cores e quatro
+texturas (lisa, xadrez, linhas e isopor) ajudam a enxergar volume.
+
+Para furar, marque a peça como negativa e clique em combinar: a booleana gera
+uma peça nova, e desunir volta atrás. Dá para importar STL, OBJ e GLB para
+modificar modelos prontos, e exportar STL da base inteira ou só da seleção.
+
+Peças negativas nunca entram na exportação.
 
 ### Salvamento
 

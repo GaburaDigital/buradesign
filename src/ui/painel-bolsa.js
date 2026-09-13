@@ -20,6 +20,30 @@ export function limparDestino() {
   destino = null;
 }
 
+// Miniatura da peça. Peça 2D vira imagem a partir do próprio SVG guardado;
+// peça 3D usa a foto gerada na hora de guardar. Sem nenhum dos dois, cai no
+// ícone de cubo.
+function previa(item) {
+  const dados = item.dados || {};
+  if (dados.svg) {
+    const limpo = String(dados.svg).replace(/\s+/g, " ");
+    const endereco = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(limpo)}`;
+    return `<span class="bolsa-item__previa"><img src="${endereco}" alt="" loading="lazy"></span>`;
+  }
+  if (dados.previa) {
+    return `<span class="bolsa-item__previa"><img src="${dados.previa}" alt="" loading="lazy"></span>`;
+  }
+  return `<span class="bolsa-item__previa bolsa-item__previa--vazia">${icone("cubo")}</span>`;
+}
+
+function medida(item) {
+  const dados = item.dados || {};
+  if (dados.larguraMm && dados.alturaMm) {
+    return ` · ${Math.round(dados.larguraMm)} x ${Math.round(dados.alturaMm)} mm`;
+  }
+  return "";
+}
+
 function quando(marca) {
   try {
     return new Date(marca).toLocaleDateString("pt-BR");
@@ -60,10 +84,10 @@ async function desenharLista(area) {
   for (const item of itens) {
     const linha = document.createElement("li");
     linha.className = "bolsa-item";
-    linha.innerHTML = `${icone("cubo")}
+    linha.innerHTML = `${previa(item)}
       <div class="bolsa-item__dados">
         <div class="bolsa-item__nome">${item.nome}</div>
-        <div class="bolsa-item__meta">${bolsa.TIPOS[item.tipo]} · ${quando(item.criadoEm)}</div>
+        <div class="bolsa-item__meta">${bolsa.TIPOS[item.tipo]}${medida(item)} · ${quando(item.criadoEm)}</div>
       </div>`;
     if (destino) {
       const colocar = document.createElement("button");

@@ -2,7 +2,7 @@
 // Ao somar ou renomear arquivos, atualize a lista ARQUIVOS e suba o número da
 // VERSAO. O cache antigo é apagado sozinho na ativação.
 
-const VERSAO = "0.4.0";
+const VERSAO = "0.5.0";
 const CACHE = `buradesign-${VERSAO}`;
 
 const ARQUIVOS = [
@@ -26,8 +26,19 @@ const ARQUIVOS = [
   "catalogo.json",
   "i18n/pt-BR.js",
   "index.html",
+  "libs/csg/three-bvh-csg.module.js",
+  "libs/csg/three-mesh-bvh.module.js",
   "libs/opentype/opentype.min.js",
   "libs/paper/paper-core.min.js",
+  "libs/three/jsm/BufferGeometryUtils.js",
+  "libs/three/jsm/controls/OrbitControls.js",
+  "libs/three/jsm/controls/TransformControls.js",
+  "libs/three/jsm/exporters/STLExporter.js",
+  "libs/three/jsm/loaders/GLTFLoader.js",
+  "libs/three/jsm/loaders/OBJLoader.js",
+  "libs/three/jsm/loaders/STLLoader.js",
+  "libs/three/jsm/utils/BufferGeometryUtils.js",
+  "libs/three/three.module.js",
   "manifest.webmanifest",
   "src/core/ajustes.js",
   "src/core/app.js",
@@ -55,6 +66,11 @@ const ARQUIVOS = [
   "src/modos/livre/remodelar.js",
   "src/modos/livre/selecao.js",
   "src/modos/livre/texto.js",
+  "src/modos/livre3d/cena.js",
+  "src/modos/livre3d/indice.js",
+  "src/modos/livre3d/pecas.js",
+  "src/modos/livre3d/projeto.js",
+  "src/modos/livre3d/solidos.js",
   "src/modos/registro.js",
   "src/ui/aliens.js",
   "src/ui/casca.js",

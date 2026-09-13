@@ -211,7 +211,9 @@ export async function enviarParaBolsa(nome) {
   grupo.remove();
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${caixa.width.toFixed(2)}mm"` +
-    ` height="${caixa.height.toFixed(2)}mm">${miolo}</svg>`;
+    ` height="${caixa.height.toFixed(2)}mm"` +
+    ` viewBox="${caixa.x.toFixed(2)} ${caixa.y.toFixed(2)} ${caixa.width.toFixed(2)} ${caixa.height.toFixed(2)}">` +
+    `${miolo}</svg>`;
 
   return guardarNaBolsa({
     nome: nome || "Peça 2D",
