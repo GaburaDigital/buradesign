@@ -81,7 +81,10 @@ function montarEsqueleto(area, aoVoltar) {
 
   const barra = raiz.querySelector(".livre__barra");
   barra.append(
-    botaoDaBarra("voltar", t("acoes.voltar"), aoVoltar, { usarIconeUI: true }),
+    botaoDaBarra("voltar", t("acoes.voltarSetor"), aoVoltar, {
+      usarIconeUI: true,
+      extra: "com-rotulo botao--destaque",
+    }),
     separador(),
     botaoDaBarra("desfazer", "Desfazer", () => {
       if (!historico.desfazer()) mostrarAviso("Nada para desfazer.", "alerta");
@@ -101,9 +104,7 @@ function montarEsqueleto(area, aoVoltar) {
     botaoDaBarra("menos", "Afastar", () => mesa.aproximar(1 / 1.25)),
     botaoDaBarra("mais", "Aproximar", () => mesa.aproximar(1.25)),
     botaoDaBarra("enquadrar", "Enquadrar mesa", () => mesa.enquadrar()),
-    botaoDaBarra("cubo3d", "Alternar para 3D", () =>
-      mostrarAviso("A visualização 3D chega na fase 2 da oficina.", "alerta"),
-    ),
+    botaoDaBarra("cubo3d", "Alternar para 3D", aoVoltar, { extra: "com-rotulo" }),
     separador(),
     botaoDaBarra("concluir", "Concluir forma", () => {
       caneta.terminar();
@@ -114,7 +115,7 @@ function montarEsqueleto(area, aoVoltar) {
       apos();
     }, { extra: "acao-caneta" }),
     separador(),
-    botaoDaBarra("lixo", "Limpar base", limparBase, { extra: "botao--perigo" }),
+    botaoDaBarra("lixo", "Limpar base", limparBase, { extra: "botao--perigo com-rotulo" }),
     botaoDaBarra("regua", "Propriedades", () => raiz.classList.toggle("livre--painel-aberto"), {
       extra: "so-estreito",
     }),

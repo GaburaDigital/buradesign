@@ -9,16 +9,7 @@ export const SETORES = [
     chaveDescricao: "setores.livre.descricao",
     aberto: true,
     fase: 1,
-    carregar: () => import("./livre/indice.js"),
-  },
-  {
-    id: "livre3d",
-    alien: "zorp",
-    chaveNome: "setores.livre3d.nome",
-    chaveDescricao: "setores.livre3d.descricao",
-    aberto: true,
-    fase: 2,
-    carregar: () => import("./livre3d/indice.js"),
+    carregar: () => import("./livre/menu.js"),
   },
   {
     id: "blocos",

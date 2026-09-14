@@ -173,8 +173,54 @@ function extrudar(forma, altura) {
   return geometria;
 }
 
+// Projeção de caixa para as coordenadas de textura.
+// Geometrias vindas de extrusão, de junção manual ou de booleana chegam sem
+// UV, e sem UV a textura simplesmente não aparece. Aqui cada triângulo recebe
+// a projeção do eixo em que ele mais "olha", com escala em milímetros.
+export function aplicarUVsDeCaixa(geometria, milimetrosPorLadrilho = 20) {
+  if (!geometria || !geometria.attributes || !geometria.attributes.position) return geometria;
+  const plana = geometria.index ? geometria.toNonIndexed() : geometria;
+  if (plana !== geometria) {
+    geometria.copy(plana);
+    plana.dispose?.();
+  }
+  const posicoes = geometria.attributes.position;
+  if (!geometria.attributes.normal) geometria.computeVertexNormals();
+  const normais = geometria.attributes.normal;
+  const uvs = new Float32Array(posicoes.count * 2);
+  const escala = 1 / Math.max(1, milimetrosPorLadrilho);
+
+  for (let i = 0; i < posicoes.count; i += 3) {
+    let nx = 0;
+    let ny = 0;
+    let nz = 0;
+    for (let k = 0; k < 3; k += 1) {
+      nx += Math.abs(normais.getX(i + k));
+      ny += Math.abs(normais.getY(i + k));
+      nz += Math.abs(normais.getZ(i + k));
+    }
+    const eixo = nx > ny && nx > nz ? "x" : ny > nz ? "y" : "z";
+    for (let k = 0; k < 3; k += 1) {
+      const x = posicoes.getX(i + k);
+      const y = posicoes.getY(i + k);
+      const z = posicoes.getZ(i + k);
+      const par = eixo === "x" ? [z, y] : eixo === "y" ? [x, z] : [x, y];
+      uvs[(i + k) * 2] = par[0] * escala;
+      uvs[(i + k) * 2 + 1] = par[1] * escala;
+    }
+  }
+  geometria.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+  geometria.attributes.uv.needsUpdate = true;
+  return geometria;
+}
+
 // Devolve a geometria centrada na origem, com Y para cima.
 export function geometriaDe(tipo, params) {
+  const geometria = montarGeometria(tipo, params);
+  return geometria ? aplicarUVsDeCaixa(geometria) : null;
+}
+
+function montarGeometria(tipo, params) {
   switch (tipo) {
     case "cubo":
       return new THREE.BoxGeometry(params.lado, params.lado, params.lado);
@@ -228,12 +274,17 @@ export function geometriaDe(tipo, params) {
       return new THREE.IcosahedronGeometry(raio);
     }
     case "palitoPicole": {
-      const forma = new THREE.Shape();
+      // Retângulo com as duas pontas arredondadas, como o palito de verdade.
       const meia = params.largura / 2;
-      const comprimento = params.comprimento;
-      forma.absarc(-comprimento / 2 + meia, 0, meia, Math.PI / 2, -Math.PI / 2, true);
-      forma.lineTo(comprimento / 2 - meia, -meia);
-      forma.absarc(comprimento / 2 - meia, 0, meia, -Math.PI / 2, Math.PI / 2, true);
+      const meioComprimento = Math.max(meia + 0.1, params.comprimento / 2);
+      const esquerda = -meioComprimento + meia;
+      const direita = meioComprimento - meia;
+      const forma = new THREE.Shape();
+      forma.moveTo(esquerda, -meia);
+      forma.lineTo(direita, -meia);
+      forma.absarc(direita, 0, meia, -Math.PI / 2, Math.PI / 2, false);
+      forma.lineTo(esquerda, meia);
+      forma.absarc(esquerda, 0, meia, Math.PI / 2, (Math.PI * 3) / 2, false);
       forma.closePath();
       return extrudar(forma, Math.max(1.6, params.largura * 0.18));
     }

@@ -19,12 +19,22 @@ export const cena3d = {
 };
 
 const PALETAS = {
-  escuro: { fundo: 0x0c0c0c, grade: 0x2a3036, gradeForte: 0x4a545c, borda: 0x7c858c, guia: 0x3fbf5f },
-  claro: { fundo: 0xf2f4f6, grade: 0xd7dde1, gradeForte: 0xb0b9c0, borda: 0x5c656b, guia: 0x0a7a33 },
-  sistema: { fundo: 0x23272b, grade: 0x3b424a, gradeForte: 0x576069, borda: 0x8d979e, guia: 0x00e5a0 },
-  rosa: { fundo: 0x2a0f33, grade: 0x4d2059, gradeForte: 0x713287, borda: 0xb167c9, guia: 0xff5f8d },
-  flash: { fundo: 0xfffdfd, grade: 0xffdedb, gradeForte: 0xf2b3ae, borda: 0xb21f1f, guia: 0xe6a800 },
+  escuro: { chao: 0x2f3a42, fundo: 0x0c0c0c, grade: 0x2a3036, gradeForte: 0x4a545c, borda: 0x7c858c, guia: 0x3fbf5f },
+  claro: { chao: 0xc8d2d8, fundo: 0xf2f4f6, grade: 0xd7dde1, gradeForte: 0xb0b9c0, borda: 0x5c656b, guia: 0x0a7a33 },
+  sistema: { chao: 0x7c858e, fundo: 0x454b52, grade: 0x6b737b, gradeForte: 0x9aa3ab, borda: 0xc2cad0, guia: 0x00e5a0 },
+  rosa: { chao: 0x6a2d7a, fundo: 0x2a0f33, grade: 0x4d2059, gradeForte: 0x713287, borda: 0xb167c9, guia: 0xff5f8d },
+  flash: { chao: 0xf6c9c6, fundo: 0xfffdfd, grade: 0xffdedb, gradeForte: 0xf2b3ae, borda: 0xb21f1f, guia: 0xe6a800 },
 };
+
+export function opacidadeDaBase() {
+  const bruto = Number(valor("opacidadeBase"));
+  return Number.isFinite(bruto) ? Math.min(1, Math.max(0, bruto)) : 0.35;
+}
+
+export function atualizarOpacidadeDaBase() {
+  const chao = cena3d.grupoBase?.getObjectByName("chao");
+  if (chao) chao.material.opacity = opacidadeDaBase();
+}
 
 export function paleta3d() {
   return PALETAS[document.documentElement.dataset.tema] || PALETAS.escuro;
@@ -80,17 +90,20 @@ export function desenharBase() {
   }
   if (cena3d.cena) cena3d.cena.background = new THREE.Color(tons.fundo);
 
+  // Preenchimento suave da base. Ajuda a enxergar onde a peça pousa e não
+  // encosta no grid: a opacidade daqui é a única coisa que o ajuste muda.
   const chao = new THREE.Mesh(
     new THREE.PlaneGeometry(largura, profundidade),
     new THREE.MeshBasicMaterial({
-      color: tons.fundo,
+      color: tons.chao,
       transparent: true,
-      opacity: 0.85,
+      opacity: opacidadeDaBase(),
       depthWrite: false,
     }),
   );
+  chao.name = "chao";
   chao.rotation.x = -Math.PI / 2;
-  chao.position.set(largura / 2, -0.05, profundidade / 2);
+  chao.position.set(largura / 2, -0.06, profundidade / 2);
   grupo.add(chao);
 
   const linhas = [];

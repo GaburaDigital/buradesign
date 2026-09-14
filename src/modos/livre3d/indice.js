@@ -22,6 +22,7 @@ import {
 } from "../../ui/painel.js";
 import { definirDestino, limparDestino } from "../../ui/painel-bolsa.js";
 import { fala } from "../../ui/aliens.js";
+import { campoArrastavel } from "../../ui/campo-numero.js";
 
 import * as cena from "./cena.js";
 import { cena3d } from "./cena.js";
@@ -31,10 +32,15 @@ import * as projeto from "./projeto.js";
 
 const SOLIDOS = Object.keys(DEFINICOES);
 const MODOS_DE_GARRA = [
-  { id: "translate", icone: "seta", rotulo: "Mover" },
-  { id: "rotate", icone: "engrenagem", rotulo: "Girar" },
-  { id: "scale", icone: "quadrado", rotulo: "Escalar" },
+  { id: "base", icone: "naBase", rotulo: "Mover na base", garra: "translate", semY: true },
+  { id: "translate", icone: "mover3d", rotulo: "Mover livre", garra: "translate" },
+  { id: "rotate", icone: "girar", rotulo: "Girar", garra: "rotate" },
+  { id: "scale", icone: "escalar", rotulo: "Escalar", garra: "scale" },
 ];
+
+let modoDaGarra = "base";
+let somandoNoToque = false;
+let cameraNoToque = false;
 
 let raiz = null;
 let tela = null;
@@ -104,6 +110,8 @@ function selecionar(lista) {
   }
   if (cena3d.selecao.length === 1) garra.attach(cena3d.selecao[0]);
   else soltarGarra();
+  if (cena3d.selecao.length) pecas.atualizarMarcaDeContato(cena3d.selecao);
+  else pecas.esconderMarcaDeContato();
   atualizarPainel();
   atualizarStatus();
 }
@@ -166,7 +174,10 @@ function montarEsqueleto(area, aoVoltar) {
 
   const barra = raiz.querySelector(".livre__barra");
   barra.append(
-    botaoDaBarra("voltar", t("acoes.voltar"), aoVoltar, { usarIconeUI: true }),
+    botaoDaBarra("voltar", t("acoes.voltarSetor"), aoVoltar, {
+      usarIconeUI: true,
+      extra: "com-rotulo botao--destaque",
+    }),
     separador(),
     botaoDaBarra("desfazer", "Desfazer", () => {
       if (!desfazer()) mostrarAviso("Nada para desfazer.", "alerta");
@@ -185,9 +196,13 @@ function montarEsqueleto(area, aoVoltar) {
     botaoDaBarra("menos", "Afastar", () => aproximar(1 / 1.2)),
     botaoDaBarra("mais", "Aproximar", () => aproximar(1.2)),
     botaoDaBarra("enquadrar", "Enquadrar base", () => cena.enquadrar()),
-    botaoDaBarra("caminho", "Alternar para 2D", alternarPara2D),
+    botaoDaBarra("caminho", "Alternar para 2D", alternarPara2D, { extra: "com-rotulo" }),
     separador(),
-    botaoDaBarra("lixo", "Limpar base", limparBase, { extra: "botao--perigo" }),
+    botaoDaBarra("lixo", "Limpar base", limparBase, { extra: "botao--perigo com-rotulo" }),
+    botaoDaBarra("camera", "Girar câmera com o dedo", alternarCameraNoToque, {
+      extra: "so-estreito",
+    }),
+    botaoDaBarra("somar", "Somar à seleção", alternarSomaNoToque, { extra: "so-estreito" }),
     botaoDaBarra("regua", "Propriedades", () => raiz.classList.toggle("livre--painel-aberto"), {
       extra: "so-estreito",
     }),
@@ -253,29 +268,59 @@ function montarEsqueleto(area, aoVoltar) {
 function iconeDoSolido(tipo) {
   const mapa = {
     cubo: "cubo3d",
-    cuboide: "retangulo",
-    esfera: "circulo",
-    cilindro: "elipse",
-    cone: "poligono",
-    torus: "circulo",
-    piramide: "poligono",
-    prisma: "poligono",
-    anel: "circulo",
-    prismaEstrela: "estrela",
-    dado: "quadrado",
-    palitoPicole: "retangulo",
-    palitoChurrasco: "regua",
-    engrenagem3d: "engrenagem",
+    cuboide: "cuboide3d",
+    esfera: "esfera3d",
+    cilindro: "cilindro3d",
+    cone: "cone3d",
+    torus: "torus3d",
+    piramide: "piramide3d",
+    prisma: "prisma3d",
+    anel: "anel3d",
+    prismaEstrela: "estrela3d",
+    dado: "dado3d",
+    palitoPicole: "palito3d",
+    palitoChurrasco: "espeto3d",
+    engrenagem3d: "engrenagem3d",
   };
   return mapa[tipo] || "cubo3d";
 }
 
 function trocarGarra(modo) {
-  garra.setMode(modo);
+  const ficha = MODOS_DE_GARRA.find((item) => item.id === modo) || MODOS_DE_GARRA[0];
+  modoDaGarra = ficha.id;
+  garra.setMode(ficha.garra);
+  // No modo "mover na base" a alça de altura some: sobra o plano XZ, que
+  // arrasta a peça deslizando pelo chão, com encaixe no grid.
+  garra.showY = !ficha.semY;
+  garra.showX = true;
+  garra.showZ = true;
+  const passo = cena.passoDoEncaixe();
+  garra.setTranslationSnap(passo || null);
+  garra.setRotationSnap(ficha.garra === "rotate" ? Math.PI / 12 : null);
   for (const alvo of raiz.querySelectorAll("[data-garra]")) {
-    alvo.classList.toggle("botao--destaque", alvo.dataset.garra === modo);
+    alvo.classList.toggle("botao--destaque", alvo.dataset.garra === ficha.id);
   }
   tocar("clique");
+}
+
+function alternarCameraNoToque(botao) {
+  cameraNoToque = !cameraNoToque;
+  botao.classList.toggle("botao--destaque", cameraNoToque);
+  cena3d.orbita.touches = {
+    ONE: cameraNoToque ? THREE.TOUCH.ROTATE : null,
+    TWO: THREE.TOUCH.DOLLY_PAN,
+  };
+  mostrarAviso(
+    cameraNoToque
+      ? "Um dedo gira a câmera. Dois dedos aproximam e arrastam."
+      : "Um dedo volta a selecionar peças.",
+  );
+}
+
+function alternarSomaNoToque(botao) {
+  somandoNoToque = !somandoNoToque;
+  botao.classList.toggle("botao--destaque", somandoNoToque);
+  mostrarAviso(somandoNoToque ? "Cada toque soma à seleção." : "Cada toque troca a seleção.");
 }
 
 function aproximar(fator) {
@@ -300,28 +345,15 @@ function atualizarStatus() {
 // --- Painel ------------------------------------------------------------
 
 function campoNumero(rotulo, valorAtual, aoAplicar, opcoes = {}) {
-  const caixa = document.createElement("label");
-  caixa.className = "propriedade";
   const unidade = ajuste("unidade");
-  const nome = document.createElement("span");
-  nome.textContent = opcoes.semUnidade ? rotulo : `${rotulo} (${unidade})`;
-  const campo = document.createElement("input");
-  campo.type = "number";
-  campo.value = String(Number(valorAtual.toFixed(opcoes.inteiro ? 0 : 2)));
-  campo.step = opcoes.inteiro || opcoes.semUnidade ? "1" : unidade === "cm" ? "0.1" : "1";
-  const aplicar = () => {
-    const numero = Number(campo.value);
-    if (Number.isFinite(numero)) aoAplicar(numero);
-  };
-  campo.addEventListener("change", aplicar);
-  campo.addEventListener("keydown", (evento) => {
-    if (evento.key === "Enter") {
-      evento.preventDefault();
-      aplicar();
-    }
+  return campoArrastavel({
+    rotulo,
+    valorInicial: valorAtual,
+    passo: opcoes.inteiro || opcoes.semUnidade ? 1 : unidade === "cm" ? 0.1 : 1,
+    inteiro: Boolean(opcoes.inteiro),
+    sufixo: opcoes.semUnidade ? "" : unidade,
+    aoAplicar,
   });
-  caixa.append(nome, campo);
-  return caixa;
 }
 
 function grupo(titulo) {
@@ -343,7 +375,7 @@ function linhaBotoes(...botoes) {
 }
 
 function botaoSimples(nomeIcone, rotulo, aoClicar, extra = "") {
-  return botaoDaBarra(nomeIcone, rotulo, aoClicar, { extra });
+  return botaoDaBarra(nomeIcone, rotulo, aoClicar, { extra: `com-rotulo ${extra}` });
 }
 
 function deUnidade(mm) {
@@ -459,7 +491,7 @@ function blocoAjusteFino(peca) {
   secao.append(
     nota,
     linhaBotoes(
-      botaoSimples("enquadrar", "Pousar na base", () => {
+      botaoSimples("naBase", "Pousar na base", () => {
         pecas.pousarNaBase(peca);
         registrar();
         atualizarPainel();
@@ -515,7 +547,7 @@ function blocoAcoes(selecionadas) {
         registrar();
         atualizarPainel();
       }),
-      botaoSimples("unir", "Combinar", () => {
+      botaoSimples("unir", "Unir peças", () => {
         if (!pecas.podeCombinar(selecionadas)) {
           mostrarAviso("Selecione pelo menos duas peças.", "alerta");
           return;
@@ -529,7 +561,7 @@ function blocoAcoes(selecionadas) {
         selecionar([nova]);
         registrar();
       }),
-      botaoSimples("desunir", "Desunir", () => {
+      botaoSimples("desunir", "Separar", () => {
         if (!pecas.podeDesunir(selecionadas)) {
           mostrarAviso("Só dá para desunir uma peça combinada.", "alerta");
           return;
@@ -685,16 +717,14 @@ async function abrirProjeto() {
   });
 }
 
+let voltarParaEscolha = () => {};
+
 function alternarPara2D() {
   const contornos = projeto.contornosNaBase();
-  if (!contornos.length) {
-    mostrarAviso("Nenhuma peça está encostando na base.", "alerta");
-    return;
+  if (contornos.length) {
+    mostrarAviso(`${contornos.length} peça(s) encostam na base. Guarde na bolsa para levar ao 2D.`);
   }
-  mostrarAviso(
-    `${contornos.length} peça(s) encostam na base. A passagem para o 2D entra no próximo lote.`,
-    "alerta",
-  );
+  voltarParaEscolha();
 }
 
 function agendarSalvamento() {
@@ -714,6 +744,10 @@ export async function montar(area, setor, aoVoltar) {
     aoVoltar();
   });
 
+  voltarParaEscolha = () => {
+    encerrar();
+    aoVoltar();
+  };
   cena.iniciar(tela);
   raio = new THREE.Raycaster();
 
@@ -721,24 +755,32 @@ export async function montar(area, setor, aoVoltar) {
   garra.setSize(0.9 * Number(ajuste("alcas") || 1));
   garra.addEventListener("dragging-changed", (evento) => {
     cena3d.orbita.enabled = !evento.value;
-    if (!evento.value) {
-      const alvo = cena3d.selecao[0];
-      if (alvo && garra.getMode() === "translate") {
-        alvo.position.x = cena.encaixar(alvo.position.x);
-        alvo.position.z = cena.encaixar(alvo.position.z);
-      }
-      registrar();
-      atualizarPainel();
+    const alvo = cena3d.selecao[0];
+    if (evento.value) {
+      pecas.atualizarMarcaDeContato(cena3d.selecao);
+      return;
     }
+    if (alvo && garra.getMode() === "translate") {
+      alvo.position.x = cena.encaixar(alvo.position.x);
+      alvo.position.z = cena.encaixar(alvo.position.z);
+      if (modoDaGarra === "base") pecas.pousarNaBase(alvo);
+    }
+    pecas.atualizarMarcaDeContato(cena3d.selecao);
+    registrar();
+    atualizarPainel();
+  });
+  garra.addEventListener("objectChange", () => {
+    if (modoDaGarra === "base" && cena3d.selecao[0]) pecas.pousarNaBase(cena3d.selecao[0]);
+    pecas.atualizarMarcaDeContato(cena3d.selecao);
   });
   const ajudante = garra.getHelper ? garra.getHelper() : garra;
   cena3d.cena.add(ajudante);
-  trocarGarra("translate");
+  trocarGarra("base");
 
   const aoClicar = (evento) => {
     if (evento.button !== 0 || garra.dragging) return;
     const alvo = pecaSobOPonteiro(evento);
-    const somando = evento.ctrlKey || evento.metaKey || evento.shiftKey;
+    const somando = evento.ctrlKey || evento.metaKey || evento.shiftKey || somandoNoToque;
     if (!alvo) {
       if (!somando) selecionar([]);
       return;
@@ -774,6 +816,7 @@ export async function montar(area, setor, aoVoltar) {
       return;
     }
     if (evento.key === "Escape") selecionar([]);
+    if (evento.key.toLowerCase() === "b") trocarGarra("base");
     if (evento.key.toLowerCase() === "g") trocarGarra("translate");
     if (evento.key.toLowerCase() === "r") trocarGarra("rotate");
     if (evento.key.toLowerCase() === "e") trocarGarra("scale");
@@ -793,6 +836,8 @@ export async function montar(area, setor, aoVoltar) {
     ouvir("ajuste:mudou", ({ chave }) => {
       if (!cena3d.renderizador) return;
       if (chave === "tema" || chave === "*") cena.desenharBase();
+      if (chave === "opacidadeBase" || chave === "*") cena.atualizarOpacidadeDaBase();
+      if (chave === "snap" || chave === "*") trocarGarra(modoDaGarra);
       if (chave === "alcas") garra.setSize(0.9 * Number(ajuste("alcas") || 1));
       atualizarPainel();
     }),
@@ -834,6 +879,13 @@ export async function montar(area, setor, aoVoltar) {
 }
 
 export function encerrar() {
+  // Sair não pode falhar no meio: se qualquer passo quebrar, a tela ficaria
+  // presa com o 3D já desligado. Por isso tudo aqui é defensivo.
+  try {
+    garra?.detach?.();
+  } catch {
+    // ignora
+  }
   for (const parar of desligar) {
     try {
       parar();
@@ -846,10 +898,17 @@ export function encerrar() {
   if (cena3d.renderizador && ajuste("salvarSozinho")) {
     projeto.salvarNoCache(nomeDoProjeto).catch(() => {});
   }
-  garra?.detach?.();
-  garra?.dispose?.();
+  try {
+    garra?.dispose?.();
+  } catch {
+    // ignora
+  }
   garra = null;
-  cena.encerrar();
+  try {
+    cena.encerrar();
+  } catch (erro) {
+    console.warn("Falha ao encerrar a cena 3D", erro);
+  }
   if (areaAtual) areaAtual.classList.remove("conteudo--cheio");
   areaAtual = null;
   raiz = null;

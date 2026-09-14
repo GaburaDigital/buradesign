@@ -52,6 +52,39 @@ const FERRAMENTAS = {
   tras: `<rect x="9" y="9" width="11" height="11" ${D}/><rect x="4" y="4" width="11" height="11" ${V}/>`,
   lixo: `<path d="M5 6.5 H19 M9.5 6.5 V4 H14.5 V6.5 M7 6.5 L8 20 H16 L17 6.5" ${D}/>`,
   cubo3d: `<path d="M12 3 L20 7.5 L12 12 L4 7.5 Z" ${D}/><path d="M4 7.5 V16.5 L12 21 V12" ${D}/><path d="M20 7.5 V16.5 L12 21" ${V}/>`,
+  girar: `<path d="M20 12 a8 8 0 1 1 -2.7 -6" ${D}/><path d="M20 4.5 V10 H14.5" ${V}/>`,
+  mover3d: `<path d="M12 3 V21 M3 12 H21" ${D}/><path d="M12 3 L9.5 6 M12 3 L14.5 6 M12 21 L9.5 18 M12 21 L14.5 18" ${V}/>
+    <path d="M3 12 L6 9.5 M3 12 L6 14.5 M21 12 L18 9.5 M21 12 L18 14.5" ${V}/>`,
+  escalar: `<rect x="3.5" y="3.5" width="9" height="9" ${D}/><rect x="12" y="12" width="8.5" height="8.5" ${V}/>`,
+  naBase: `<path d="M3 19 H21" ${D}/><path d="M8 4 H16 V12 H8 Z" ${D}/><path d="M8 15.5 H16" ${V}/>
+    <path d="M12 12 V15" ${V}/>`,
+  camera: `<path d="M3 7.5 H7 L9 5 H15 L17 7.5 H21 V19 H3 Z" ${D}/><circle cx="12" cy="13" r="4" ${V}/>`,
+  somar: `<rect x="3.5" y="3.5" width="10" height="10" ${D}/><rect x="10.5" y="10.5" width="10" height="10" ${D}/>
+    <path d="M15.5 13 V18 M13 15.5 H18" ${V}/>`,
+  cuboide3d: `<path d="M12 4 L21 8 L12 12 L3 8 Z" ${D}/><path d="M3 8 V15 L12 19 V12" ${D}/><path d="M21 8 V15 L12 19" ${V}/>`,
+  esfera3d: `<circle cx="12" cy="12" r="8.5" ${D}/><path d="M3.5 12 a8.5 4 0 0 0 17 0 a8.5 4 0 0 0 -17 0" ${V}/>`,
+  cilindro3d: `<ellipse cx="12" cy="6" rx="7" ry="3" ${D}/><path d="M5 6 V18 M19 6 V18" ${D}/>
+    <path d="M5 18 a7 3 0 0 0 14 0" ${V}/>`,
+  cone3d: `<path d="M12 3 L19 17 M12 3 L5 17" ${D}/><ellipse cx="12" cy="17" rx="7" ry="3" ${V}/>`,
+  torus3d: `<ellipse cx="12" cy="12" rx="9" ry="5.5" ${D}/><ellipse cx="12" cy="12" rx="3.6" ry="2" ${V}/>`,
+  piramide3d: `<path d="M12 3 L21 16 L12 20 L3 16 Z" ${D}/><path d="M12 3 L12 20" ${V}/>`,
+  prisma3d: `<path d="M12 3 L19 6.5 L19 14 L12 17.5 L5 14 L5 6.5 Z" ${D}/>
+    <path d="M5 6.5 L12 10 L19 6.5 M12 10 V17.5" ${V}/><path d="M12 17.5 V21" ${D}/>`,
+  anel3d: `<ellipse cx="12" cy="9" rx="8.5" ry="4" ${D}/><ellipse cx="12" cy="9" rx="3.5" ry="1.6" ${V}/>
+    <path d="M3.5 9 V14 a8.5 4 0 0 0 17 0 V9" ${D}/>`,
+  estrela3d: `<path d="M12 3 L14.3 9 L20.5 9.4 L15.7 13.2 L17.3 19 L12 15.6 L6.7 19 L8.3 13.2 L3.5 9.4 L9.7 9 Z" ${D}/>
+    <path d="M6.7 19 V21.5 M17.3 19 V21.5 M12 15.6 V18" ${V}/>`,
+  dado3d: `<path d="M12 3 L20 7.5 L12 12 L4 7.5 Z" ${D}/><path d="M4 7.5 V16.5 L12 21 V12" ${D}/><path d="M20 7.5 V16.5 L12 21" ${D}/>
+    <circle cx="12" cy="7.5" r="1.2" fill="var(--verde)" stroke="none"/>
+    <circle cx="7.5" cy="12" r="1.1" fill="var(--verde)" stroke="none"/>
+    <circle cx="16.5" cy="12" r="1.1" fill="var(--verde)" stroke="none"/>`,
+  palito3d: `<path d="M6 8 L18 5 a3 1.6 0 0 1 0 3.2 L6 11.2 a3 1.6 0 0 1 0 -3.2 Z" ${D}/>
+    <path d="M6 11.2 V14 a3 1.6 0 0 0 0.6 1 L18 12 a3 1.6 0 0 0 0.6 -1 V8.2" ${V}/>`,
+  espeto3d: `<path d="M4 18 L17 6" ${D}/><path d="M17 6 L20.5 3.5 L19 8" ${V}/><path d="M4 18 l1.6 1.6" ${D}/>`,
+  engrenagem3d: `<circle cx="12" cy="10" r="5" ${D}/>
+    <path d="M12 3 V5 M12 15 V17 M5 10 H7 M17 10 H19 M7.2 5.2 L8.6 6.6 M15.4 13.4 L16.8 14.8 M16.8 5.2 L15.4 6.6 M8.6 13.4 L7.2 14.8" ${D}/>
+    <circle cx="12" cy="10" r="1.8" ${V}/>
+    <path d="M7 13.5 V16 a5 2.6 0 0 0 10 0 V13.5" ${V}/>`,
   regua: `<path d="M3 8 H21 V16 H3 Z" ${D}/><path d="M7 8 V12 M11 8 V13 M15 8 V12 M18 8 V13" ${V}/>`,
 };
 

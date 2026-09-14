@@ -5,7 +5,7 @@
 import * as THREE from "three";
 import { Brush, Evaluator, ADDITION, SUBTRACTION } from "three-bvh-csg";
 import { cena3d, paleta3d, encaixar } from "./cena.js";
-import { geometriaDe, parametrosPadrao, DEFINICOES } from "./solidos.js";
+import { geometriaDe, parametrosPadrao, DEFINICOES, aplicarUVsDeCaixa } from "./solidos.js";
 
 export const CORES_PECA = [
   "#7fb3d5",
@@ -71,7 +71,8 @@ function textura(tipo) {
   const mapa = new THREE.CanvasTexture(tela);
   mapa.wrapS = THREE.RepeatWrapping;
   mapa.wrapT = THREE.RepeatWrapping;
-  mapa.repeat.set(2, 2);
+  // As UVs já vêm em milímetros, então um ladrilho por unidade de UV.
+  mapa.repeat.set(1, 1);
   cacheDeTextura.set(tipo, mapa);
   return mapa;
 }
@@ -114,13 +115,67 @@ function comContorno(peca) {
   return peca;
 }
 
-// Coloca a peça em cima da base, não atravessando o chão.
+// Pousa a peça na base: sobe o que estiver afundado e baixa o que estiver
+// flutuando. Antes só subia, e por isso o botão parecia não funcionar.
 export function pousarNaBase(peca) {
   peca.updateMatrixWorld(true);
   const caixa = new THREE.Box3().setFromObject(peca);
-  const afundado = caixa.min.y;
-  if (afundado < 0) peca.position.y += -afundado;
+  if (!Number.isFinite(caixa.min.y)) return peca;
+  peca.position.y -= caixa.min.y;
+  peca.updateMatrixWorld(true);
   return peca;
+}
+
+// A peça está encostando na base?
+export function estaNaBase(peca, folga = 0.4) {
+  peca.updateMatrixWorld(true);
+  const caixa = new THREE.Box3().setFromObject(peca);
+  return caixa.min.y <= folga;
+}
+
+// Sombra da área apoiada, para o aluno enxergar onde a peça encosta.
+export function marcaDeContato() {
+  if (!cena3d.grupoBase) return null;
+  let marca = cena3d.grupoBase.getObjectByName("contato");
+  if (!marca) {
+    marca = new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({
+        color: paleta3d().guia,
+        transparent: true,
+        opacity: 0.35,
+        depthWrite: false,
+      }),
+    );
+    marca.name = "contato";
+    marca.rotation.x = -Math.PI / 2;
+    marca.visible = false;
+    cena3d.grupoBase.add(marca);
+  }
+  return marca;
+}
+
+export function atualizarMarcaDeContato(pecas) {
+  const marca = marcaDeContato();
+  if (!marca) return;
+  const apoiadas = (pecas || []).filter((peca) => estaNaBase(peca));
+  if (!apoiadas.length) {
+    marca.visible = false;
+    return;
+  }
+  const caixa = new THREE.Box3();
+  for (const peca of apoiadas) caixa.expandByObject(peca);
+  const tamanho = caixa.getSize(new THREE.Vector3());
+  const centro = caixa.getCenter(new THREE.Vector3());
+  marca.scale.set(Math.max(0.5, tamanho.x), Math.max(0.5, tamanho.z), 1);
+  marca.position.set(centro.x, 0.12, centro.z);
+  marca.material.color.set(paleta3d().guia);
+  marca.visible = true;
+}
+
+export function esconderMarcaDeContato() {
+  const marca = cena3d.grupoBase?.getObjectByName("contato");
+  if (marca) marca.visible = false;
 }
 
 export function criar(tipo, params) {
@@ -204,6 +259,13 @@ export function combinar(pecas) {
 
   const geometria = resultado.geometry.clone();
   geometria.computeVertexNormals();
+  // A booleana devolve a peça em coordenadas do mundo, com a origem lá no
+  // canto da base. Centramos a geometria e levamos o objeto até o centro,
+  // senão a garra aparece longe da peça.
+  geometria.computeBoundingBox();
+  const centro = geometria.boundingBox.getCenter(new THREE.Vector3());
+  geometria.translate(-centro.x, -centro.y, -centro.z);
+  aplicarUVsDeCaixa(geometria);
   const dados = positivas[0].userData;
   const nova = new THREE.Mesh(geometria, material(dados.cor, dados.textura, false));
   nova.userData = {
@@ -215,6 +277,7 @@ export function combinar(pecas) {
     nome: "Peça combinada",
     origem: memoria,
   };
+  nova.position.copy(centro);
   comContorno(nova);
   cena3d.grupoPecas.add(nova);
   for (const peca of pecas) remover(peca);
@@ -272,6 +335,7 @@ export function reconstruir(registro) {
       new THREE.Float32BufferAttribute(Float32Array.from(registro.vertices), 3),
     );
     geometria.computeVertexNormals();
+    aplicarUVsDeCaixa(geometria);
   } else {
     geometria = geometriaDe(registro.tipo, registro.params);
   }
@@ -300,6 +364,7 @@ export function reconstruir(registro) {
 export function pecaImportada(geometria, nome) {
   geometria.computeVertexNormals();
   geometria.center();
+  aplicarUVsDeCaixa(geometria);
   const peca = new THREE.Mesh(geometria, material(proximaCor(), "nenhuma", false));
   peca.userData = {
     tipo: "importada",

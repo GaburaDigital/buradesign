@@ -14,6 +14,7 @@ export const PADRAO = Object.freeze({
   bootRapido: false,
   avisoDispositivo: true,
   alcas: 1,
+  opacidadeBase: 0.35,
   salvarSozinho: true,
   idioma: "pt-BR",
 });

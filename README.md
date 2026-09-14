@@ -18,8 +18,7 @@ cuida de um setor:
 
 | Setor | Responsável | O que o aluno faz |
 | --- | --- | --- |
-| Criação Livre 2D | ZORP | desenha para corte a laser |
-| Criação Livre 3D | ZORP | modela sólidos para impressão 3D |
+| Criação Livre | ZORP | escolhe entre Design 2D (corte) e Design 3D (impressão) |
 | Design com Programação | NIBLA | cria as mesmas peças programando em blocos |
 | Montagem com Peças Cortadas | KRUX | monta em 3D e gera o plano de corte em chapa |
 | Simulação de Mecânica | PIP | testa alavancas, engrenagens e motores |
@@ -93,14 +92,22 @@ Segurar o **botão do meio do mouse** arrasta a vista em qualquer ferramenta.
 celular e no tablet, a ferramenta **Arrastar**, com ícone de mãozinha, faz o
 papel do botão do meio.
 
-### Setor Criação Livre 3D
+### Setor Criação Livre
+
+Ao entrar, o aluno escolhe entre **Design 2D** e **Design 3D**, cada um com um
+resumo do que dá para fazer ali. O botão de voltar de dentro de cada bancada
+retorna para essa escolha.
+
+### Design 3D
 
 Clique num sólido da lista e ele aparece na base de impressão. Quatorze sólidos
 rígidos, do cubo à engrenagem, passando por palito de picolé e palito de
 churrasco. Botão direito gira a câmera, botão do meio arrasta, roda aproxima, e
 os botões de vista no canto levam a câmera para topo, frente, lados e trás.
 
-A garra tem três modos: mover (G), girar (R) e escalar (E). Cores e quatro
+A garra tem quatro modos: mover na base (B), mover livre (G), girar (R) e
+escalar (E). No modo base a peça desliza pelo chão com encaixe no grid, e a
+área apoiada acende em verde para o aluno ver onde ela está pousando. Cores e quatro
 texturas (lisa, xadrez, linhas e isopor) ajudam a enxergar volume.
 
 Para furar, marque a peça como negativa e clique em combinar: a booleana gera

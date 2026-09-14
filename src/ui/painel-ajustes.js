@@ -135,6 +135,17 @@ export function abrirAjustes() {
       ],
       t("ajustes.alcasAjuda"),
     ),
+    seletor(
+      "opacidadeBase",
+      t("ajustes.opacidadeBase"),
+      [
+        { valor: 0, rotulo: t("ajustes.baseInvisivel") },
+        { valor: 0.2, rotulo: t("ajustes.baseFraca") },
+        { valor: 0.35, rotulo: t("ajustes.baseMedia") },
+        { valor: 0.6, rotulo: t("ajustes.baseForte") },
+      ],
+      t("ajustes.opacidadeBaseAjuda"),
+    ),
     interruptor("salvarSozinho", t("ajustes.salvarSozinho")),
     interruptor("bootRapido", t("ajustes.bootRapido")),
     interruptor("avisoDispositivo", t("ajustes.avisoDispositivo")),

@@ -31,6 +31,7 @@ export default {
     salvar: "Salvar preferências",
     cancelar: "Cancelar",
     voltar: "Voltar ao início",
+    voltarSetor: "Voltar aos modos",
     confirmar: "Confirmar",
     exportar: "Baixar bolsa",
     colocarNaMesa: "Colocar na mesa",
@@ -72,6 +73,12 @@ export default {
     alcasEnorme: "Enorme",
     alcasAjuda: "Alças maiores facilitam para quem está começando e para quem usa o dedo na tela.",
     salvarSozinho: "Salvar o projeto sozinho",
+    opacidadeBase: "Opacidade da base 3D",
+    baseInvisivel: "Sem preenchimento",
+    baseFraca: "Bem suave",
+    baseMedia: "Média",
+    baseForte: "Destacada",
+    opacidadeBaseAjuda: "Muda só o preenchimento da base. O grid continua igual.",
     som: "Som",
     somAtivo: "Efeitos sonoros",
     volume: "Volume",
@@ -113,6 +120,14 @@ export default {
     livre: {
       nome: "Criação Livre",
       descricao: "Desenhe em 2D para corte e modele em 3D para impressão.",
+    },
+    design2d: {
+      nome: "Design 2D",
+      descricao: "Mesa de corte. Formas, texto e caminhos para cortar em chapa. Exporta SVG.",
+    },
+    design3d: {
+      nome: "Design 3D",
+      descricao: "Base de impressão. Sólidos, furos e combinações para imprimir. Exporta STL.",
     },
     livre3d: {
       nome: "Criação Livre 3D",

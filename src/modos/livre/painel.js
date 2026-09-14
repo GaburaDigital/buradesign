@@ -12,46 +12,33 @@ import * as remodelar from "./remodelar.js";
 import { redefinirMesa } from "./mesa.js";
 import { registrar } from "./historico.js";
 import { ferramenta } from "../../ui/icones-ferramentas.js";
+import { campoArrastavel } from "../../ui/campo-numero.js";
 import { fala } from "../../ui/aliens.js";
 import { mostrarAviso } from "../../ui/painel.js";
 import { tocar } from "../../core/som.js";
 
 let area = null;
+let ultimoCampoEditado = null;
 
 export function ligarPainel(elemento) {
   area = elemento;
 }
 
 function campoNumero(rotulo, valorAtual, aoAplicar, opcoes = {}) {
-  const caixa = document.createElement("label");
-  caixa.className = "propriedade";
-  const nome = document.createElement("span");
-  nome.textContent = opcoes.semUnidade ? rotulo : `${rotulo} (${unidade()})`;
-  const campo = document.createElement("input");
-  campo.type = "number";
-  campo.value = String(Number(valorAtual.toFixed(opcoes.inteiro ? 0 : 2)));
-  // Campo sem unidade (porcentagem, quantidade) anda de 1 em 1. Antes ele
-  // herdava o passo de 0,1 do centímetro, e clicar na setinha parecia não
-  // fazer nada na forma.
-  campo.step = opcoes.inteiro || opcoes.semUnidade ? "1" : unidade() === "cm" ? "0.1" : "1";
-  campo.dataset.campo = rotulo;
-  if (opcoes.min !== undefined) campo.min = String(opcoes.min);
-  if (opcoes.max !== undefined) campo.max = String(opcoes.max);
-  const aplicar = () => {
-    const numero = Number(campo.value);
-    if (!Number.isFinite(numero)) return;
-    ultimoCampoEditado = rotulo;
-    aoAplicar(numero);
-  };
-  campo.addEventListener("change", aplicar);
-  campo.addEventListener("keydown", (evento) => {
-    if (evento.key === "Enter") {
-      evento.preventDefault();
-      aplicar();
-    }
+  const passo = opcoes.inteiro || opcoes.semUnidade ? 1 : unidade() === "cm" ? 0.1 : 1;
+  return campoArrastavel({
+    rotulo,
+    valorInicial: valorAtual,
+    passo,
+    min: opcoes.min ?? -Infinity,
+    max: opcoes.max ?? Infinity,
+    inteiro: Boolean(opcoes.inteiro),
+    sufixo: opcoes.semUnidade ? "" : unidade(),
+    aoAplicar: (numero) => {
+      ultimoCampoEditado = rotulo;
+      aoAplicar(numero);
+    },
   });
-  caixa.append(nome, campo);
-  return caixa;
 }
 
 function campoOpcoes(rotulo, valorAtual, opcoes, aoMudar) {
@@ -312,7 +299,7 @@ function blocoAcoesPeca(itens) {
         combinar.alternarNegativo(itens);
         desenhar();
       }),
-      botao("unir", "Combinar", () => {
+      botao("unir", "Unir peças", () => {
         if (!combinar.podeCombinar(itens)) {
           mostrarAviso("Selecione pelo menos duas peças para combinar.", "alerta");
           return;
@@ -324,7 +311,7 @@ function blocoAcoesPeca(itens) {
         }
         desenhar();
       }),
-      botao("desunir", "Desunir", () => {
+      botao("desunir", "Separar", () => {
         if (!combinar.podeDesunir(itens)) {
           mostrarAviso("Só dá para desunir uma peça que foi combinada.", "alerta");
           return;
@@ -422,8 +409,6 @@ export function ligarContinuacao(funcao) {
 }
 
 // --- Montagem ----------------------------------------------------------
-
-let ultimoCampoEditado = null;
 
 function devolverFoco() {
   if (!ultimoCampoEditado || !area) return;

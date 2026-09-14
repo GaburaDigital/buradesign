@@ -165,7 +165,7 @@
   .livre__painel {
     position: absolute;
     inset: auto 0 0 0;
-    max-height: 60%;
+    max-height: 50%;
     border-left: 0;
     border-top: var(--borda) solid var(--verde);
     display: none;
@@ -217,3 +217,50 @@
 @media (max-width: 64rem) {
   .cubo-vistas { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: none; left: var(--e-2); }
 }
+
+/* Rótulos ao lado do ícone quando há espaço de sobra. */
+@media (min-width: 64rem) {
+  .livre__barra .botao.com-rotulo .rotulo-acao,
+  .linha-botoes .botao.com-rotulo .rotulo-acao,
+  .linha-botoes .botao .rotulo-acao { display: inline; }
+  .linha-botoes .botao { justify-content: flex-start; }
+}
+
+/* Campo que aceita arraste vertical. */
+.propriedade__nome {
+  cursor: ns-resize;
+  user-select: none;
+  touch-action: none;
+  border-bottom: 1px dotted var(--linha-forte);
+}
+.propriedade__nome--arrastando { color: var(--verde); }
+
+/* Escolha entre Design 2D e Design 3D. */
+.modos { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-4); grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 52rem) { .modos { grid-template-columns: 1fr; } }
+.modo {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--e-4);
+  align-items: start;
+  border: var(--borda) solid var(--linha-forte);
+  background: var(--fundo-2);
+  padding: var(--e-4);
+}
+.modo__botao {
+  display: grid;
+  gap: var(--e-2);
+  justify-items: center;
+  font-family: var(--fonte-mono);
+  font-size: var(--t-14);
+  color: var(--texto);
+  background: var(--fundo);
+  border: var(--borda) solid var(--linha-forte);
+  padding: var(--e-4);
+  min-width: 8rem;
+  cursor: pointer;
+}
+.modo__botao:hover, .modo__botao:focus-visible { border-color: var(--verde); color: var(--verde); }
+.modo__botao .icone { width: 3.5rem; height: 3.5rem; }
+.modo__detalhes p { font-size: var(--t-14); color: var(--texto-2); }
+.modo__detalhes ul { margin: 0; padding-left: 1.1rem; font-size: var(--t-12); color: var(--texto-3); font-family: var(--fonte-mono); }

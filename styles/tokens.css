@@ -51,14 +51,14 @@ html[data-tema="escuro"] {
 }
 
 html[data-tema="sistema"] {
-  --fundo: #23272b;
-  --fundo-2: #2c3136;
-  --fundo-3: #373d43;
-  --texto: #f2f5f7;
-  --texto-2: #c3cbd1;
-  --texto-3: #8d979e;
-  --linha: #4a5259;
-  --linha-forte: #8d979e;
+  --fundo: #454b52;
+  --fundo-2: #545b63;
+  --fundo-3: #646c75;
+  --texto: #ffffff;
+  --texto-2: #dfe4e8;
+  --texto-3: #b3bcc3;
+  --linha: #78818a;
+  --linha-forte: #c2cad0;
   --verde: #00e5a0;
   --verde-fraco: #14453a;
   --ambar: #ffb300;
