@@ -337,12 +337,15 @@ function montarGeometria(tipo, params) {
         params.altura,
       );
     case "dado": {
+      // Só poliedro regular: a lista de faces é fechada, e qualquer valor
+      // fora dela cai no cubo em vez de quebrar a peça.
       const raio = params.tamanho / 2;
-      if (params.lados <= 4) return new THREE.TetrahedronGeometry(raio);
-      if (params.lados <= 6) return new THREE.BoxGeometry(params.tamanho, params.tamanho, params.tamanho);
-      if (params.lados <= 8) return new THREE.OctahedronGeometry(raio);
-      if (params.lados <= 12) return new THREE.DodecahedronGeometry(raio);
-      return new THREE.IcosahedronGeometry(raio);
+      const faces = Number(params.lados);
+      if (faces === 4) return new THREE.TetrahedronGeometry(raio);
+      if (faces === 8) return new THREE.OctahedronGeometry(raio);
+      if (faces === 12) return new THREE.DodecahedronGeometry(raio);
+      if (faces === 20) return new THREE.IcosahedronGeometry(raio);
+      return new THREE.BoxGeometry(params.tamanho, params.tamanho, params.tamanho);
     }
     case "palitoPicole": {
       // Retângulo com as duas pontas arredondadas, como o palito de verdade.

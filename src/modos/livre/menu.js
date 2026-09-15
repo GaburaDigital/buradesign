@@ -96,12 +96,21 @@ async function abrir(opcao, area, aoVoltarDaCasca) {
   tocar("clique");
   const modulo = await opcao.carregar();
   moduloAberto = modulo;
-  // O botão de voltar do modo traz de volta para esta escolha, não para a
-  // tela inicial. Quem sai da oficina inteira é a marca lá em cima.
-  await modulo.montar(area, opcao, () => {
-    encerrarFilho();
-    montar(area, opcao, aoVoltarDaCasca);
-  });
+  // O modo recebe duas saídas: voltar para esta escolha e trocar direto para
+  // a outra bancada, levando o desenho pela ponte.
+  await modulo.montar(
+    area,
+    opcao,
+    () => {
+      encerrarFilho();
+      montar(area, opcao, aoVoltarDaCasca);
+    },
+    async () => {
+      const outra = OPCOES.find((item) => item.id !== opcao.id);
+      encerrarFilho();
+      await abrir(outra, area, aoVoltarDaCasca);
+    },
+  );
 }
 
 function encerrarFilho() {

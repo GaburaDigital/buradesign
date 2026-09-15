@@ -557,6 +557,74 @@ export function cortar(peca, { eixo = "y", deslocamento = 0, angulo = 0, tipo = 
   return [inteiraNova];
 }
 
+// Corte livre: o aluno desenha a região na tela e ela é vazada da peça, no
+// eixo da câmera. Os pontos chegam já convertidos para o mundo, sobre um
+// plano que passa pelo centro da peça e encara a câmera.
+export function cortarLivre(peca, pontosNoMundo, camera, { separar = false } = {}) {
+  if (!peca || !camera || !pontosNoMundo || pontosNoMundo.length < 3) return null;
+  peca.updateMatrixWorld(true);
+  const caixa = new THREE.Box3().setFromObject(peca);
+  const centro = caixa.getCenter(new THREE.Vector3());
+  const tamanho = caixa.getSize(new THREE.Vector3());
+  const fundura = Math.max(tamanho.x, tamanho.y, tamanho.z) * 3 + 20;
+
+  const frente = new THREE.Vector3();
+  camera.getWorldDirection(frente);
+  const direita = new THREE.Vector3().crossVectors(frente, camera.up).normalize();
+  const cima = new THREE.Vector3().crossVectors(direita, frente).normalize();
+
+  const forma = new THREE.Shape();
+  pontosNoMundo.forEach((ponto, indice) => {
+    const relativo = ponto.clone().sub(centro);
+    const x = relativo.dot(direita);
+    const y = relativo.dot(cima);
+    if (indice === 0) forma.moveTo(x, y);
+    else forma.lineTo(x, y);
+  });
+  forma.closePath();
+
+  const geometria = new THREE.ExtrudeGeometry(forma, {
+    depth: fundura,
+    bevelEnabled: false,
+    curveSegments: 6,
+  });
+  garantirOrientacao(geometria);
+
+  const base = new THREE.Matrix4().makeBasis(direita, cima, frente.clone().negate());
+  const faca = new Brush(geometria);
+  faca.applyMatrix4(base);
+  faca.position.copy(centro.clone().add(frente.clone().multiplyScalar(fundura / 2)));
+  faca.updateMatrixWorld(true);
+
+  const comoBrush = () => {
+    const escova = new Brush(peca.geometry.clone());
+    escova.applyMatrix4(peca.matrixWorld);
+    escova.updateMatrixWorld(true);
+    return escova;
+  };
+
+  const restante = avaliador.evaluate(comoBrush(), faca, SUBTRACTION);
+  restante.updateMatrixWorld(true);
+  const geometriaRestante = restante.geometry.clone();
+  if (!geometriaRestante.attributes.position || geometriaRestante.attributes.position.count < 9) {
+    return null;
+  }
+
+  let recorte = null;
+  if (separar) {
+    const dentro = avaliador.evaluate(comoBrush(), faca, INTERSECTION);
+    dentro.updateMatrixWorld(true);
+    const geometriaDentro = dentro.geometry.clone();
+    if (geometriaDentro.attributes.position && geometriaDentro.attributes.position.count >= 9) {
+      recorte = malhaDe(geometriaDentro, peca, " recorte");
+    }
+  }
+
+  const sobra = malhaDe(geometriaRestante, peca, " cortada");
+  remover(peca);
+  return recorte ? [sobra, recorte] : [sobra];
+}
+
 // Peça feita a partir de uma geometria pronta (texto 3D, por exemplo).
 export function pecaDeGeometria(geometria, nome) {
   aplicarUVsDeCaixa(geometria);

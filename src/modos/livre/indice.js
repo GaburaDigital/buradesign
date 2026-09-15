@@ -11,6 +11,7 @@ import { icone } from "../../ui/icones.js";
 import { ferramenta as iconeFerramenta } from "../../ui/icones-ferramentas.js";
 import { mostrarAviso, confirmar, perguntarTexto, abrirPainel, fecharPainel } from "../../ui/painel.js";
 import { grupoDeFerramentas, fecharMenusFlutuantes } from "../../ui/menu-flutuante.js";
+import * as ponte from "./ponte.js";
 import { definirDestino, limparDestino } from "../../ui/painel-bolsa.js";
 import { valor as ajuste } from "../../core/ajustes.js";
 
@@ -146,7 +147,7 @@ function montarEsqueleto(area, aoVoltar) {
       caneta.fechar();
       apos();
     }, { extra: "acao-caneta" }),
-    botaoDaBarra("alternar3d", "Alternar para 3D", aoVoltar, { extra: "com-rotulo" }),
+    botaoDaBarra("alternar3d", "Alternar para 3D", irParaOTresD, { extra: "com-rotulo" }),
     botaoDaBarra("lixo", "Limpar base", limparBase, { extra: "botao--perigo com-rotulo" }),
     botaoDaBarra("telaCheia", t("acoes.telaCheia"), alternarTelaCheia),
   );
@@ -193,6 +194,64 @@ function montarEsqueleto(area, aoVoltar) {
   barraStatus = raiz.querySelector(".livre__status");
   painel.ligarPainel(raiz.querySelector(".livre__painel"));
   tela = raiz.querySelector("#tela-2d");
+}
+
+// Leva o desenho para a bancada 3D: o que está na mesa vira volume lá.
+async function irParaOTresD() {
+  if (!cena.camadaPecas.children.length) {
+    trocarDeModo?.();
+    return;
+  }
+  const altura = await perguntarTexto(
+    "Alternar para 3D",
+    "Altura da extrusão em milímetros:",
+    "10",
+  );
+  if (altura === null) return;
+  const apenasSelecao = cena.selecao.length > 0;
+  const svg = projeto.montarSVG({ apenasSelecao });
+  ponte.guardarParaOTresD({
+    svg,
+    alturaMm: Math.max(0.4, Number(altura) || 10),
+    nome: apenasSelecao ? "Seleção do 2D" : "Desenho do 2D",
+  });
+  await projeto.salvarNoCache(nomeDoProjeto);
+  trocarDeModo?.();
+}
+
+// Recebe o que veio da bancada 3D: os triângulos da fatia do chão viram um
+// contorno só, com as booleanas do Paper.js.
+function receberDoTresD() {
+  const carga = ponte.retirar("2d");
+  if (!carga || !carga.triangulos?.length) return;
+  const paper = cena.paper;
+  let juntos = null;
+  for (const [x1, y1, x2, y2, x3, y3] of carga.triangulos) {
+    const triangulo = new paper.Path({
+      segments: [
+        [x1, y1],
+        [x2, y2],
+        [x3, y3],
+      ],
+      closed: true,
+      insert: false,
+    });
+    if (!juntos) {
+      juntos = triangulo;
+      continue;
+    }
+    const somado = juntos.unite(triangulo, { insert: false });
+    juntos.remove();
+    triangulo.remove();
+    juntos = somado;
+  }
+  if (!juntos) return;
+  cena.camadaPecas.addChild(juntos);
+  juntos.data = { tipo: "caminho", params: {}, rotacao: 0, cor: null, negativo: false };
+  formas.vestir(juntos, null);
+  definirSelecao([juntos]);
+  historico.registrar();
+  mostrarAviso(`${carga.nome}: contorno trazido do 3D.`);
 }
 
 function alternarPainel() {
@@ -729,7 +788,10 @@ function ligarOuvintes() {
   desligar.push(ouvir("livre:historico", () => atualizarStatus()));
 }
 
-export async function montar(area, setor, aoVoltar) {
+let trocarDeModo = null;
+
+export async function montar(area, setor, aoVoltar, aoTrocarDeModo) {
+  trocarDeModo = aoTrocarDeModo;
   carregarEstilo("styles/livre.css");
   montarEsqueleto(area, () => {
     encerrar();
@@ -786,6 +848,7 @@ export async function montar(area, setor, aoVoltar) {
     mostrarAviso("Clique na mesa para seguir o traço. Enter conclui.");
   });
 
+  receberDoTresD();
   historico.iniciar();
   escolherFerramenta("selecionar");
   apos();

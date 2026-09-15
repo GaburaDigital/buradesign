@@ -31,6 +31,9 @@ import { DEFINICOES, nomeDe } from "./solidos.js";
 import * as pecas from "./pecas.js";
 import * as projeto from "./projeto.js";
 import * as texto3d from "./texto3d.js";
+import * as travessia from "./travessia.js";
+import * as malha from "./malha.js";
+import * as ponte from "../livre/ponte.js";
 
 const GRUPOS_DE_SOLIDOS = [
   { id: "caixas", icone: "caixas", rotulo: "Caixas", tipos: ["cubo", "cuboide", "dado"] },
@@ -290,6 +293,13 @@ function montarEsqueleto(area, aoVoltar) {
   textoBotao.addEventListener("click", inserirTexto3d);
   caixa.append(textoBotao);
 
+  const caminhoBotao = document.createElement("button");
+  caminhoBotao.type = "button";
+  caminhoBotao.className = "ferramenta";
+  caminhoBotao.innerHTML = `${iconeFerramenta("caminho")}<span>Caminho 2D</span>`;
+  caminhoBotao.addEventListener("click", inserirCaminho2d);
+  caixa.append(caminhoBotao);
+
   const estileteBotao = document.createElement("button");
   estileteBotao.type = "button";
   estileteBotao.className = "ferramenta";
@@ -429,13 +439,22 @@ async function inserirTexto3d() {
 // peça e acompanha cada mudança de direção, posição e ângulo. Só corta quando
 // o aluno confirma.
 let estilete = null;
+let desenhandoCorte = false;
+let tracoDoCorte = [];
 
 function abrirEstilete() {
   if (cena3d.selecao.length !== 1) {
     mostrarAviso("Selecione uma peça para cortar.", "alerta");
     return;
   }
-  estilete = { peca: cena3d.selecao[0], eixo: "y", deslocamento: 0, angulo: 0, tipo: "separado" };
+  estilete = {
+    peca: cena3d.selecao[0],
+    modo: "plano",
+    eixo: "y",
+    deslocamento: 0,
+    angulo: 0,
+    tipo: "separado",
+  };
   pecas.mostrarPlanoDeCorte(estilete.peca, estilete);
   raiz.classList.add("livre--painel-aberto");
   atualizarPainel();
@@ -443,12 +462,19 @@ function abrirEstilete() {
 
 function fecharEstilete() {
   estilete = null;
+  desenhandoCorte = false;
+  tracoDoCorte = [];
+  if (cena3d.orbita) cena3d.orbita.enabled = true;
   pecas.esconderPlanoDeCorte();
   atualizarPainel();
 }
 
 function atualizarPrevia() {
   if (!estilete) return;
+  if (estilete.modo === "livre") {
+    pecas.esconderPlanoDeCorte();
+    return;
+  }
   pecas.mostrarPlanoDeCorte(estilete.peca, estilete);
 }
 
@@ -478,6 +504,39 @@ function blocoEstilete() {
     caixa.append(escolha);
     return caixa;
   };
+
+  secao.append(
+    seletor(
+      "Como cortar",
+      [
+        { valor: "plano", rotulo: "Plano (folha atravessando)" },
+        { valor: "livre", rotulo: "Livre (desenhar na peça)" },
+      ],
+      "modo",
+    ),
+  );
+
+  if (estilete.modo === "livre") {
+    const aviso = document.createElement("p");
+    aviso.className = "dica";
+    aviso.textContent = desenhandoCorte
+      ? "Arraste o dedo ou o mouse por cima da peça e solte para cortar."
+      : "Clique em desenhar e contorne na tela a parte que sai.";
+    secao.append(
+      aviso,
+      linhaBotoes(
+        botaoSimples("caneta", desenhandoCorte ? "Cancelar desenho" : "Desenhar o corte", () => {
+          desenhandoCorte = !desenhandoCorte;
+          tracoDoCorte = [];
+          pecas.esconderPlanoDeCorte();
+          cena3d.orbita.enabled = !desenhandoCorte;
+          atualizarPainel();
+        }),
+        botaoSimples("fechar", "Sair do estilete", fecharEstilete),
+      ),
+    );
+    return secao;
+  }
 
   secao.append(
     seletor(
@@ -525,6 +584,61 @@ function blocoEstilete() {
       botaoSimples("fechar", "Cancelar", fecharEstilete),
     ),
   );
+  return secao;
+}
+
+// --- Editor de malha ---------------------------------------------------
+
+let pegaDaMalha = null;
+let ultimaPegaDaMalha = null;
+
+function entrarNaMalha(peca) {
+  if (!malha.entrar(peca)) return;
+  pecas.alternarModo([peca], "malha");
+  soltarGarra();
+  pegaDaMalha = new THREE.Object3D();
+  cena3d.cena.add(pegaDaMalha);
+  atualizarPainel();
+  mostrarAviso("Clique nos pontos da peça para marcar. A seta move o que estiver marcado.");
+}
+
+function sairDaMalha() {
+  malha.sair();
+  if (pegaDaMalha) {
+    garra.detach();
+    cena3d.cena.remove(pegaDaMalha);
+    pegaDaMalha = null;
+  }
+  atualizarPainel();
+}
+
+function prenderGarraNaMalha() {
+  const centro = malha.centroDosMarcados();
+  if (!centro || !pegaDaMalha) {
+    garra?.detach();
+    return;
+  }
+  pegaDaMalha.position.copy(centro);
+  ultimaPegaDaMalha = centro.clone();
+  garra.setMode("translate");
+  garra.attach(pegaDaMalha);
+}
+
+function blocoMalha() {
+  const secao = grupo("Editar malha");
+  const nota = document.createElement("p");
+  nota.className = "dica";
+  nota.textContent = `Marcados: ${malha.quantosMarcados()}. Segure Shift para somar.`;
+  const modos = linhaBotoes(
+    ...malha.MODOS.map((modo) =>
+      botaoSimples("nos", modo.rotulo, () => {
+        malha.definirModo(modo.id);
+        garra?.detach();
+        atualizarPainel();
+      }, malha.modoAtual() === modo.id ? "botao--destaque" : ""),
+    ),
+  );
+  secao.append(nota, modos, linhaBotoes(botaoSimples("fechar", "Sair da malha", sairDaMalha)));
   return secao;
 }
 
@@ -619,8 +733,8 @@ function moverCamera(tecla, rapido) {
     s: frente.clone().multiplyScalar(-passo),
     a: lado.clone().multiplyScalar(-passo),
     d: lado.clone().multiplyScalar(passo),
-    q: new THREE.Vector3(0, passo, 0),
-    e: new THREE.Vector3(0, -passo, 0),
+    q: new THREE.Vector3(0, -passo, 0),
+    e: new THREE.Vector3(0, passo, 0),
   };
   const deslocamento = passos[tecla];
   if (!deslocamento) return;
@@ -637,7 +751,7 @@ const ATALHOS = [
     ["6", "Selecionar"], ["7", "Somar à seleção"], ["8", "Arrastar a vista"], ["9", "Girar a câmera"],
   ]],
   ["Câmera pelo teclado", [
-    ["W e S", "Vai e volta"], ["A e D", "Anda para os lados"], ["Q e E", "Sobe e desce"],
+    ["W e S", "Vai e volta"], ["A e D", "Anda para os lados"], ["E e Q", "Sobe e desce"],
     ["Shift", "Anda mais rápido"],
   ]],
   ["Vistas (teclado numérico)", [
@@ -735,6 +849,12 @@ function atualizarPainel() {
   painelArea.innerHTML = "";
   const selecionadas = cena3d.selecao;
 
+  if (malha.ativo()) {
+    painelArea.append(blocoMalha());
+    atualizarStatus();
+    return;
+  }
+
   if (estilete && cena3d.grupoPecas.children.includes(estilete.peca)) {
     painelArea.append(blocoEstilete());
     atualizarStatus();
@@ -785,10 +905,38 @@ function trocarBase(mudanca) {
   atualizarPainel();
 }
 
+function campoLista(rotulo, valorAtual, opcoes, aoMudar) {
+  const caixa = document.createElement("label");
+  caixa.className = "propriedade";
+  caixa.innerHTML = `<span class="propriedade__nome">${rotulo}</span>`;
+  const escolha = document.createElement("select");
+  for (const opcao of opcoes) {
+    const item = document.createElement("option");
+    item.value = String(opcao.valor);
+    item.textContent = opcao.rotulo;
+    if (String(opcao.valor) === String(valorAtual)) item.selected = true;
+    escolha.append(item);
+  }
+  escolha.addEventListener("change", () => aoMudar(escolha.value));
+  caixa.append(escolha);
+  return caixa;
+}
+
 function blocoParametros(peca, definicao) {
   const secao = grupo(definicao.nome);
   for (const [chave, campo] of Object.entries(definicao.params)) {
     const atual = peca.userData.params[chave];
+    if (campo.opcoes) {
+      secao.append(
+        campoLista(campo.rotulo, atual, campo.opcoes, (valor) => {
+          const numero = Number(valor);
+          pecas.regerar(peca, { [chave]: Number.isFinite(numero) ? numero : valor });
+          registrar();
+          atualizarPainel();
+        }),
+      );
+      continue;
+    }
     secao.append(
       campoNumero(
         campo.rotulo,
@@ -968,6 +1116,13 @@ function blocoAcoes(selecionadas) {
         registrar();
         atualizarPainel();
       }),
+      botaoSimples("nos", "Editar malha", () => {
+        if (selecionadas.length !== 1) {
+          mostrarAviso("Selecione uma peça só para editar a malha.", "alerta");
+          return;
+        }
+        entrarNaMalha(selecionadas[0]);
+      }),
     ),
     linhaBotoes(
       botaoSimples("alternar3d", "Inverter em X", () => {
@@ -1130,13 +1285,67 @@ async function abrirProjeto() {
 }
 
 let voltarParaEscolha = () => {};
+let trocarDeModo = null;
 
+// Leva para a bancada 2D o contorno do que encosta na base.
 function alternarPara2D() {
-  const contornos = projeto.contornosNaBase();
-  if (contornos.length) {
-    mostrarAviso(`${contornos.length} peça(s) encostam na base. Guarde na bolsa para levar ao 2D.`);
+  const triangulos = travessia.triangulosNaBase();
+  if (!triangulos.length) {
+    mostrarAviso("Nenhuma peça está encostando na base para virar contorno.", "alerta");
+    trocarDeModo?.();
+    return;
   }
-  voltarParaEscolha();
+  ponte.guardarParaODoisD({ triangulos, nome: "Contorno da base" });
+  projeto.salvarNoCache(nomeDoProjeto).catch(() => {});
+  trocarDeModo?.();
+}
+
+// Recebe o desenho vindo do 2D e transforma em volume.
+function receberDoDoisD() {
+  const carga = ponte.retirar("3d");
+  if (!carga || !carga.svg) return;
+  try {
+    const peca = travessia.extrudarSVG(carga.svg, {
+      alturaMm: carga.alturaMm,
+      nome: carga.nome,
+    });
+    if (!peca) {
+      mostrarAviso("O desenho não gerou volume.", "alerta");
+      return;
+    }
+    selecionar([peca]);
+    registrar();
+    mostrarAviso(`${carga.nome}: virou volume com ${carga.alturaMm} mm.`);
+  } catch (erro) {
+    console.error(erro);
+    mostrarAviso("Não consegui transformar esse desenho em volume.", "erro");
+  }
+}
+
+// Caminho 2D de um arquivo SVG, direto para a base, já com altura.
+async function inserirCaminho2d() {
+  const arquivo = await escolherArquivo(".svg,image/svg+xml");
+  if (!arquivo) return;
+  const altura = await perguntarTexto("Extrusão", "Altura em milímetros:", "10");
+  if (altura === null) return;
+  try {
+    const svg = await arquivo.text();
+    const peca = travessia.extrudarSVG(svg, {
+      alturaMm: Math.max(0.4, Number(altura) || 10),
+      nome: arquivo.name.replace(/\.svg$/i, ""),
+    });
+    if (!peca) {
+      mostrarAviso("Esse SVG não tem caminho fechado para extrudar.", "alerta");
+      return;
+    }
+    selecionar([peca]);
+    registrar();
+    tocar("pronto");
+  } catch (erro) {
+    console.error(erro);
+    tocar("erro");
+    mostrarAviso("Não consegui ler esse SVG.", "erro");
+  }
 }
 
 function agendarSalvamento() {
@@ -1149,7 +1358,8 @@ function agendarSalvamento() {
 
 // --- Ciclo de vida -----------------------------------------------------
 
-export async function montar(area, setor, aoVoltar) {
+export async function montar(area, setor, aoVoltar, aoTrocarDeModo) {
+  trocarDeModo = aoTrocarDeModo;
   carregarEstilo("styles/livre.css");
   montarEsqueleto(area, () => {
     encerrar();
@@ -1172,6 +1382,10 @@ export async function montar(area, setor, aoVoltar) {
       pecas.atualizarMarcaDeContato(cena3d.selecao);
       return;
     }
+    if (malha.ativo()) {
+      registrar();
+      return;
+    }
     if (alvo && garra.getMode() === "translate") {
       alvo.position.x = cena.encaixar(alvo.position.x);
       alvo.position.z = cena.encaixar(alvo.position.z);
@@ -1182,6 +1396,14 @@ export async function montar(area, setor, aoVoltar) {
     atualizarPainel();
   });
   garra.addEventListener("objectChange", () => {
+    if (malha.ativo() && pegaDaMalha && ultimaPegaDaMalha) {
+      const passo = pegaDaMalha.position.clone().sub(ultimaPegaDaMalha);
+      if (passo.lengthSq() > 0) {
+        malha.mover(passo);
+        ultimaPegaDaMalha = pegaDaMalha.position.clone();
+      }
+      return;
+    }
     if (modoDaGarra === "base" && cena3d.selecao[0]) pecas.pousarNaBase(cena3d.selecao[0]);
     pecas.atualizarMarcaDeContato(cena3d.selecao);
   });
@@ -1193,6 +1415,19 @@ export async function montar(area, setor, aoVoltar) {
   const aoClicar = (evento) => {
     if (evento.button !== 0 || garra.dragging) return;
     if (modoDoPonteiro === "mao" || modoDoPonteiro === "camera") return;
+    if (malha.ativo()) {
+      const retangulo = tela.getBoundingClientRect();
+      const ponteiro = new THREE.Vector2(
+        ((evento.clientX - retangulo.left) / retangulo.width) * 2 - 1,
+        -((evento.clientY - retangulo.top) / retangulo.height) * 2 + 1,
+      );
+      raio.setFromCamera(ponteiro, cena3d.camera);
+      malha.marcarPeloRaio(raio, evento.shiftKey || modoDoPonteiro === "somar");
+      prenderGarraNaMalha();
+      atualizarPainel();
+      return;
+    }
+    if (desenhandoCorte) return;
     const alvo = pecaSobOPonteiro(evento);
     const somando = evento.ctrlKey || evento.metaKey || evento.shiftKey || modoDoPonteiro === "somar";
     if (!alvo) {
@@ -1208,6 +1443,72 @@ export async function montar(area, setor, aoVoltar) {
       selecionar([alvo]);
     }
   };
+  const pontoNoPlano = (evento) => {
+    const retangulo = tela.getBoundingClientRect();
+    const ponteiro = new THREE.Vector2(
+      ((evento.clientX - retangulo.left) / retangulo.width) * 2 - 1,
+      -((evento.clientY - retangulo.top) / retangulo.height) * 2 + 1,
+    );
+    raio.setFromCamera(ponteiro, cena3d.camera);
+    const centro = new THREE.Box3().setFromObject(estilete.peca).getCenter(new THREE.Vector3());
+    const frente = new THREE.Vector3();
+    cena3d.camera.getWorldDirection(frente);
+    const plano = new THREE.Plane().setFromNormalAndCoplanarPoint(frente.clone().negate(), centro);
+    const alvo = new THREE.Vector3();
+    return raio.ray.intersectPlane(plano, alvo) ? alvo : null;
+  };
+
+  const comecarTraco = (evento) => {
+    if (!desenhandoCorte || !estilete) return;
+    evento.preventDefault();
+    tracoDoCorte = [];
+    const ponto = pontoNoPlano(evento);
+    if (ponto) tracoDoCorte.push(ponto);
+    tela.setPointerCapture?.(evento.pointerId);
+  };
+  const seguirTraco = (evento) => {
+    if (!desenhandoCorte || !tracoDoCorte.length) return;
+    const ponto = pontoNoPlano(evento);
+    if (ponto && ponto.distanceTo(tracoDoCorte[tracoDoCorte.length - 1]) > 0.8) {
+      tracoDoCorte.push(ponto);
+    }
+  };
+  const terminarTraco = (evento) => {
+    if (!desenhandoCorte || !estilete) return;
+    tela.releasePointerCapture?.(evento.pointerId);
+    if (tracoDoCorte.length < 3) {
+      tracoDoCorte = [];
+      return;
+    }
+    const alvo = estilete.peca;
+    const partes = pecas.cortarLivre(alvo, tracoDoCorte, cena3d.camera, {
+      separar: estilete.tipo === "separado",
+    });
+    tracoDoCorte = [];
+    desenhandoCorte = false;
+    cena3d.orbita.enabled = true;
+    if (!partes) {
+      tocar("erro");
+      mostrarAviso("O desenho não pegou a peça. Tente contornar por cima dela.", "alerta");
+      atualizarPainel();
+      return;
+    }
+    fecharEstilete();
+    selecionar(partes);
+    registrar();
+    tocar("clique");
+    mostrarAviso("Corte livre aplicado.");
+  };
+
+  tela.addEventListener("pointerdown", comecarTraco);
+  tela.addEventListener("pointermove", seguirTraco);
+  tela.addEventListener("pointerup", terminarTraco);
+  desligar.push(() => {
+    tela.removeEventListener("pointerdown", comecarTraco);
+    tela.removeEventListener("pointermove", seguirTraco);
+    tela.removeEventListener("pointerup", terminarTraco);
+  });
+
   tela.addEventListener("pointerdown", aoClicar);
   desligar.push(() => tela.removeEventListener("pointerdown", aoClicar));
 
@@ -1321,6 +1622,7 @@ export async function montar(area, setor, aoVoltar) {
     }
   }
 
+  receberDoDoisD();
   ultimaFoto = foto();
   cena.comecarDesenho();
   selecionar([]);
@@ -1343,6 +1645,7 @@ export function encerrar() {
   }
   desligar = [];
   estilete = null;
+  malha.sair();
   fecharMenusFlutuantes();
   document.body.classList.remove("sem-rodape");
   clearTimeout(salvamentoPendente);

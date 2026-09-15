@@ -133,7 +133,7 @@ de zoom. O botão de tela cheia na barra superior ganha bastante espaço.
 
 Teclas 1 a 4 trocam o modo de movimento, 6 a 9 trocam a ação do clique e do
 toque. O teclado numérico gira a câmera como no Blender (7 topo, 1 frente,
-3 direita, 4 esquerda, 9 trás, 5 perspectiva, 2 base). W e S vão e voltam, A e D andam para a esquerda e para a direita, Q e E sobem e descem, e Shift acelera. A lista completa está no botão
+3 direita, 4 esquerda, 9 trás, 5 perspectiva, 2 base). W e S vão e voltam, A e D andam para a esquerda e para a direita, E sobe e Q desce, Q e E sobem e descem, e Shift acelera. A lista completa está no botão
 **Atalhos**, dentro das propriedades da base.
 
 ### Estilete e texto 3D
@@ -150,6 +150,26 @@ pronta para o fatiador.
 Cada peça pode ser vista como **rígida** (só os cantos aparecem) ou como
 **malha** (todas as arestas à mostra). Por enquanto a troca muda a aparência;
 a edição por vértice, aresta e face entra na próxima etapa.
+
+### Uma área de criação só
+
+As duas bancadas são a mesma área de trabalho vista de dois jeitos. **Alternar
+para 3D** leva o desenho junto: os caminhos da mesa viram volume com a altura
+que você informar. **Alternar para 2D** faz o caminho de volta: a fatia que
+encosta na base vira contorno na mesa de corte. Não passa mais pela tela de
+escolha.
+
+No 3D, a ferramenta **Caminho 2D** importa um SVG e já extruda.
+
+### Editar malha
+
+Com uma peça selecionada, **Editar malha** mostra os vértices. Dá para marcar
+por vértice, aresta ou face, somando com Shift, e a seta move o que estiver
+marcado. Vértices que ocupam o mesmo ponto andam juntos, então a peça não
+rasga.
+
+O **Estilete** tem dois jeitos: plano, com a folha atravessando a peça, e
+livre, em que você contorna na tela a parte que sai.
 
 ### Salvamento
 
