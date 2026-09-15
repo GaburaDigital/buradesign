@@ -3,7 +3,7 @@
 // resultado é uma peça nova, pronta para imprimir.
 
 import * as THREE from "three";
-import { Brush, Evaluator, ADDITION, SUBTRACTION } from "three-bvh-csg";
+import { Brush, Evaluator, ADDITION, SUBTRACTION, INTERSECTION } from "three-bvh-csg";
 import { cena3d, paleta3d, encaixar } from "./cena.js";
 import { geometriaDe, parametrosPadrao, DEFINICOES, aplicarUVsDeCaixa } from "./solidos.js";
 
@@ -305,6 +305,125 @@ export function combinar(pecas) {
   cena3d.grupoPecas.add(nova);
   for (const peca of pecas) remover(peca);
   return nova;
+}
+
+// --- Estilete ----------------------------------------------------------
+// O corte usa uma caixa gigante encostada no plano escolhido: o que fica de
+// um lado é subtraído, o que fica do outro é a interseção. Com isso saem as
+// duas metades exatas da peça.
+
+export const EIXOS_DE_CORTE = [
+  { id: "y", rotulo: "Horizontal (deitado)", normal: [0, 1, 0] },
+  { id: "x", rotulo: "Vertical (esquerda e direita)", normal: [1, 0, 0] },
+  { id: "z", rotulo: "Vertical (frente e trás)", normal: [0, 0, 1] },
+  { id: "diagonal", rotulo: "Diagonal", normal: [1, 1, 0] },
+];
+
+function caixaDeCorte(peca, eixo, deslocamento) {
+  peca.updateMatrixWorld(true);
+  const caixa = new THREE.Box3().setFromObject(peca);
+  const centro = caixa.getCenter(new THREE.Vector3());
+  const tamanho = caixa.getSize(new THREE.Vector3());
+  const lado = Math.max(tamanho.x, tamanho.y, tamanho.z) * 4 + 20;
+
+  const ficha = EIXOS_DE_CORTE.find((item) => item.id === eixo) || EIXOS_DE_CORTE[0];
+  const normal = new THREE.Vector3(...ficha.normal).normalize();
+
+  const faca = new Brush(new THREE.BoxGeometry(lado, lado, lado));
+  // A caixa encosta no plano de corte: metade dela fica de um lado só.
+  const plano = centro.clone().add(normal.clone().multiplyScalar(deslocamento));
+  faca.position.copy(plano.clone().add(normal.clone().multiplyScalar(lado / 2)));
+  if (eixo === "diagonal") faca.rotation.z = Math.PI / 4;
+  faca.updateMatrixWorld(true);
+  return { faca, centro };
+}
+
+function malhaDe(geometria, modelo, sufixo) {
+  geometria.computeVertexNormals();
+  geometria.computeBoundingBox();
+  const centro = geometria.boundingBox.getCenter(new THREE.Vector3());
+  geometria.translate(-centro.x, -centro.y, -centro.z);
+  aplicarUVsDeCaixa(geometria);
+  const dados = modelo.userData;
+  const nova = new THREE.Mesh(geometria, material(dados.cor, dados.textura, false, false));
+  nova.userData = {
+    tipo: "combinada",
+    params: {},
+    cor: dados.cor,
+    textura: dados.textura,
+    negativo: false,
+    selecionada: false,
+    nome: `${dados.nome}${sufixo}`,
+  };
+  nova.position.copy(centro);
+  comContorno(nova);
+  cena3d.grupoPecas.add(nova);
+  return nova;
+}
+
+// tipo: "completo" mantém uma peça só com a marca do corte;
+//       "separado" devolve duas peças independentes.
+export function cortar(peca, { eixo = "y", deslocamento = 0, tipo = "separado" } = {}) {
+  if (!peca || !peca.geometry) return null;
+  const { faca } = caixaDeCorte(peca, eixo, deslocamento);
+
+  peca.updateMatrixWorld(true);
+  const inteira = new Brush(peca.geometry.clone());
+  inteira.applyMatrix4(peca.matrixWorld);
+  inteira.updateMatrixWorld(true);
+
+  const parteA = avaliador.evaluate(inteira, faca, SUBTRACTION);
+  parteA.updateMatrixWorld(true);
+  const geometriaA = parteA.geometry.clone();
+
+  const inteiraDeNovo = new Brush(peca.geometry.clone());
+  inteiraDeNovo.applyMatrix4(peca.matrixWorld);
+  inteiraDeNovo.updateMatrixWorld(true);
+  const parteB = avaliador.evaluate(inteiraDeNovo, faca, INTERSECTION);
+  parteB.updateMatrixWorld(true);
+  const geometriaB = parteB.geometry.clone();
+
+  const vazia = (geometria) => !geometria.attributes.position || geometria.attributes.position.count < 9;
+  if (vazia(geometriaA) || vazia(geometriaB)) return null;
+
+  if (tipo === "separado") {
+    const a = malhaDe(geometriaA, peca, " A");
+    const b = malhaDe(geometriaB, peca, " B");
+    remover(peca);
+    return [a, b];
+  }
+
+  // Corte completo: as duas metades voltam juntas, com a linha do corte à
+  // mostra, mas continuam uma peça só.
+  const juntas = new THREE.BufferGeometry();
+  const posicoes = [
+    ...geometriaA.attributes.position.array,
+    ...geometriaB.attributes.position.array,
+  ];
+  juntas.setAttribute("position", new THREE.Float32BufferAttribute(posicoes, 3));
+  const inteiraNova = malhaDe(juntas, peca, " cortada");
+  remover(peca);
+  return [inteiraNova];
+}
+
+// Peça feita a partir de uma geometria pronta (texto 3D, por exemplo).
+export function pecaDeGeometria(geometria, nome) {
+  aplicarUVsDeCaixa(geometria);
+  const peca = new THREE.Mesh(geometria, material(proximaCor(), "nenhuma", false, false));
+  peca.userData = {
+    tipo: "importada",
+    params: {},
+    cor: proximaCor(),
+    textura: "nenhuma",
+    negativo: false,
+    selecionada: false,
+    nome: nome || "Peça",
+  };
+  comContorno(peca);
+  peca.position.set(cena3d.base.largura / 2, 0, cena3d.base.profundidade / 2);
+  cena3d.grupoPecas.add(peca);
+  pousarNaBase(peca);
+  return peca;
 }
 
 export function podeDesunir(pecas) {

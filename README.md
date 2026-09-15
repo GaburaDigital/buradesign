@@ -129,6 +129,15 @@ botão. Dois dedos sempre aproximam e arrastam, em qualquer modo.
 No canto superior direito ficam as vistas da câmera, e na lateral os botões
 de zoom. O botão de tela cheia na barra superior ganha bastante espaço.
 
+### Estilete e texto 3D
+
+O **Estilete** corta a peça selecionada por um plano: horizontal, vertical nos
+dois sentidos ou diagonal, com a posição medida a partir do centro. "Corte
+separado" gera duas peças independentes; "corte completo" devolve uma peça só
+com a marca do corte.
+
+**Texto 3D** usa as mesmas fontes do 2D, com acentos, e sai já com volume.
+
 ### Salvamento
 
 O projeto é salvo sozinho no navegador a cada mudança, para o aluno não perder

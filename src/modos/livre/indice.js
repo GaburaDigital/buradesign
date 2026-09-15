@@ -88,7 +88,10 @@ function montarEsqueleto(area, aoVoltar) {
     <div class="livre__barra" role="toolbar" aria-label="Ações do projeto"></div>
     <div class="livre__corpo">
       <nav class="livre__ferramentas" aria-label="Caixa de ferramentas"></nav>
-      <div class="livre__palco"><canvas id="tela-2d" aria-label="Mesa de corte"></canvas></div>
+      <div class="livre__palco">
+        <canvas id="tela-2d" aria-label="Mesa de corte"></canvas>
+        <div class="palco__canto palco__canto--zoom"></div>
+      </div>
       <aside class="livre__painel" aria-label="Propriedades"></aside>
     </div>
     <p class="livre__status" aria-live="off"></p>`;
@@ -110,11 +113,19 @@ function montarEsqueleto(area, aoVoltar) {
       apos();
     }),
     separador(),
-    botaoDaBarra("disquete", "Salvar no navegador", salvarComNome, { usarIconeUI: true }),
-    botaoDaBarra("baixar", "Baixar projeto", baixarComNome, { usarIconeUI: true }),
-    botaoDaBarra("pasta", "Abrir projeto", abrirProjeto),
-    botaoDaBarra("exportar", "Exportar SVG", exportar),
-    botaoDaBarra("guardarBolsa", "Guardar na bolsa", guardarNaBolsa),
+    grupoDeFerramentas({
+      id: "arquivo2d",
+      icone: "arquivo",
+      rotulo: t("acoes.arquivo"),
+      modo: "barra",
+      opcoes: [
+        { id: "salvar", icone: "arquivo", rotulo: "Salvar no navegador", aoEscolher: salvarComNome },
+        { id: "baixar", icone: "exportar", rotulo: "Baixar projeto", aoEscolher: baixarComNome },
+        { id: "abrir", icone: "pasta", rotulo: "Abrir projeto", aoEscolher: abrirProjeto },
+        { id: "svg", icone: "exportar", rotulo: "Exportar SVG", aoEscolher: exportar },
+        { id: "bolsa", icone: "guardarBolsa", rotulo: "Guardar na bolsa", aoEscolher: guardarNaBolsa },
+      ],
+    }),
     grupoDeFerramentas({
       id: "editar2d",
       icone: "unir",
@@ -127,11 +138,6 @@ function montarEsqueleto(area, aoVoltar) {
       ],
     }),
     separador(),
-    botaoDaBarra("menos", "Afastar", () => mesa.aproximar(1 / 1.25)),
-    botaoDaBarra("mais", "Aproximar", () => mesa.aproximar(1.25)),
-    botaoDaBarra("enquadrar", "Enquadrar mesa", () => mesa.enquadrar()),
-    botaoDaBarra("alternar3d", "Alternar para 3D", aoVoltar, { extra: "com-rotulo" }),
-    separador(),
     botaoDaBarra("concluir", "Concluir forma", () => {
       caneta.terminar();
       apos();
@@ -140,12 +146,24 @@ function montarEsqueleto(area, aoVoltar) {
       caneta.fechar();
       apos();
     }, { extra: "acao-caneta" }),
-    separador(),
+    botaoDaBarra("alternar3d", "Alternar para 3D", aoVoltar, { extra: "com-rotulo" }),
     botaoDaBarra("lixo", "Limpar base", limparBase, { extra: "botao--perigo com-rotulo" }),
-    botaoDaBarra("regua", "Propriedades", () => raiz.classList.toggle("livre--painel-aberto"), {
-      extra: "so-estreito",
-    }),
+    botaoDaBarra("telaCheia", t("acoes.telaCheia"), alternarTelaCheia),
   );
+
+  const zoom = raiz.querySelector(".palco__canto--zoom");
+  zoom.append(
+    botaoDaBarra("mais", "Aproximar", () => mesa.aproximar(1.25)),
+    botaoDaBarra("menos", "Afastar", () => mesa.aproximar(1 / 1.25)),
+    botaoDaBarra("enquadrar", "Enquadrar mesa", () => mesa.enquadrar()),
+  );
+
+  const atalhoPainel = document.createElement("button");
+  atalhoPainel.type = "button";
+  atalhoPainel.className = "botao-propriedades";
+  atalhoPainel.innerHTML = `${iconeFerramenta("regua")}<span>Propriedades</span>`;
+  atalhoPainel.addEventListener("click", alternarPainel);
+  raiz.querySelector(".livre__palco").append(atalhoPainel);
 
   const caixa = raiz.querySelector(".livre__ferramentas");
   for (const item of FERRAMENTAS) {
@@ -175,6 +193,25 @@ function montarEsqueleto(area, aoVoltar) {
   barraStatus = raiz.querySelector(".livre__status");
   painel.ligarPainel(raiz.querySelector(".livre__painel"));
   tela = raiz.querySelector("#tela-2d");
+}
+
+function alternarPainel() {
+  raiz.classList.toggle("livre--painel-aberto");
+  document.body.classList.toggle("sem-rodape", raiz.classList.contains("livre--painel-aberto"));
+}
+
+function alternarTelaCheia() {
+  const alvo = document.documentElement;
+  if (document.fullscreenElement) {
+    document.exitFullscreen?.();
+    return;
+  }
+  const pedir = alvo.requestFullscreen || alvo.webkitRequestFullscreen;
+  if (!pedir) {
+    mostrarAviso("Este navegador não deixa entrar em tela cheia.", "alerta");
+    return;
+  }
+  pedir.call(alvo).catch(() => mostrarAviso("Não consegui entrar em tela cheia.", "alerta"));
 }
 
 function separador() {
@@ -763,6 +800,8 @@ export function encerrar() {
     }
   }
   desligar = [];
+  fecharMenusFlutuantes();
+  document.body.classList.remove("sem-rodape");
   clearTimeout(salvamentoPendente);
   if (areaAtual) areaAtual.classList.remove("conteudo--cheio");
   areaAtual = null;

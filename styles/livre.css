@@ -279,21 +279,17 @@
   opacity: 0.7;
 }
 .grupo-ferramenta__menu {
-  position: absolute;
-  z-index: 20;
-  top: 100%;
-  left: 0;
+  position: fixed;
+  z-index: 140;
   min-width: 11rem;
+  max-width: min(18rem, 92vw);
+  overflow-y: auto;
   display: grid;
   gap: 2px;
   background: var(--fundo);
   border: var(--borda) solid var(--verde);
   padding: var(--e-1);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
-}
-.livre__ferramentas .grupo-ferramenta__menu { top: 0; left: 100%; }
-@media (max-width: 64rem) {
-  .livre__ferramentas .grupo-ferramenta__menu { top: 100%; left: 0; }
 }
 .grupo-ferramenta__item {
   display: flex;
@@ -352,7 +348,7 @@
 /* Celular: painel divide a altura com a cena, nunca cobre tudo. */
 @media (max-width: 64rem) {
   .livre__corpo { grid-template-rows: auto minmax(0, 1fr); }
-  .livre--painel-aberto .livre__corpo { grid-template-rows: auto minmax(0, 1fr) 45vh; }
+  .livre--painel-aberto .livre__corpo { grid-template-rows: auto minmax(0, 1fr) 34vh; }
   .livre__painel {
     position: static;
     display: none;
@@ -362,4 +358,32 @@
   .livre--painel-aberto .livre__painel { display: block; }
   .livre__barra .com-rotulo-sempre .rotulo-acao { display: inline; }
   .palco__canto--zoom { top: auto; bottom: var(--e-3); transform: none; }
+}
+
+/* Botão de propriedades sempre à mão no celular. */
+.botao-propriedades {
+  position: absolute;
+  right: var(--e-2);
+  bottom: var(--e-2);
+  z-index: 8;
+  display: none;
+  align-items: center;
+  gap: var(--e-2);
+  font-family: var(--fonte-mono);
+  font-size: var(--t-12);
+  color: var(--fundo);
+  background: var(--verde);
+  border: var(--borda) solid var(--verde);
+  padding: var(--e-2) var(--e-3);
+  min-height: 2.75rem;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+.botao-propriedades .icone { width: 1.25rem; height: 1.25rem; }
+@media (max-width: 64rem) {
+  .botao-propriedades { display: inline-flex; }
+  .livre--painel-aberto .botao-propriedades { background: var(--fundo-2); color: var(--texto); }
+  .livre__painel { padding: var(--e-2) var(--e-3); }
+  .livre__painel .grupo-propriedades { padding-top: var(--e-2); margin-top: var(--e-2); }
+  .livre__painel .propriedade { margin-bottom: var(--e-1); }
 }

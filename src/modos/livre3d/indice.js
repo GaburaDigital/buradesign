@@ -30,6 +30,7 @@ import { cena3d } from "./cena.js";
 import { DEFINICOES, nomeDe } from "./solidos.js";
 import * as pecas from "./pecas.js";
 import * as projeto from "./projeto.js";
+import * as texto3d from "./texto3d.js";
 
 const GRUPOS_DE_SOLIDOS = [
   { id: "caixas", icone: "caixas", rotulo: "Caixas", tipos: ["cubo", "cuboide", "dado"] },
@@ -277,6 +278,20 @@ function montarEsqueleto(area, aoVoltar) {
     );
   }
 
+  const textoBotao = document.createElement("button");
+  textoBotao.type = "button";
+  textoBotao.className = "ferramenta";
+  textoBotao.innerHTML = `${iconeFerramenta("texto")}<span>Texto 3D</span>`;
+  textoBotao.addEventListener("click", inserirTexto3d);
+  caixa.append(textoBotao);
+
+  const estileteBotao = document.createElement("button");
+  estileteBotao.type = "button";
+  estileteBotao.className = "ferramenta";
+  estileteBotao.innerHTML = `${iconeFerramenta("caneta")}<span>Estilete</span>`;
+  estileteBotao.addEventListener("click", abrirEstilete);
+  caixa.append(estileteBotao);
+
   // Controles flutuantes por cima da cena: ocupam pouco e deixam a área 3D
   // respirar, que é o que falta no celular.
   const cantoEsquerdo = raiz.querySelector(".palco__canto--topo-esquerda");
@@ -313,6 +328,13 @@ function montarEsqueleto(area, aoVoltar) {
     botaoDaBarra("menos", "Afastar", () => aproximar(1 / 1.2)),
     botaoDaBarra("enquadrar", "Enquadrar base", () => cena.enquadrar()),
   );
+
+  const atalhoPainel = document.createElement("button");
+  atalhoPainel.type = "button";
+  atalhoPainel.className = "botao-propriedades";
+  atalhoPainel.innerHTML = `${iconeFerramenta("regua")}<span>Propriedades</span>`;
+  atalhoPainel.addEventListener("click", alternarPainel);
+  raiz.querySelector(".livre__palco").append(atalhoPainel);
 
   tela = raiz.querySelector("#tela-3d");
   painelArea = raiz.querySelector(".livre__painel");
@@ -375,6 +397,103 @@ function trocarPonteiro(id) {
     selo.classList.add("selo-ponteiro--visivel");
   }
   mostrarAviso(`Toque na tela: ${ficha.rotulo.toLowerCase()}.`);
+}
+
+async function inserirTexto3d() {
+  const conteudo = await perguntarTexto("Texto 3D", "O que escrever:", texto3d.PADRAO.texto);
+  if (conteudo === null) return;
+  try {
+    await texto3d.preparar();
+    const geometria = await texto3d.geometriaDeTexto({ texto: conteudo });
+    if (!geometria) {
+      mostrarAviso("Esse texto não gerou volume. Tente outras letras.", "alerta");
+      return;
+    }
+    const peca = pecas.pecaDeGeometria(geometria, `Texto: ${conteudo}`);
+    selecionar([peca]);
+    registrar();
+    tocar("pronto");
+  } catch (erro) {
+    console.error(erro);
+    tocar("erro");
+    mostrarAviso("Não consegui carregar a fonte.", "erro");
+  }
+}
+
+// Estilete: escolhe o plano, a posição e se as metades ficam juntas ou não.
+function abrirEstilete() {
+  if (cena3d.selecao.length !== 1) {
+    mostrarAviso("Selecione uma peça para cortar.", "alerta");
+    return;
+  }
+  const peca = cena3d.selecao[0];
+  const corpo = document.createElement("div");
+  const escolhas = { eixo: "y", deslocamento: 0, tipo: "separado" };
+
+  const seletor = (rotulo, opcoes, chave) => {
+    const caixa = document.createElement("label");
+    caixa.className = "propriedade";
+    caixa.innerHTML = `<span class="propriedade__nome">${rotulo}</span>`;
+    const escolha = document.createElement("select");
+    for (const opcao of opcoes) {
+      const item = document.createElement("option");
+      item.value = String(opcao.valor);
+      item.textContent = opcao.rotulo;
+      escolha.append(item);
+    }
+    escolha.addEventListener("change", () => {
+      escolhas[chave] = escolha.value;
+    });
+    caixa.append(escolha);
+    return caixa;
+  };
+
+  corpo.append(
+    seletor(
+      "Direção do corte",
+      pecas.EIXOS_DE_CORTE.map((eixo) => ({ valor: eixo.id, rotulo: eixo.rotulo })),
+      "eixo",
+    ),
+    seletor(
+      "Tipo",
+      [
+        { valor: "separado", rotulo: "Corte separado (duas peças)" },
+        { valor: "completo", rotulo: "Corte completo (uma peça marcada)" },
+      ],
+      "tipo",
+    ),
+    campoNumero("Posição do corte", 0, (numero) => {
+      escolhas.deslocamento = paraMm(numero);
+    }),
+  );
+  const nota = document.createElement("p");
+  nota.className = "dica";
+  nota.textContent = "A posição é medida a partir do centro da peça.";
+  corpo.append(nota);
+
+  abrirPainel({
+    titulo: "Estilete",
+    corpo,
+    botoes: [
+      {
+        rotulo: "Cortar",
+        variante: "destaque",
+        aoClicar: () => {
+          const partes = pecas.cortar(peca, escolhas);
+          fecharPainel();
+          if (!partes) {
+            tocar("erro");
+            mostrarAviso("O corte não pegou a peça. Mude a posição.", "alerta");
+            return;
+          }
+          selecionar(partes);
+          registrar();
+          tocar("clique");
+          mostrarAviso(partes.length > 1 ? "Peça cortada em duas." : "Corte aplicado.");
+        },
+      },
+    ],
+  });
 }
 
 // --- Copiar, colar e duplicar ------------------------------------------
