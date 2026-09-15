@@ -10,6 +10,7 @@ import { t } from "../../core/idioma.js";
 import { icone } from "../../ui/icones.js";
 import { ferramenta as iconeFerramenta } from "../../ui/icones-ferramentas.js";
 import { mostrarAviso, confirmar, perguntarTexto, abrirPainel, fecharPainel } from "../../ui/painel.js";
+import { grupoDeFerramentas, fecharMenusFlutuantes } from "../../ui/menu-flutuante.js";
 import { definirDestino, limparDestino } from "../../ui/painel-bolsa.js";
 import { valor as ajuste } from "../../core/ajustes.js";
 
@@ -30,10 +31,24 @@ const FERRAMENTAS = [
   { id: "mao", icone: "mao", rotulo: "Arrastar", tecla: "H" },
   { id: "remodelar", icone: "nos", rotulo: "Remodelar", tecla: "N" },
   { id: "caneta", icone: "caneta", rotulo: "Caneta", tecla: "P" },
-  { id: "quadrado", icone: "quadrado", rotulo: "Quadrado", forma: true },
-  { id: "retangulo", icone: "retangulo", rotulo: "Retângulo", forma: true },
-  { id: "circulo", icone: "circulo", rotulo: "Círculo", forma: true },
-  { id: "elipse", icone: "elipse", rotulo: "Elipse", forma: true },
+  {
+    grupo: "quadrados",
+    icone: "quadrado",
+    rotulo: "Quadrados",
+    opcoes: [
+      { id: "quadrado", icone: "quadrado", rotulo: "Quadrado" },
+      { id: "retangulo", icone: "retangulo", rotulo: "Retângulo" },
+    ],
+  },
+  {
+    grupo: "circulos",
+    icone: "circulo",
+    rotulo: "Círculos",
+    opcoes: [
+      { id: "circulo", icone: "circulo", rotulo: "Círculo" },
+      { id: "elipse", icone: "elipse", rotulo: "Elipse" },
+    ],
+  },
   { id: "poligono", icone: "poligono", rotulo: "Polígono", forma: true },
   { id: "estrela", icone: "estrela", rotulo: "Estrela", forma: true },
   { id: "engrenagem", icone: "engrenagem", rotulo: "Engrenagem", forma: true },
@@ -99,12 +114,23 @@ function montarEsqueleto(area, aoVoltar) {
     botaoDaBarra("baixar", "Baixar projeto", baixarComNome, { usarIconeUI: true }),
     botaoDaBarra("pasta", "Abrir projeto", abrirProjeto),
     botaoDaBarra("exportar", "Exportar SVG", exportar),
-    botaoDaBarra("bolsa", "Guardar na bolsa", guardarNaBolsa, { usarIconeUI: true }),
+    botaoDaBarra("guardarBolsa", "Guardar na bolsa", guardarNaBolsa),
+    grupoDeFerramentas({
+      id: "editar2d",
+      icone: "unir",
+      rotulo: "Editar",
+      modo: "barra",
+      opcoes: [
+        { id: "copiar", icone: "quadrado", rotulo: t("acoes.copiar"), aoEscolher: copiar },
+        { id: "colar", icone: "quadrado", rotulo: t("acoes.colar"), aoEscolher: colar },
+        { id: "duplicar", icone: "quadrado", rotulo: t("acoes.duplicar"), aoEscolher: duplicar },
+      ],
+    }),
     separador(),
     botaoDaBarra("menos", "Afastar", () => mesa.aproximar(1 / 1.25)),
     botaoDaBarra("mais", "Aproximar", () => mesa.aproximar(1.25)),
     botaoDaBarra("enquadrar", "Enquadrar mesa", () => mesa.enquadrar()),
-    botaoDaBarra("cubo3d", "Alternar para 3D", aoVoltar, { extra: "com-rotulo" }),
+    botaoDaBarra("alternar3d", "Alternar para 3D", aoVoltar, { extra: "com-rotulo" }),
     separador(),
     botaoDaBarra("concluir", "Concluir forma", () => {
       caneta.terminar();
@@ -123,6 +149,18 @@ function montarEsqueleto(area, aoVoltar) {
 
   const caixa = raiz.querySelector(".livre__ferramentas");
   for (const item of FERRAMENTAS) {
+    if (item.grupo) {
+      caixa.append(
+        grupoDeFerramentas({
+          id: item.grupo,
+          icone: item.icone,
+          rotulo: item.rotulo,
+          opcoes: item.opcoes,
+          aoEscolher: (opcao) => escolherFerramenta(opcao.id),
+        }),
+      );
+      continue;
+    }
     const alvo = document.createElement("button");
     alvo.type = "button";
     alvo.className = "ferramenta";
@@ -321,6 +359,48 @@ async function guardarNaBolsa() {
   mostrarAviso("Peça guardada na bolsa.");
 }
 
+const areaDeTransferencia = [];
+
+function copiar() {
+  if (!cena.selecao.length) {
+    mostrarAviso("Selecione alguma peça primeiro.", "alerta");
+    return;
+  }
+  areaDeTransferencia.length = 0;
+  for (const item of cena.selecao) {
+    areaDeTransferencia.push(item.exportJSON({ asString: true, precision: 4 }));
+  }
+  mostrarAviso(`${areaDeTransferencia.length} peça(s) copiada(s).`);
+}
+
+function colar() {
+  if (!areaDeTransferencia.length) {
+    mostrarAviso("Nada copiado ainda.", "alerta");
+    return;
+  }
+  const passo = Math.max(5, cena.paper ? 5 : 5);
+  const novas = [];
+  for (const json of areaDeTransferencia) {
+    const item = cena.paper.project.importJSON(json);
+    if (!item) continue;
+    cena.camadaPecas.addChild(item);
+    item.position = item.position.add([passo, passo]);
+    novas.push(item);
+  }
+  definirSelecao(novas);
+  historico.registrar();
+  apos();
+}
+
+function duplicar() {
+  if (!cena.selecao.length) {
+    mostrarAviso("Selecione alguma peça primeiro.", "alerta");
+    return;
+  }
+  combinar.duplicar(cena.selecao);
+  apos();
+}
+
 function agendarSalvamento() {
   if (!ajuste("salvarSozinho")) return;
   clearTimeout(salvamentoPendente);
@@ -359,8 +439,15 @@ function ligarTeclado() {
     }
     if (comando && evento.key.toLowerCase() === "d") {
       evento.preventDefault();
-      combinar.duplicar(cena.selecao);
-      apos();
+      duplicar();
+      return;
+    }
+    if (comando && evento.key.toLowerCase() === "c") {
+      copiar();
+      return;
+    }
+    if (comando && evento.key.toLowerCase() === "v") {
+      colar();
       return;
     }
 
@@ -437,10 +524,6 @@ function ligarFerramentaDoPaper() {
 
   utensilio.onMouseDrag = (evento) => {
     const atual = cena.ferramenta;
-    if (atual === "mao") {
-      cena.paper.view.center = cena.paper.view.center.subtract(evento.delta);
-      return undefined;
-    }
     if (atual === "selecionar") return selecao.aoArrastar(evento);
     if (atual === "remodelar") return remodelar.aoArrastar(evento);
     if (atual === "caneta") return caneta.aoArrastar(evento);
@@ -504,7 +587,9 @@ function ligarArrasteDoMeio() {
   let ultimo = null;
 
   const comecar = (evento) => {
-    if (evento.button !== 1) return;
+    // Botão do meio em qualquer ferramenta, ou botão esquerdo com a mão.
+    const comAMao = cena.ferramenta === "mao" && evento.button === 0;
+    if (evento.button !== 1 && !comAMao) return;
     evento.preventDefault();
     arrastando = true;
     ultimo = { x: evento.clientX, y: evento.clientY };
@@ -530,6 +615,7 @@ function ligarArrasteDoMeio() {
   tela.addEventListener("pointercancel", parar);
   tela.addEventListener("auxclick", (evento) => evento.preventDefault());
   desligar.push(() => {
+    fecharMenusFlutuantes();
     tela.removeEventListener("pointerdown", comecar);
     tela.removeEventListener("pointermove", mover);
     tela.removeEventListener("pointerup", parar);

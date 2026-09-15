@@ -78,8 +78,31 @@ export const DEFINICOES = {
   dado: {
     nome: "Dado",
     params: {
-      lados: { rotulo: "Lados", padrao: 6, min: 4, max: 20, inteiro: true, semUnidade: true },
+      lados: {
+        rotulo: "Faces (poliedro regular)",
+        padrao: 6,
+        opcoes: [
+          { valor: 4, rotulo: "4 faces (tetraedro)" },
+          { valor: 6, rotulo: "6 faces (cubo)" },
+          { valor: 8, rotulo: "8 faces (octaedro)" },
+          { valor: 12, rotulo: "12 faces (dodecaedro)" },
+          { valor: 20, rotulo: "20 faces (icosaedro)" },
+        ],
+      },
       tamanho: { rotulo: "Tamanho", padrao: 20, min: 2, max: 500 },
+    },
+  },
+  meiaEsfera: {
+    nome: "Meia esfera",
+    params: { raio: { rotulo: "Raio", padrao: 15, min: 1, max: 500 } },
+  },
+  cremalheira: {
+    nome: "Cremalheira",
+    params: {
+      comprimento: { rotulo: "Profundidade", padrao: 80, min: 10, max: 1000 },
+      largura: { rotulo: "Largura", padrao: 10, min: 1, max: 500 },
+      altura: { rotulo: "Altura da base", padrao: 8, min: 1, max: 500 },
+      passo: { rotulo: "Passo entre dentes", padrao: 10, min: 2, max: 60 },
     },
   },
   palitoPicole: {
@@ -158,6 +181,18 @@ function formaDaEngrenagem(dentes, raioExterno, furo) {
     forma.holes.push(buraco);
   }
   return forma;
+}
+
+// Extrusão que deixa a espessura no eixo Z, para peças deitadas como a
+// cremalheira, onde o dente precisa apontar para cima.
+function extrudarDeitado(forma, espessura) {
+  const geometria = new THREE.ExtrudeGeometry(forma, {
+    depth: espessura,
+    bevelEnabled: false,
+    curveSegments: 20,
+  });
+  geometria.center();
+  return geometria;
 }
 
 function extrudar(forma, altura) {
@@ -299,6 +334,43 @@ function montarGeometria(tipo, params) {
       const ponta = new THREE.ConeGeometry(params.grossura / 2, params.ponta, 18);
       ponta.translate(0, params.comprimento / 2 + params.ponta / 2, 0);
       return unir([corpo, ponta]);
+    }
+    case "meiaEsfera": {
+      // Metade de cima da esfera, com o fundo fechado, para imprimir e para
+      // as booleanas funcionarem.
+      const raio = params.raio;
+      const pontos = [new THREE.Vector2(0, 0), new THREE.Vector2(raio, 0)];
+      const passos = 24;
+      for (let i = 0; i <= passos; i += 1) {
+        const angulo = (i / passos) * (Math.PI / 2);
+        pontos.push(new THREE.Vector2(Math.cos(angulo) * raio, Math.sin(angulo) * raio));
+      }
+      const geometria = new THREE.LatheGeometry(pontos, 40);
+      geometria.translate(0, -raio / 2, 0);
+      return geometria;
+    }
+    case "cremalheira": {
+      // Barra com dentes para cima, no mesmo passo da engrenagem, para os
+      // dois encaixarem de verdade.
+      const { comprimento, altura, passo } = params;
+      const alturaDente = passo * 0.36;
+      const dentes = Math.max(1, Math.floor(comprimento / passo));
+      const usado = dentes * passo;
+      const inicio = -usado / 2;
+      const forma = new THREE.Shape();
+      forma.moveTo(inicio, 0);
+      forma.lineTo(inicio, altura);
+      for (let i = 0; i < dentes; i += 1) {
+        const base = inicio + i * passo;
+        forma.lineTo(base + passo * 0.15, altura);
+        forma.lineTo(base + passo * 0.32, altura + alturaDente);
+        forma.lineTo(base + passo * 0.68, altura + alturaDente);
+        forma.lineTo(base + passo * 0.85, altura);
+      }
+      forma.lineTo(inicio + usado, altura);
+      forma.lineTo(inicio + usado, 0);
+      forma.closePath();
+      return extrudarDeitado(forma, params.largura);
     }
     case "engrenagem3d":
       return extrudar(

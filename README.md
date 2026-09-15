@@ -105,6 +105,9 @@ rígidos, do cubo à engrenagem, passando por palito de picolé e palito de
 churrasco. Botão direito gira a câmera, botão do meio arrasta, roda aproxima, e
 os botões de vista no canto levam a câmera para topo, frente, lados e trás.
 
+Os sólidos ficam agrupados em seis botões (caixas, arredondados, prismas,
+palitos, engrenagens e outros); clicar abre as opções daquele grupo.
+
 A garra tem quatro modos: mover na base (B), mover livre (G), girar (R) e
 escalar (E). No modo base a peça desliza pelo chão com encaixe no grid, e a
 área apoiada acende em verde para o aluno ver onde ela está pousando. Cores e quatro
@@ -115,6 +118,16 @@ uma peça nova, e desunir volta atrás. Dá para importar STL, OBJ e GLB para
 modificar modelos prontos, e exportar STL da base inteira ou só da seleção.
 
 Peças negativas nunca entram na exportação.
+
+### Ação do toque (celular e tablet)
+
+Dentro da área 3D, no canto superior esquerdo, existe o botão **Ação do
+toque**. Ele decide o que o dedo faz na tela: selecionar, somar à seleção,
+arrastar a vista ou girar a câmera. O modo escolhido fica escrito ao lado do
+botão. Dois dedos sempre aproximam e arrastam, em qualquer modo.
+
+No canto superior direito ficam as vistas da câmera, e na lateral os botões
+de zoom. O botão de tela cheia na barra superior ganha bastante espaço.
 
 ### Salvamento
 

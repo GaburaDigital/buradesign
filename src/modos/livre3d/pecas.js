@@ -77,9 +77,13 @@ function textura(tipo) {
   return mapa;
 }
 
-export function material(cor, tipoTextura, negativo) {
+export function material(cor, tipoTextura, negativo, selecionada) {
+  const base = new THREE.Color(negativo ? NEGATIVO : cor);
+  if (selecionada) base.lerp(new THREE.Color(paleta3d().guia), 0.45);
   return new THREE.MeshStandardMaterial({
-    color: new THREE.Color(negativo ? NEGATIVO : cor),
+    color: base,
+    emissive: new THREE.Color(selecionada ? paleta3d().guia : 0x000000),
+    emissiveIntensity: selecionada ? 0.35 : 0,
     map: textura(tipoTextura),
     roughness: 0.72,
     metalness: 0.03,
@@ -97,17 +101,35 @@ export function proximaCor() {
 export function vestir(peca) {
   const dados = peca.userData;
   peca.material?.dispose?.();
-  peca.material = material(dados.cor, dados.textura, dados.negativo);
+  peca.material = material(dados.cor, dados.textura, dados.negativo, dados.selecionada);
   const contorno = peca.getObjectByName("contorno");
   if (contorno) {
-    contorno.material.color.set(dados.negativo ? 0xe03131 : paleta3d().borda);
+    contorno.material.color.set(
+      dados.selecionada ? paleta3d().guia : dados.negativo ? 0xe03131 : paleta3d().borda,
+    );
+    contorno.material.opacity = dados.selecionada ? 1 : 0.55;
   }
   return peca;
 }
 
+// Peça selecionada muda de cor e ganha contorno forte, para ficar evidente
+// em qualquer ângulo, não só pela marca no chão.
+export function destacar(selecionadas) {
+  const marcadas = new Set(selecionadas || []);
+  for (const peca of cena3d.grupoPecas.children) {
+    const antes = Boolean(peca.userData.selecionada);
+    const agora = marcadas.has(peca);
+    if (antes === agora) continue;
+    peca.userData.selecionada = agora;
+    vestir(peca);
+  }
+}
+
 function comContorno(peca) {
   const arestas = new THREE.LineSegments(
-    new THREE.EdgesGeometry(peca.geometry, 28),
+    // 45 graus: peça rígida mostra só os cantos de verdade. As faces que a
+    // booleana divide em triângulos deixam de aparecer riscadas.
+    new THREE.EdgesGeometry(peca.geometry, 45),
     new THREE.LineBasicMaterial({ color: paleta3d().borda, transparent: true, opacity: 0.55 }),
   );
   arestas.name = "contorno";
@@ -189,6 +211,7 @@ export function criar(tipo, params) {
     cor: peca.material.color.getHexString ? `#${peca.material.color.getHexString()}` : proximaCor(),
     textura: "nenhuma",
     negativo: false,
+    selecionada: false,
     nome: DEFINICOES[tipo] ? DEFINICOES[tipo].nome : "Peça",
   };
   comContorno(peca);

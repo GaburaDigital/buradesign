@@ -195,3 +195,15 @@
   :root { --altura-topo: 2.75rem; --altura-base: 3rem; }
   .conteudo { padding: var(--e-3) var(--e-4); }
 }
+
+/* Rodapé enxuto no celular: crédito curto e um botão para o repositório. */
+@media (max-width: 64rem) {
+  .barra-base__credito a,
+  .barra-base .botao span.rotulo-acao { display: none; }
+  .barra-base__credito { flex: 1 1 auto; }
+  .barra-base__credito .credito-longo { display: none; }
+}
+@media (min-width: 64.01rem) {
+  .barra-base__credito .credito-curto { display: none; }
+}
+body.sem-rodape .barra-base { display: none; }

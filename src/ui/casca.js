@@ -52,11 +52,12 @@ function botaoDeAcao(nomeIcone, rotulo, aoClicar) {
 function montarBase() {
   base().innerHTML = `
     <p class="barra-base__credito">
-      criado por GABURA - estude, aprenda e compartilhe mais exercício em:
-      <a href="${LINKS_GABURA}" target="_blank" rel="noopener noreferrer">${LINKS_GABURA}</a>
+      <span class="credito-longo">criado por GABURA - estude, aprenda e compartilhe mais exercício em:
+        <a href="${LINKS_GABURA}" target="_blank" rel="noopener noreferrer">${LINKS_GABURA}</a></span>
+      <span class="credito-curto">criado por GABURA</span>
     </p>
     <a class="botao" href="${REPOSITORIO}" target="_blank" rel="noopener noreferrer">
-      ${icone("janela")}<span>${t("acoes.repositorio")}</span>
+      ${icone("janela")}<span class="rotulo-acao">${t("acoes.repositorio")}</span>
     </a>`;
 }
 

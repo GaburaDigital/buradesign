@@ -51,22 +51,22 @@ html[data-tema="escuro"] {
 }
 
 html[data-tema="sistema"] {
-  --fundo: #454b52;
-  --fundo-2: #545b63;
-  --fundo-3: #646c75;
-  --texto: #ffffff;
-  --texto-2: #dfe4e8;
-  --texto-3: #b3bcc3;
-  --linha: #78818a;
-  --linha-forte: #c2cad0;
-  --verde: #00e5a0;
-  --verde-fraco: #14453a;
-  --ambar: #ffb300;
-  --perigo: #ff4d4d;
-  --selecao: #00e5a0;
-  --metal-claro: #dfe5ea;
-  --metal-medio: #a7b1b8;
-  --metal-escuro: #6d767c;
+  --fundo: #c9cfd5;
+  --fundo-2: #dde2e6;
+  --fundo-3: #eef1f3;
+  --texto: #0b0e11;
+  --texto-2: #2b3238;
+  --texto-3: #525c64;
+  --linha: #9aa4ac;
+  --linha-forte: #3d454c;
+  --verde: #00694a;
+  --verde-fraco: #bfe6d8;
+  --ambar: #8a5a00;
+  --perigo: #a51616;
+  --selecao: #00a878;
+  --metal-claro: #1b2126;
+  --metal-medio: #3d454c;
+  --metal-escuro: #7b858d;
 }
 
 html[data-tema="rosa"] {

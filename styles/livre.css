@@ -264,3 +264,102 @@
 .modo__botao .icone { width: 3.5rem; height: 3.5rem; }
 .modo__detalhes p { font-size: var(--t-14); color: var(--texto-2); }
 .modo__detalhes ul { margin: 0; padding-left: 1.1rem; font-size: var(--t-12); color: var(--texto-3); font-family: var(--fonte-mono); }
+
+/* Grupos de ferramentas ------------------------------------------------ */
+
+.grupo-ferramenta { position: relative; }
+.grupo-ferramenta__botao { width: 100%; }
+.grupo-ferramenta__seta {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  margin-left: auto;
+  opacity: 0.7;
+}
+.grupo-ferramenta__menu {
+  position: absolute;
+  z-index: 20;
+  top: 100%;
+  left: 0;
+  min-width: 11rem;
+  display: grid;
+  gap: 2px;
+  background: var(--fundo);
+  border: var(--borda) solid var(--verde);
+  padding: var(--e-1);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+.livre__ferramentas .grupo-ferramenta__menu { top: 0; left: 100%; }
+@media (max-width: 64rem) {
+  .livre__ferramentas .grupo-ferramenta__menu { top: 100%; left: 0; }
+}
+.grupo-ferramenta__item {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  font-family: var(--fonte-mono);
+  font-size: var(--t-12);
+  color: var(--texto);
+  background: transparent;
+  border: var(--borda) solid transparent;
+  padding: var(--e-2);
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+.grupo-ferramenta__item:hover { border-color: var(--verde); background: var(--fundo-2); }
+
+/* Controles flutuantes sobre a cena ------------------------------------ */
+
+.palco__canto {
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  gap: var(--e-1);
+  align-items: flex-start;
+}
+.palco__canto--topo-esquerda { top: var(--e-2); left: var(--e-2); }
+.palco__canto--topo-direita { top: var(--e-2); right: var(--e-2); }
+.palco__canto--zoom {
+  top: 50%;
+  left: var(--e-2);
+  transform: translateY(-50%);
+  flex-direction: column;
+}
+.palco__canto .botao,
+.palco__canto .grupo-ferramenta__botao {
+  background: color-mix(in srgb, var(--fundo) 78%, transparent);
+  min-height: 2.25rem;
+}
+.palco__canto .rotulo-acao { display: none; }
+.selo-ponteiro {
+  display: none;
+  align-items: center;
+  gap: var(--e-1);
+  font-family: var(--fonte-mono);
+  font-size: var(--t-12);
+  color: var(--verde);
+  border: var(--borda) solid var(--verde);
+  background: color-mix(in srgb, var(--fundo) 85%, transparent);
+  padding: var(--e-1) var(--e-2);
+  white-space: nowrap;
+}
+.selo-ponteiro--visivel { display: inline-flex; }
+.selo-ponteiro .icone { width: 1rem; height: 1rem; }
+
+/* Celular: painel divide a altura com a cena, nunca cobre tudo. */
+@media (max-width: 64rem) {
+  .livre__corpo { grid-template-rows: auto minmax(0, 1fr); }
+  .livre--painel-aberto .livre__corpo { grid-template-rows: auto minmax(0, 1fr) 45vh; }
+  .livre__painel {
+    position: static;
+    display: none;
+    max-height: none;
+    border-top: var(--borda) solid var(--verde);
+  }
+  .livre--painel-aberto .livre__painel { display: block; }
+  .livre__barra .com-rotulo-sempre .rotulo-acao { display: inline; }
+  .palco__canto--zoom { top: auto; bottom: var(--e-3); transform: none; }
+}

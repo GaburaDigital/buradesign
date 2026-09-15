@@ -21,7 +21,7 @@ export const cena3d = {
 const PALETAS = {
   escuro: { chao: 0x2f3a42, fundo: 0x0c0c0c, grade: 0x2a3036, gradeForte: 0x4a545c, borda: 0x7c858c, guia: 0x3fbf5f },
   claro: { chao: 0xc8d2d8, fundo: 0xf2f4f6, grade: 0xd7dde1, gradeForte: 0xb0b9c0, borda: 0x5c656b, guia: 0x0a7a33 },
-  sistema: { chao: 0x7c858e, fundo: 0x454b52, grade: 0x6b737b, gradeForte: 0x9aa3ab, borda: 0xc2cad0, guia: 0x00e5a0 },
+  sistema: { chao: 0x4a545c, fundo: 0x2b3238, grade: 0x434c54, gradeForte: 0x6b757d, borda: 0xaab4bc, guia: 0x00d79a },
   rosa: { chao: 0x6a2d7a, fundo: 0x2a0f33, grade: 0x4d2059, gradeForte: 0x713287, borda: 0xb167c9, guia: 0xff5f8d },
   flash: { chao: 0xf6c9c6, fundo: 0xfffdfd, grade: 0xffdedb, gradeForte: 0xf2b3ae, borda: 0xb21f1f, guia: 0xe6a800 },
 };

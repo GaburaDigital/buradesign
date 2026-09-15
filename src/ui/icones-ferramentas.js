@@ -85,6 +85,40 @@ const FERRAMENTAS = {
     <path d="M12 3 V5 M12 15 V17 M5 10 H7 M17 10 H19 M7.2 5.2 L8.6 6.6 M15.4 13.4 L16.8 14.8 M16.8 5.2 L15.4 6.6 M8.6 13.4 L7.2 14.8" ${D}/>
     <circle cx="12" cy="10" r="1.8" ${V}/>
     <path d="M7 13.5 V16 a5 2.6 0 0 0 10 0 V13.5" ${V}/>`,
+  alternar2d: `<path d="M20.5 9 a8.5 8.5 0 1 0 0.6 4" ${D}/><path d="M21 3.5 V9.5 H15" ${V}/>
+    <text x="12" y="16" text-anchor="middle" font-family="monospace" font-size="9" font-weight="700" fill="currentColor" stroke="none">2D</text>`,
+  alternar3d: `<path d="M20.5 9 a8.5 8.5 0 1 0 0.6 4" ${D}/><path d="M21 3.5 V9.5 H15" ${V}/>
+    <text x="12" y="16" text-anchor="middle" font-family="monospace" font-size="9" font-weight="700" fill="currentColor" stroke="none">3D</text>`,
+  guardarBolsa: `<path d="M6 10 H18 L19.5 21 H4.5 Z" ${D}/><path d="M9 10 V8 A3 3 0 0 1 15 8 V10" ${D}/>
+    <path d="M12 1.5 V7 M9.5 4.5 L12 7 L14.5 4.5" ${V}/>`,
+  arquivo: `<path d="M6 3 H14 L18.5 7.5 V21 H6 Z" ${D}/><path d="M14 3 V7.5 H18.5" ${D}/>
+    <path d="M9 12 H15.5 M9 15.5 H13.5" ${V}/>`,
+  caixaFerramentas: `<path d="M3 9 H21 V20 H3 Z" ${D}/><path d="M8.5 9 V6 H15.5 V9" ${D}/><path d="M3 13.5 H21" ${V}/>
+    <rect x="10.5" y="11.5" width="3" height="4" ${D}/>`,
+  formas3d: `<path d="M7 7 L12 9.5 L7 12 L2 9.5 Z" ${D}/><path d="M2 9.5 V15 L7 17.5 V12" ${D}/><path d="M12 9.5 V15 L7 17.5" ${V}/>
+    <circle cx="18" cy="7" r="4" ${D}/><path d="M18 12.5 L22 20.5 H14 Z" ${V}/>`,
+  telaCheia: `<path d="M3 9 V3.5 H8.5 M15.5 3.5 H21 V9 M21 15 V20.5 H15.5 M8.5 20.5 H3 V15" ${V}/>
+    <rect x="7" y="7" width="10" height="10" ${D}/>`,
+  ponteiro: `<path d="M4 3 L4 15.5 L7.5 12.5 L10 18 L12.5 17 L10 11.8 L14.5 11.5 Z" ${D}/>
+    <path d="M14 5.5 H17 L18 4 H21 V10 H14 Z" ${V}/>`,
+  cameraCubo: `<path d="M3 8 H6.5 L8 6 H14 L15.5 8 H19 V19 H3 Z" ${D}/>
+    <path d="M11 9.5 L15 11.5 L11 13.5 L7 11.5 Z" ${V}/><path d="M7 11.5 V15.5 L11 17.5 V13.5 M15 11.5 V15.5 L11 17.5" ${V}/>`,
+  caixas: `<path d="M9 5 L15.5 8 L9 11 L2.5 8 Z" ${D}/><path d="M2.5 8 V14 L9 17 V11" ${D}/><path d="M15.5 8 V14 L9 17" ${V}/>
+    <path d="M16 13 L21.5 15.5 L16 18 L14 17" ${D}/>`,
+  arredondados: `<circle cx="8" cy="8" r="5" ${D}/><path d="M14 20 a5 2 0 0 0 8 0 V12 a5 2 0 0 0 -8 0 Z" ${D}/>
+    <ellipse cx="18" cy="12" rx="4" ry="2" ${V}/>`,
+  prismas: `<path d="M8 3 L13 6 V13 L8 16 L3 13 V6 Z" ${D}/><path d="M3 6 L8 9 L13 6 M8 9 V16" ${V}/>
+    <path d="M17 11 L21 20 H13 Z" ${D}/>`,
+  palitos: `<path d="M3 9 L14 6.5 a2.6 1.4 0 0 1 0 2.8 L3 11.8 a2.6 1.4 0 0 1 0 -2.8 Z" ${D}/>
+    <path d="M4 19 L18 13" ${D}/><path d="M18 13 L21.5 11.5 L20 15" ${V}/>`,
+  engrenagens: `<circle cx="8.5" cy="9" r="4.5" ${D}/><circle cx="8.5" cy="9" r="1.6" ${V}/>
+    <path d="M8.5 3 V4.5 M8.5 13.5 V15 M2.5 9 H4 M13 9 H14.5" ${D}/>
+    <path d="M3 19 H21 M5 19 V17 M8 19 V17 M11 19 V17 M14 19 V17 M17 19 V17" ${V}/>`,
+  outrosSolidos: `<ellipse cx="7.5" cy="8" rx="5.5" ry="3.2" ${D}/><ellipse cx="7.5" cy="8" rx="2" ry="1.1" ${V}/>
+    <path d="M17 4 L21.5 14 H12.5 Z" ${D}/><path d="M12.5 14 a4.5 1.8 0 0 0 9 0" ${V}/>`,
+  meiaEsfera3d: `<path d="M3.5 15 a8.5 8.5 0 0 1 17 0 Z" ${D}/><path d="M3.5 15 a8.5 3 0 0 0 17 0" ${V}/>`,
+  cremalheira3d: `<path d="M3 14 H21 V19 H3 Z" ${D}/>
+    <path d="M5 14 V10 H8 V14 M10 14 V10 H13 V14 M15 14 V10 H18 V14" ${V}/>`,
   regua: `<path d="M3 8 H21 V16 H3 Z" ${D}/><path d="M7 8 V12 M11 8 V13 M15 8 V12 M18 8 V13" ${V}/>`,
 };
 

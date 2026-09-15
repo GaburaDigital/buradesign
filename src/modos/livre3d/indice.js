@@ -23,6 +23,7 @@ import {
 import { definirDestino, limparDestino } from "../../ui/painel-bolsa.js";
 import { fala } from "../../ui/aliens.js";
 import { campoArrastavel } from "../../ui/campo-numero.js";
+import { grupoDeFerramentas, fecharMenusFlutuantes } from "../../ui/menu-flutuante.js";
 
 import * as cena from "./cena.js";
 import { cena3d } from "./cena.js";
@@ -30,7 +31,40 @@ import { DEFINICOES, nomeDe } from "./solidos.js";
 import * as pecas from "./pecas.js";
 import * as projeto from "./projeto.js";
 
-const SOLIDOS = Object.keys(DEFINICOES);
+const GRUPOS_DE_SOLIDOS = [
+  { id: "caixas", icone: "caixas", rotulo: "Caixas", tipos: ["cubo", "cuboide", "dado"] },
+  {
+    id: "arredondados",
+    icone: "arredondados",
+    rotulo: "Arredondados",
+    tipos: ["esfera", "meiaEsfera", "cilindro", "cone"],
+  },
+  { id: "prismas", icone: "prismas", rotulo: "Prismas", tipos: ["prisma", "prismaEstrela"] },
+  { id: "palitos", icone: "palitos", rotulo: "Palitos", tipos: ["palitoPicole", "palitoChurrasco"] },
+  {
+    id: "engrenagens",
+    icone: "engrenagens",
+    rotulo: "Engrenagens",
+    tipos: ["engrenagem3d", "cremalheira"],
+  },
+  { id: "outros", icone: "outrosSolidos", rotulo: "Outros", tipos: ["torus", "anel", "piramide"] },
+];
+
+const MODOS_DE_PONTEIRO = [
+  { id: "selecionar", icone: "seta", rotulo: "Selecionar" },
+  { id: "somar", icone: "somar", rotulo: "Somar à seleção" },
+  { id: "mao", icone: "mao", rotulo: "Arrastar a vista" },
+  { id: "camera", icone: "camera", rotulo: "Girar a câmera" },
+];
+
+const VISTAS = [
+  ["topo", "Topo"],
+  ["frente", "Frente"],
+  ["direita", "Direita"],
+  ["esquerda", "Esquerda"],
+  ["tras", "Trás"],
+  ["cantoinho", "Perspectiva"],
+];
 const MODOS_DE_GARRA = [
   { id: "base", icone: "naBase", rotulo: "Mover na base", garra: "translate", semY: true },
   { id: "translate", icone: "mover3d", rotulo: "Mover livre", garra: "translate" },
@@ -39,8 +73,8 @@ const MODOS_DE_GARRA = [
 ];
 
 let modoDaGarra = "base";
-let somandoNoToque = false;
-let cameraNoToque = false;
+let modoDoPonteiro = "selecionar";
+const areaDeTransferencia = [];
 
 let raiz = null;
 let tela = null;
@@ -98,16 +132,7 @@ function refazer() {
 
 function selecionar(lista) {
   cena3d.selecao = lista.filter(Boolean);
-  for (const peca of cena3d.grupoPecas.children) {
-    const contorno = peca.getObjectByName("contorno");
-    const marcada = cena3d.selecao.includes(peca);
-    if (contorno) {
-      contorno.material.color.set(
-        marcada ? cena.paleta3d().guia : peca.userData.negativo ? 0xe03131 : cena.paleta3d().borda,
-      );
-      contorno.material.opacity = marcada ? 1 : 0.55;
-    }
-  }
+  pecas.destacar(cena3d.selecao);
   if (cena3d.selecao.length === 1) garra.attach(cena3d.selecao[0]);
   else soltarGarra();
   if (cena3d.selecao.length) pecas.atualizarMarcaDeContato(cena3d.selecao);
@@ -165,7 +190,9 @@ function montarEsqueleto(area, aoVoltar) {
       <nav class="livre__ferramentas" aria-label="Caixa de ferramentas"></nav>
       <div class="livre__palco">
         <canvas id="tela-3d" aria-label="Base de impressão"></canvas>
-        <div class="cubo-vistas" aria-label="Direção da câmera"></div>
+        <div class="palco__canto palco__canto--topo-esquerda"></div>
+        <div class="palco__canto palco__canto--topo-direita"></div>
+        <div class="palco__canto palco__canto--zoom"></div>
       </div>
       <aside class="livre__painel" aria-label="Propriedades"></aside>
     </div>
@@ -186,26 +213,36 @@ function montarEsqueleto(area, aoVoltar) {
       if (!refazer()) mostrarAviso("Nada para refazer.", "alerta");
     }),
     separador(),
-    botaoDaBarra("disquete", "Salvar no navegador", salvarComNome, { usarIconeUI: true }),
-    botaoDaBarra("baixar", "Baixar projeto", baixarComNome, { usarIconeUI: true }),
-    botaoDaBarra("pasta", "Abrir projeto", abrirProjeto),
-    botaoDaBarra("enviar", "Importar modelo 3D", importarModelo, { usarIconeUI: true }),
-    botaoDaBarra("exportar", "Exportar STL", exportarSTL),
-    botaoDaBarra("bolsa", "Guardar na bolsa", guardarNaBolsa, { usarIconeUI: true }),
+    grupoDeFerramentas({
+      id: "arquivo",
+      icone: "arquivo",
+      rotulo: t("acoes.arquivo"),
+      modo: "barra",
+      opcoes: [
+        { id: "salvar", icone: "arquivo", rotulo: "Salvar no navegador", aoEscolher: salvarComNome },
+        { id: "baixar", icone: "exportar", rotulo: "Baixar projeto", aoEscolher: baixarComNome },
+        { id: "abrir", icone: "pasta", rotulo: "Abrir projeto", aoEscolher: abrirProjeto },
+        { id: "importar", icone: "caixas", rotulo: "Importar modelo 3D", aoEscolher: importarModelo },
+        { id: "stl", icone: "exportar", rotulo: "Exportar STL", aoEscolher: exportarSTL },
+        { id: "bolsa", icone: "guardarBolsa", rotulo: "Guardar na bolsa", aoEscolher: guardarNaBolsa },
+      ],
+    }),
+    grupoDeFerramentas({
+      id: "editar",
+      icone: "unir",
+      rotulo: "Editar",
+      modo: "barra",
+      opcoes: [
+        { id: "copiar", icone: "caixas", rotulo: t("acoes.copiar"), aoEscolher: copiar },
+        { id: "colar", icone: "caixas", rotulo: t("acoes.colar"), aoEscolher: colar },
+        { id: "duplicar", icone: "caixas", rotulo: t("acoes.duplicar"), aoEscolher: duplicar },
+      ],
+    }),
     separador(),
-    botaoDaBarra("menos", "Afastar", () => aproximar(1 / 1.2)),
-    botaoDaBarra("mais", "Aproximar", () => aproximar(1.2)),
-    botaoDaBarra("enquadrar", "Enquadrar base", () => cena.enquadrar()),
-    botaoDaBarra("caminho", "Alternar para 2D", alternarPara2D, { extra: "com-rotulo" }),
-    separador(),
+    botaoDaBarra("alternar2d", "Alternar para 2D", alternarPara2D, { extra: "com-rotulo" }),
     botaoDaBarra("lixo", "Limpar base", limparBase, { extra: "botao--perigo com-rotulo" }),
-    botaoDaBarra("camera", "Girar câmera com o dedo", alternarCameraNoToque, {
-      extra: "so-estreito",
-    }),
-    botaoDaBarra("somar", "Somar à seleção", alternarSomaNoToque, { extra: "so-estreito" }),
-    botaoDaBarra("regua", "Propriedades", () => raiz.classList.toggle("livre--painel-aberto"), {
-      extra: "so-estreito",
-    }),
+    botaoDaBarra("telaCheia", t("acoes.telaCheia"), alternarTelaCheia),
+    botaoDaBarra("regua", "Propriedades", alternarPainel, { extra: "so-estreito com-rotulo-sempre" }),
   );
 
   const caixa = raiz.querySelector(".livre__ferramentas");
@@ -224,45 +261,159 @@ function montarEsqueleto(area, aoVoltar) {
   }
   caixa.append(modos);
 
-  for (const tipo of SOLIDOS) {
-    const alvo = document.createElement("button");
-    alvo.type = "button";
-    alvo.className = "ferramenta";
-    alvo.dataset.solido = tipo;
-    alvo.innerHTML = `${iconeFerramenta(iconeDoSolido(tipo))}<span>${nomeDe(tipo)}</span>`;
-    alvo.addEventListener("click", () => {
-      const peca = pecas.criar(tipo);
-      if (!peca) return;
-      selecionar([peca]);
-      registrar();
-      tocar("clique");
-    });
-    caixa.append(alvo);
+  for (const grupo of GRUPOS_DE_SOLIDOS) {
+    caixa.append(
+      grupoDeFerramentas({
+        id: grupo.id,
+        icone: grupo.icone,
+        rotulo: grupo.rotulo,
+        opcoes: grupo.tipos.map((tipo) => ({
+          id: tipo,
+          icone: iconeDoSolido(tipo),
+          rotulo: nomeDe(tipo),
+        })),
+        aoEscolher: (opcao) => inserirSolido(opcao.id),
+      }),
+    );
   }
 
-  const cubo = raiz.querySelector(".cubo-vistas");
-  for (const [nome, rotulo] of [
-    ["topo", "Topo"],
-    ["frente", "Frente"],
-    ["direita", "Direita"],
-    ["esquerda", "Esquerda"],
-    ["tras", "Trás"],
-    ["cantoinho", "Perspectiva"],
-  ]) {
-    const alvo = document.createElement("button");
-    alvo.type = "button";
-    alvo.className = "botao";
-    alvo.textContent = rotulo;
-    alvo.addEventListener("click", () => {
-      cena.olharDe(nome);
-      tocar("clique");
-    });
-    cubo.append(alvo);
-  }
+  // Controles flutuantes por cima da cena: ocupam pouco e deixam a área 3D
+  // respirar, que é o que falta no celular.
+  const cantoEsquerdo = raiz.querySelector(".palco__canto--topo-esquerda");
+  cantoEsquerdo.append(
+    grupoDeFerramentas({
+      id: "ponteiro",
+      icone: "ponteiro",
+      rotulo: t("acoes.ponteiro"),
+      modo: "barra",
+      opcoes: MODOS_DE_PONTEIRO.map((modo) => ({ ...modo })),
+      aoEscolher: (opcao) => trocarPonteiro(opcao.id),
+    }),
+  );
+  const selo = document.createElement("span");
+  selo.className = "selo-ponteiro";
+  selo.dataset.selo = "";
+  cantoEsquerdo.append(selo);
+
+  const cantoDireito = raiz.querySelector(".palco__canto--topo-direita");
+  cantoDireito.append(
+    grupoDeFerramentas({
+      id: "vistas",
+      icone: "cameraCubo",
+      rotulo: t("acoes.vistas"),
+      modo: "barra",
+      opcoes: VISTAS.map(([nome, rotulo]) => ({ id: nome, icone: "cameraCubo", rotulo })),
+      aoEscolher: (opcao) => cena.olharDe(opcao.id),
+    }),
+  );
+
+  const zoom = raiz.querySelector(".palco__canto--zoom");
+  zoom.append(
+    botaoDaBarra("mais", "Aproximar", () => aproximar(1.2)),
+    botaoDaBarra("menos", "Afastar", () => aproximar(1 / 1.2)),
+    botaoDaBarra("enquadrar", "Enquadrar base", () => cena.enquadrar()),
+  );
 
   tela = raiz.querySelector("#tela-3d");
   painelArea = raiz.querySelector(".livre__painel");
   statusArea = raiz.querySelector(".livre__status");
+}
+
+function alternarPainel() {
+  raiz.classList.toggle("livre--painel-aberto");
+  document.body.classList.toggle(
+    "sem-rodape",
+    raiz.classList.contains("livre--painel-aberto"),
+  );
+  cena.redimensionar(
+    raiz.querySelector(".livre__palco").clientWidth,
+    raiz.querySelector(".livre__palco").clientHeight,
+  );
+}
+
+function alternarTelaCheia() {
+  const alvo = document.documentElement;
+  if (document.fullscreenElement) {
+    document.exitFullscreen?.();
+    return;
+  }
+  const pedir = alvo.requestFullscreen || alvo.webkitRequestFullscreen;
+  if (!pedir) {
+    mostrarAviso("Este navegador não deixa entrar em tela cheia.", "alerta");
+    return;
+  }
+  pedir.call(alvo).catch(() => mostrarAviso("Não consegui entrar em tela cheia.", "alerta"));
+}
+
+function inserirSolido(tipo) {
+  const peca = pecas.criar(tipo);
+  if (!peca) return;
+  selecionar([peca]);
+  registrar();
+}
+
+// Ação do dedo ou do botão esquerdo: selecionar, somar, arrastar ou girar.
+function trocarPonteiro(id) {
+  modoDoPonteiro = id;
+  const ficha = MODOS_DE_PONTEIRO.find((modo) => modo.id === id) || MODOS_DE_PONTEIRO[0];
+  const orbita = cena3d.orbita;
+  if (!orbita) return;
+  if (id === "mao") {
+    orbita.mouseButtons.LEFT = THREE.MOUSE.PAN;
+    orbita.touches.ONE = THREE.TOUCH.PAN;
+  } else if (id === "camera") {
+    orbita.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+    orbita.touches.ONE = THREE.TOUCH.ROTATE;
+  } else {
+    orbita.mouseButtons.LEFT = null;
+    orbita.touches.ONE = null;
+  }
+  orbita.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+  const selo = raiz?.querySelector("[data-selo]");
+  if (selo) {
+    selo.innerHTML = `${iconeFerramenta(ficha.icone)}<span>${ficha.rotulo}</span>`;
+    selo.classList.add("selo-ponteiro--visivel");
+  }
+  mostrarAviso(`Toque na tela: ${ficha.rotulo.toLowerCase()}.`);
+}
+
+// --- Copiar, colar e duplicar ------------------------------------------
+
+function copiar() {
+  if (!cena3d.selecao.length) {
+    mostrarAviso("Selecione alguma peça primeiro.", "alerta");
+    return;
+  }
+  areaDeTransferencia.length = 0;
+  for (const peca of cena3d.selecao) areaDeTransferencia.push(pecas.serializar(peca));
+  mostrarAviso(`${areaDeTransferencia.length} peça(s) copiada(s).`);
+}
+
+function colar() {
+  if (!areaDeTransferencia.length) {
+    mostrarAviso("Nada copiado ainda.", "alerta");
+    return;
+  }
+  const passo = Math.max(5, cena.passoDoEncaixe() || 5);
+  const novas = areaDeTransferencia
+    .map((registro) => pecas.reconstruir({ ...registro }))
+    .filter(Boolean);
+  for (const peca of novas) {
+    peca.position.x += passo;
+    peca.position.z += passo;
+  }
+  selecionar(novas);
+  registrar();
+  tocar("clique");
+}
+
+function duplicar() {
+  if (!cena3d.selecao.length) {
+    mostrarAviso("Selecione alguma peça primeiro.", "alerta");
+    return;
+  }
+  copiar();
+  colar();
 }
 
 function iconeDoSolido(tipo) {
@@ -281,6 +432,8 @@ function iconeDoSolido(tipo) {
     palitoPicole: "palito3d",
     palitoChurrasco: "espeto3d",
     engrenagem3d: "engrenagem3d",
+    meiaEsfera: "meiaEsfera3d",
+    cremalheira: "cremalheira3d",
   };
   return mapa[tipo] || "cubo3d";
 }
@@ -301,26 +454,6 @@ function trocarGarra(modo) {
     alvo.classList.toggle("botao--destaque", alvo.dataset.garra === ficha.id);
   }
   tocar("clique");
-}
-
-function alternarCameraNoToque(botao) {
-  cameraNoToque = !cameraNoToque;
-  botao.classList.toggle("botao--destaque", cameraNoToque);
-  cena3d.orbita.touches = {
-    ONE: cameraNoToque ? THREE.TOUCH.ROTATE : null,
-    TWO: THREE.TOUCH.DOLLY_PAN,
-  };
-  mostrarAviso(
-    cameraNoToque
-      ? "Um dedo gira a câmera. Dois dedos aproximam e arrastam."
-      : "Um dedo volta a selecionar peças.",
-  );
-}
-
-function alternarSomaNoToque(botao) {
-  somandoNoToque = !somandoNoToque;
-  botao.classList.toggle("botao--destaque", somandoNoToque);
-  mostrarAviso(somandoNoToque ? "Cada toque soma à seleção." : "Cada toque troca a seleção.");
 }
 
 function aproximar(fator) {
@@ -776,11 +909,13 @@ export async function montar(area, setor, aoVoltar) {
   const ajudante = garra.getHelper ? garra.getHelper() : garra;
   cena3d.cena.add(ajudante);
   trocarGarra("base");
+  trocarPonteiro("selecionar");
 
   const aoClicar = (evento) => {
     if (evento.button !== 0 || garra.dragging) return;
+    if (modoDoPonteiro === "mao" || modoDoPonteiro === "camera") return;
     const alvo = pecaSobOPonteiro(evento);
-    const somando = evento.ctrlKey || evento.metaKey || evento.shiftKey || somandoNoToque;
+    const somando = evento.ctrlKey || evento.metaKey || evento.shiftKey || modoDoPonteiro === "somar";
     if (!alvo) {
       if (!somando) selecionar([]);
       return;
@@ -805,6 +940,19 @@ export async function montar(area, setor, aoVoltar) {
       evento.preventDefault();
       if (evento.shiftKey) refazer();
       else desfazer();
+      return;
+    }
+    if (comando && evento.key.toLowerCase() === "c") {
+      copiar();
+      return;
+    }
+    if (comando && evento.key.toLowerCase() === "v") {
+      colar();
+      return;
+    }
+    if (comando && evento.key.toLowerCase() === "d") {
+      evento.preventDefault();
+      duplicar();
       return;
     }
     if (evento.key === "Delete" || evento.key === "Backspace") {
@@ -894,6 +1042,8 @@ export function encerrar() {
     }
   }
   desligar = [];
+  fecharMenusFlutuantes();
+  document.body.classList.remove("sem-rodape");
   clearTimeout(salvamentoPendente);
   if (cena3d.renderizador && ajuste("salvarSozinho")) {
     projeto.salvarNoCache(nomeDoProjeto).catch(() => {});

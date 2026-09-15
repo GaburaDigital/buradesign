@@ -2,6 +2,7 @@
 // 2D para corte ou modelar em 3D para impressão. Os dois modos moram em
 // pastas próprias e são carregados só quando escolhidos.
 
+import { carregarEstilo } from "../../core/carregar-script.js";
 import { t } from "../../core/idioma.js";
 import { tocar } from "../../core/som.js";
 import { ferramenta } from "../../ui/icones-ferramentas.js";
@@ -41,6 +42,9 @@ let moduloAberto = null;
 let areaAtual = null;
 
 export async function montar(area, setor, aoVoltar) {
+  // Sem isto, na primeira entrada a tela aparecia crua: o estilo do setor só
+  // era carregado quando uma das bancadas abria.
+  carregarEstilo("styles/livre.css");
   areaAtual = area;
   encerrarFilho();
   area.innerHTML = "";

@@ -43,9 +43,36 @@ export function limitesDaSelecao() {
   );
 }
 
+// Peça selecionada fica evidente: contorno grosso na cor do guia e
+// preenchimento puxado para ela.
+function pintarSelecao() {
+  const tons = paleta();
+  for (const item of cena.camadaPecas.children) {
+    const marcada = cena.selecao.includes(item);
+    if (marcada === Boolean(item.data.pintadaComoSelecionada)) continue;
+    item.data.pintadaComoSelecionada = marcada;
+    if (marcada) {
+      item.strokeColor = tons.guia;
+      item.strokeWidth = 1.2;
+      if (item.fillColor) {
+        item.fillColor = tons.guia;
+        item.fillColor.alpha = 0.5;
+      }
+    } else {
+      item.strokeColor = item.data.negativo ? "#e03131" : tons.contorno;
+      item.strokeWidth = item.data.negativo ? 0.5 : 0.4;
+      if (item.data.cor && !item.data.negativo) {
+        item.fillColor = item.data.cor;
+        item.fillColor.alpha = 0.85;
+      }
+    }
+  }
+}
+
 export function atualizarGuias() {
   const paper = cena.paper;
   if (!paper) return;
+  pintarSelecao();
   const tons = paleta();
   cena.camadaGuias.removeChildren();
   const caixa = limitesDaSelecao();
