@@ -49,13 +49,62 @@ export function extrudarSVG(svg, { alturaMm = 10, nome = "Desenho 2D" } = {}) {
 // Fatia rente ao chão e devolve os triângulos dela achatados no plano da
 // mesa. O contorno de verdade é montado do outro lado, com as booleanas do
 // Paper.js, que sabem juntar tudo numa forma só.
+// Quem está encostando na base neste momento.
+export function pecasNaBase(espessura = 0.8) {
+  return cena3d.grupoPecas.children.filter((peca) => {
+    if (peca.userData.negativo) return false;
+    peca.updateMatrixWorld(true);
+    return new THREE.Box3().setFromObject(peca).min.y <= espessura;
+  });
+}
+
+// Junta em grupos as peças que se encostam. Peças soltas viram grupos de uma
+// só, e cada grupo chega ao 2D como um contorno independente.
+function agruparPorContato(lista, folga = 0.5) {
+  const caixas = lista.map((peca) => {
+    const caixa = new THREE.Box3().setFromObject(peca);
+    caixa.expandByScalar(folga);
+    return caixa;
+  });
+  const grupoDe = lista.map((_, indice) => indice);
+  const raiz = (indice) => {
+    let atual = indice;
+    while (grupoDe[atual] !== atual) atual = grupoDe[atual];
+    return atual;
+  };
+  for (let i = 0; i < lista.length; i += 1) {
+    for (let j = i + 1; j < lista.length; j += 1) {
+      if (caixas[i].intersectsBox(caixas[j])) {
+        const a = raiz(i);
+        const b = raiz(j);
+        if (a !== b) grupoDe[b] = a;
+      }
+    }
+  }
+  const mapa = new Map();
+  lista.forEach((peca, indice) => {
+    const chave = raiz(indice);
+    if (!mapa.has(chave)) mapa.set(chave, []);
+    mapa.get(chave).push(peca);
+  });
+  return [...mapa.values()];
+}
+
+// Devolve um conjunto de triângulos por grupo de peças encostadas.
 export function triangulosNaBase(espessura = 0.8, limiteDeTriangulos = 8000) {
+  const grupos = [];
+  for (const conjunto of agruparPorContato(pecasNaBase(espessura))) {
+    const saida = fatiar(conjunto, espessura, limiteDeTriangulos);
+    if (saida.length) grupos.push(saida);
+  }
+  return grupos;
+}
+
+function fatiar(conjunto, espessura, limiteDeTriangulos) {
   const saida = [];
-  for (const peca of cena3d.grupoPecas.children) {
-    if (peca.userData.negativo) continue;
+  for (const peca of conjunto) {
     peca.updateMatrixWorld(true);
     const caixa = new THREE.Box3().setFromObject(peca);
-    if (caixa.min.y > espessura) continue;
 
     const largura = Math.max(2, caixa.max.x - caixa.min.x) + 4;
     const profundidade = Math.max(2, caixa.max.z - caixa.min.z) + 4;

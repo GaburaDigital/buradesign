@@ -6,6 +6,7 @@
 import * as THREE from "three";
 import { cena3d, paleta3d } from "./cena.js";
 import { aplicarUVsDeCaixa } from "./solidos.js";
+import { linhaGrossa } from "./pecas.js";
 
 export const MODOS = [
   { id: "vertice", rotulo: "Vértice" },
@@ -20,6 +21,8 @@ const estado = {
   porVertice: [],
   marcados: new Set(),
   pontos: null,
+  destaque: null,
+  trianguloMarcado: null,
 };
 
 function casa(valor) {
@@ -58,7 +61,12 @@ function desenharPontos() {
   geometria.setAttribute("color", new THREE.BufferAttribute(cores, 3));
   estado.pontos = new THREE.Points(
     geometria,
-    new THREE.PointsMaterial({ size: 4, sizeAttenuation: false, vertexColors: true, depthTest: false }),
+    new THREE.PointsMaterial({
+      size: 10,
+      sizeAttenuation: false,
+      vertexColors: true,
+      depthTest: false,
+    }),
   );
   estado.pontos.name = "pontosDaMalha";
   estado.pontos.renderOrder = 10;
@@ -76,9 +84,69 @@ function pintarPontos() {
     cores.setXYZ(i, cor.r, cor.g, cor.b);
   }
   cores.needsUpdate = true;
+  desenharDestaque();
+}
+
+// Destaque do que está marcado: aresta grossa na cor do guia, face pintada
+// por inteiro. O ponto já muda de cor sozinho.
+function apagarDestaque() {
+  if (!estado.destaque) return;
+  estado.destaque.traverse((filho) => {
+    filho.geometry?.dispose?.();
+    filho.material?.dispose?.();
+  });
+  estado.destaque.parent?.remove(estado.destaque);
+  estado.destaque = null;
+}
+
+function desenharDestaque() {
+  apagarDestaque();
+  if (!estado.peca || !estado.marcados.size) return;
+  const cor = paleta3d().guia;
+  const grupo = new THREE.Group();
+  grupo.name = "destaqueDaMalha";
+
+  if (estado.modo === "aresta" && estado.marcados.size === 2) {
+    const [a, b] = [...estado.marcados];
+    grupo.add(
+      linhaGrossa(
+        [...estado.unicos[a].posicao.toArray(), ...estado.unicos[b].posicao.toArray()],
+        cor,
+        6,
+      ),
+    );
+  }
+
+  if (estado.modo === "face" && estado.trianguloMarcado) {
+    const geometria = new THREE.BufferGeometry();
+    const pontos = [];
+    for (const indice of estado.trianguloMarcado) {
+      pontos.push(...estado.unicos[estado.porVertice[indice]].posicao.toArray());
+    }
+    geometria.setAttribute("position", new THREE.Float32BufferAttribute(pontos, 3));
+    geometria.computeVertexNormals();
+    const cara = new THREE.Mesh(
+      geometria,
+      new THREE.MeshBasicMaterial({
+        color: cor,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.8,
+        depthTest: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -4,
+      }),
+    );
+    cara.renderOrder = 9;
+    grupo.add(cara);
+  }
+
+  estado.peca.add(grupo);
+  estado.destaque = grupo;
 }
 
 function apagarPontos() {
+  apagarDestaque();
   if (!estado.pontos) return;
   estado.pontos.geometry.dispose();
   estado.pontos.material.dispose();
@@ -120,6 +188,7 @@ export function pecaAtual() {
 export function definirModo(modo) {
   estado.modo = MODOS.some((item) => item.id === modo) ? modo : "vertice";
   estado.marcados = new Set();
+  estado.trianguloMarcado = null;
   pintarPontos();
 }
 
@@ -149,6 +218,7 @@ export function marcarPeloRaio(raio, somando = false) {
 
   if (estado.modo === "face") {
     alvos = trio;
+    estado.trianguloMarcado = [cara.a, cara.b, cara.c];
   } else if (estado.modo === "aresta") {
     const ponto = acerto.point;
     const pares = [
@@ -184,6 +254,7 @@ export function marcarPeloRaio(raio, somando = false) {
     alvos = [melhor];
   }
 
+  if (estado.modo !== "face") estado.trianguloMarcado = null;
   if (!somando) estado.marcados = new Set();
   for (const indice of alvos) estado.marcados.add(indice);
   pintarPontos();
@@ -231,4 +302,5 @@ function atualizarPontos() {
   }
   posicoes.needsUpdate = true;
   estado.pontos.geometry.computeBoundingSphere();
+  desenharDestaque();
 }

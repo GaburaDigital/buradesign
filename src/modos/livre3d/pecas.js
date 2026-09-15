@@ -4,6 +4,9 @@
 
 import * as THREE from "three";
 import { Brush, Evaluator, ADDITION, SUBTRACTION, INTERSECTION } from "three-bvh-csg";
+import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
+import { LineMaterial } from "three/addons/lines/LineMaterial.js";
 import { cena3d, paleta3d, encaixar } from "./cena.js";
 import {
   geometriaDe,
@@ -108,13 +111,11 @@ export function vestir(peca) {
   const dados = peca.userData;
   peca.material?.dispose?.();
   peca.material = material(dados.cor, dados.textura, dados.negativo, dados.selecionada);
-  const contorno = peca.getObjectByName("contorno");
-  if (contorno) {
-    contorno.material.color.set(
-      dados.selecionada ? paleta3d().guia : dados.negativo ? 0xe03131 : paleta3d().borda,
-    );
-    contorno.material.opacity = dados.selecionada ? 1 : 0.55;
-  }
+  pintarContorno(
+    peca,
+    dados.selecionada ? paleta3d().guia : dados.negativo ? 0xe03131 : paleta3d().borda,
+    Boolean(dados.selecionada),
+  );
   return peca;
 }
 
@@ -131,18 +132,102 @@ export function destacar(selecionadas) {
   }
 }
 
+// Linha com espessura de verdade. A linha comum do WebGL ignora a grossura
+// pedida, então as arestas usam a linha "gorda" do Three.js.
+export function linhaGrossa(posicoes, cor, grossuraEmPixels, opacidade = 1) {
+  const geometria = new LineSegmentsGeometry();
+  geometria.setPositions(posicoes);
+  const material = new LineMaterial({
+    color: new THREE.Color(cor).getHex(),
+    linewidth: grossuraEmPixels,
+    transparent: opacidade < 1,
+    opacity: opacidade,
+    worldUnits: false,
+    depthTest: true,
+  });
+  material.resolution.set(resolucao.x, resolucao.y);
+  const linha = new LineSegments2(geometria, material);
+  linha.computeLineDistances();
+  return linha;
+}
+
+const resolucao = new THREE.Vector2(1280, 720);
+
+export function atualizarResolucaoDasLinhas(largura, altura) {
+  if (!largura || !altura) return;
+  resolucao.set(largura, altura);
+  cena3d.cena?.traverse((filho) => {
+    if (filho.material && filho.material.isLineMaterial) {
+      filho.material.resolution.set(largura, altura);
+    }
+  });
+}
+
+function posicoesDasArestas(geometria, limite) {
+  const arestas = new THREE.EdgesGeometry(geometria, limite);
+  const lista = Array.from(arestas.attributes.position.array);
+  arestas.dispose();
+  return lista;
+}
+
+// Cruz discreta no meio de cada face: é a marca visual da malha, e ajuda a
+// mirar quando o aluno vai editar face por face.
+function cruzesDasFaces(geometria, tamanhoRelativo = 0.22) {
+  const plana = geometria.index ? geometria.toNonIndexed() : geometria;
+  const posicoes = plana.attributes.position;
+  const lista = [];
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  for (let i = 0; i < posicoes.count; i += 3) {
+    a.fromBufferAttribute(posicoes, i);
+    b.fromBufferAttribute(posicoes, i + 1);
+    c.fromBufferAttribute(posicoes, i + 2);
+    const centro = new THREE.Vector3().add(a).add(b).add(c).divideScalar(3);
+    const lado1 = new THREE.Vector3().subVectors(b, a);
+    const lado2 = new THREE.Vector3().subVectors(c, a);
+    const tamanho = Math.min(lado1.length(), lado2.length()) * tamanhoRelativo;
+    if (tamanho < 0.05) continue;
+    const eixo1 = lado1.clone().normalize().multiplyScalar(tamanho);
+    const eixo2 = new THREE.Vector3().crossVectors(lado1, lado2).normalize();
+    const eixo3 = new THREE.Vector3().crossVectors(eixo2, eixo1).normalize().multiplyScalar(tamanho);
+    lista.push(
+      ...centro.clone().sub(eixo1).toArray(), ...centro.clone().add(eixo1).toArray(),
+      ...centro.clone().sub(eixo3).toArray(), ...centro.clone().add(eixo3).toArray(),
+    );
+  }
+  return lista;
+}
+
 function comContorno(peca) {
-  const limite = peca.userData?.modo === "malha" ? 1 : 45;
-  const arestas = new THREE.LineSegments(
-    // Peça rígida mostra só os cantos de verdade; em modo malha aparecem
-    // todas as arestas, que é como o aluno vai editar vértice por vértice
-    // quando o editor de malhas chegar.
-    new THREE.EdgesGeometry(peca.geometry, limite),
-    new THREE.LineBasicMaterial({ color: paleta3d().borda, transparent: true, opacity: 0.55 }),
-  );
-  arestas.name = "contorno";
-  peca.add(arestas);
+  const malha = peca.userData?.modo === "malha";
+  const tons = paleta3d();
+  const grupo = new THREE.Group();
+  grupo.name = "contorno";
+
+  // Peça rígida: só os cantos, com traço triplo. Malha: todas as arestas
+  // finas, mais a cruz no meio das faces.
+  const arestas = posicoesDasArestas(peca.geometry, malha ? 1 : 45);
+  if (arestas.length) {
+    grupo.add(linhaGrossa(arestas, tons.borda, malha ? 1 : 3, malha ? 0.75 : 0.9));
+  }
+  if (malha) {
+    const cruzes = cruzesDasFaces(peca.geometry);
+    if (cruzes.length) grupo.add(linhaGrossa(cruzes, tons.borda, 1, 0.45));
+  }
+  peca.add(grupo);
   return peca;
+}
+
+// Repinta o contorno sem refazer a geometria.
+function pintarContorno(peca, cor, forte) {
+  const grupo = peca.getObjectByName("contorno");
+  if (!grupo) return;
+  grupo.traverse((filho) => {
+    if (!filho.material || !filho.material.isLineMaterial) return;
+    filho.material.color.set(cor);
+    filho.material.opacity = forte ? 1 : filho.material.opacity;
+  });
 }
 
 // Pousa a peça na base: sobe o que estiver afundado e baixa o que estiver
@@ -239,13 +324,7 @@ export function regerar(peca, novosParams) {
   peca.geometry.dispose();
   peca.geometry = geometria;
   dados.params = params;
-  const antigo = peca.getObjectByName("contorno");
-  if (antigo) {
-    antigo.geometry.dispose();
-    antigo.material.dispose();
-    peca.remove(antigo);
-  }
-  comContorno(peca);
+  trocarContorno(peca);
   pousarNaBase(peca);
   return peca;
 }
@@ -396,15 +475,22 @@ export function esconderPlanoDeCorte() {
 export function alternarModo(lista, modo) {
   for (const peca of lista) {
     peca.userData.modo = modo === "malha" ? "malha" : "rigida";
-    const antigo = peca.getObjectByName("contorno");
-    if (antigo) {
-      antigo.geometry.dispose();
-      antigo.material.dispose();
-      peca.remove(antigo);
-    }
-    comContorno(peca);
+    trocarContorno(peca);
   }
   return lista;
+}
+
+export function trocarContorno(peca) {
+  const antigo = peca.getObjectByName("contorno");
+  if (antigo) {
+    antigo.traverse((filho) => {
+      filho.geometry?.dispose?.();
+      filho.material?.dispose?.();
+    });
+    peca.remove(antigo);
+  }
+  comContorno(peca);
+  return peca;
 }
 
 export function espelhar(lista, eixo = "x") {
@@ -413,13 +499,7 @@ export function espelhar(lista, eixo = "x") {
     peca.geometry.scale(...escala);
     garantirOrientacao(peca.geometry);
     aplicarUVsDeCaixa(peca.geometry);
-    const antigo = peca.getObjectByName("contorno");
-    if (antigo) {
-      antigo.geometry.dispose();
-      antigo.material.dispose();
-      peca.remove(antigo);
-    }
-    comContorno(peca);
+    trocarContorno(peca);
   }
   return lista;
 }

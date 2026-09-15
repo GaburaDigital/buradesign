@@ -401,3 +401,20 @@
   text-align: center;
 }
 .livre__ferramentas .selo-ponteiro { margin-bottom: var(--e-2); justify-content: center; }
+
+/* Modos de ajuste da malha: aparecem só durante a edição. */
+.canto-malha {
+  position: absolute;
+  z-index: 7;
+  top: 3.5rem;
+  left: var(--e-2);
+  display: none;
+  align-items: center;
+  gap: var(--e-1);
+}
+.canto-malha--visivel { display: flex; }
+.canto-malha .grupo-ferramenta__botao {
+  background: color-mix(in srgb, var(--fundo) 78%, transparent);
+  min-height: 2.25rem;
+}
+.canto-malha .rotulo-acao { display: none; }

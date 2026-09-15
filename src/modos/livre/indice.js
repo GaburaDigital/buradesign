@@ -209,12 +209,21 @@ async function irParaOTresD() {
   );
   if (altura === null) return;
   const apenasSelecao = cena.selecao.length > 0;
-  const svg = projeto.montarSVG({ apenasSelecao });
+  const alvos = apenasSelecao ? cena.selecao.slice() : cena.camadaPecas.children.slice();
+  const svgs = projeto.svgsPorContato(alvos);
+  if (!svgs.length) {
+    mostrarAviso("Não há desenho para levar ao 3D.", "alerta");
+    return;
+  }
   ponte.guardarParaOTresD({
-    svg,
+    svgs,
     alturaMm: Math.max(0.4, Number(altura) || 10),
-    nome: apenasSelecao ? "Seleção do 2D" : "Desenho do 2D",
+    nome: apenasSelecao ? "Seleção do 2D" : "Peça do 2D",
   });
+  // O desenho vai embora com a travessia: o trabalho é um só.
+  for (const item of alvos) item.remove();
+  limparSelecao();
+  historico.registrar();
   await projeto.salvarNoCache(nomeDoProjeto);
   trocarDeModo?.();
 }
@@ -223,35 +232,43 @@ async function irParaOTresD() {
 // contorno só, com as booleanas do Paper.js.
 function receberDoTresD() {
   const carga = ponte.retirar("2d");
-  if (!carga || !carga.triangulos?.length) return;
+  if (!carga || !carga.grupos?.length) return;
   const paper = cena.paper;
-  let juntos = null;
-  for (const [x1, y1, x2, y2, x3, y3] of carga.triangulos) {
-    const triangulo = new paper.Path({
-      segments: [
-        [x1, y1],
-        [x2, y2],
-        [x3, y3],
-      ],
-      closed: true,
-      insert: false,
-    });
-    if (!juntos) {
-      juntos = triangulo;
-      continue;
+  const criados = [];
+
+  // Um contorno por grupo de peças que se encostavam lá no 3D.
+  for (const triangulos of carga.grupos) {
+    let juntos = null;
+    for (const [x1, y1, x2, y2, x3, y3] of triangulos) {
+      const triangulo = new paper.Path({
+        segments: [
+          [x1, y1],
+          [x2, y2],
+          [x3, y3],
+        ],
+        closed: true,
+        insert: false,
+      });
+      if (!juntos) {
+        juntos = triangulo;
+        continue;
+      }
+      const somado = juntos.unite(triangulo, { insert: false });
+      juntos.remove();
+      triangulo.remove();
+      juntos = somado;
     }
-    const somado = juntos.unite(triangulo, { insert: false });
-    juntos.remove();
-    triangulo.remove();
-    juntos = somado;
+    if (!juntos) continue;
+    cena.camadaPecas.addChild(juntos);
+    juntos.data = { tipo: "caminho", params: {}, rotacao: 0, cor: null, negativo: false };
+    formas.vestir(juntos, null);
+    criados.push(juntos);
   }
-  if (!juntos) return;
-  cena.camadaPecas.addChild(juntos);
-  juntos.data = { tipo: "caminho", params: {}, rotacao: 0, cor: null, negativo: false };
-  formas.vestir(juntos, null);
-  definirSelecao([juntos]);
+
+  if (!criados.length) return;
+  definirSelecao(criados);
   historico.registrar();
-  mostrarAviso(`${carga.nome}: contorno trazido do 3D.`);
+  mostrarAviso(`${carga.nome}: ${criados.length} contorno(s) trazido(s) do 3D.`);
 }
 
 function alternarPainel() {

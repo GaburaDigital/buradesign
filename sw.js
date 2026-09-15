@@ -2,7 +2,7 @@
 // Ao somar ou renomear arquivos, atualize a lista ARQUIVOS e suba o número da
 // VERSAO. O cache antigo é apagado sozinho na ativação.
 
-const VERSAO = "1.0.0";
+const VERSAO = "1.1.0";
 const CACHE = `buradesign-${VERSAO}`;
 
 const ARQUIVOS = [
@@ -34,6 +34,11 @@ const ARQUIVOS = [
   "libs/three/jsm/controls/OrbitControls.js",
   "libs/three/jsm/controls/TransformControls.js",
   "libs/three/jsm/exporters/STLExporter.js",
+  "libs/three/jsm/lines/Line2.js",
+  "libs/three/jsm/lines/LineGeometry.js",
+  "libs/three/jsm/lines/LineMaterial.js",
+  "libs/three/jsm/lines/LineSegments2.js",
+  "libs/three/jsm/lines/LineSegmentsGeometry.js",
   "libs/three/jsm/loaders/GLTFLoader.js",
   "libs/three/jsm/loaders/OBJLoader.js",
   "libs/three/jsm/loaders/STLLoader.js",

@@ -161,6 +161,60 @@ ${miolo}
 `;
 }
 
+// Agrupa o que está encostado e devolve um SVG por grupo. É o que permite
+// levar várias peças separadas para o 3D sem virarem um bloco só.
+export function svgsPorContato(itens) {
+  if (!itens || !itens.length) return [];
+  const encostam = (a, b) => {
+    if (!a.bounds.intersects(b.bounds)) return false;
+    if (a.intersects && a.intersects(b)) return true;
+    return a.contains(b.position) || b.contains(a.position);
+  };
+  const grupoDe = itens.map((_, indice) => indice);
+  const raizDe = (indice) => {
+    let atual = indice;
+    while (grupoDe[atual] !== atual) atual = grupoDe[atual];
+    return atual;
+  };
+  for (let i = 0; i < itens.length; i += 1) {
+    for (let j = i + 1; j < itens.length; j += 1) {
+      if (!encostam(itens[i], itens[j])) continue;
+      const a = raizDe(i);
+      const b = raizDe(j);
+      if (a !== b) grupoDe[b] = a;
+    }
+  }
+  const mapa = new Map();
+  itens.forEach((item, indice) => {
+    const chave = raizDe(indice);
+    if (!mapa.has(chave)) mapa.set(chave, []);
+    mapa.get(chave).push(item);
+  });
+
+  const { largura, altura } = cena.mesa;
+  const saida = [];
+  for (const grupo of mapa.values()) {
+    const copia = new cena.paper.Group(grupo.map((item) => item.clone({ insert: false })));
+    cena.camadaPecas.addChild(copia);
+    const normalizar = (item) => {
+      if (item.children && item.children.length && !item.segments) item.children.forEach(normalizar);
+      item.fillColor = null;
+      item.strokeColor = "#000000";
+      item.strokeWidth = 0.1;
+      item.dashArray = null;
+    };
+    normalizar(copia);
+    const miolo = copia.exportSVG({ asString: true, precision: 4 });
+    copia.remove();
+    saida.push(
+      `<?xml version="1.0" encoding="UTF-8"?>\n` +
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${largura}mm" height="${altura}mm"` +
+        ` viewBox="0 0 ${largura} ${altura}">${miolo}</svg>`,
+    );
+  }
+  return saida;
+}
+
 export function exportarSVG(opcoes = {}) {
   const texto = montarSVG(opcoes);
   const limpo = nomeDeArquivo(opcoes.nome || "corte_2d");

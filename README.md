@@ -156,7 +156,8 @@ a edição por vértice, aresta e face entra na próxima etapa.
 As duas bancadas são a mesma área de trabalho vista de dois jeitos. **Alternar
 para 3D** leva o desenho junto: os caminhos da mesa viram volume com a altura
 que você informar. **Alternar para 2D** faz o caminho de volta: a fatia que
-encosta na base vira contorno na mesa de corte. Não passa mais pela tela de
+encosta na base vira contorno na mesa de corte, com um contorno por conjunto
+de peças encostadas, e as peças convertidas saem da base. Não passa mais pela tela de
 escolha.
 
 No 3D, a ferramenta **Caminho 2D** importa um SVG e já extruda.
@@ -168,8 +169,16 @@ por vértice, aresta ou face, somando com Shift, e a seta move o que estiver
 marcado. Vértices que ocupam o mesmo ponto andam juntos, então a peça não
 rasga.
 
-O **Estilete** tem dois jeitos: plano, com a folha atravessando a peça, e
-livre, em que você contorna na tela a parte que sai.
+O **Estilete** fica na coluna de ferramentas, abaixo de Texto 3D. Com uma peça
+selecionada, ele abre no painel de propriedades e tem dois jeitos, escolhidos
+no campo "Como cortar": **plano**, com a folha atravessando a peça, e
+**livre**, em que você clica em "Desenhar o corte" e contorna na tela a parte
+que sai.
+
+Peça rígida mostra só os cantos, com traço triplo. Peça em modo malha mostra
+todas as arestas finas e uma cruz discreta no meio de cada face. Durante a
+edição, os modos vértice, aresta e face ficam num grupo flutuante no canto
+superior esquerdo da cena, com o modo ativo escrito ao lado.
 
 ### Salvamento
 

@@ -325,6 +325,31 @@ function montarEsqueleto(area, aoVoltar) {
   selo.dataset.selo = "";
   cantoEsquerdo.append(selo);
 
+  // Modos da malha: só aparecem quando a peça está em edição.
+  const caixaDaMalha = document.createElement("div");
+  caixaDaMalha.className = "canto-malha";
+  caixaDaMalha.dataset.malha = "";
+  caixaDaMalha.append(
+    grupoDeFerramentas({
+      id: "modoMalha",
+      icone: "nos",
+      rotulo: "Ajuste da malha",
+      modo: "barra",
+      opcoes: malha.MODOS.map((modo) => ({ id: modo.id, icone: "nos", rotulo: modo.rotulo })),
+      aoEscolher: (opcao) => {
+        malha.definirModo(opcao.id);
+        garra?.detach();
+        atualizarSeloDaMalha();
+        atualizarPainel();
+      },
+    }),
+  );
+  const seloMalha = document.createElement("span");
+  seloMalha.className = "selo-ponteiro selo-ponteiro--visivel";
+  seloMalha.dataset.seloMalha = "";
+  caixaDaMalha.append(seloMalha);
+  raiz.querySelector(".palco__canto--topo-esquerda").after(caixaDaMalha);
+
   const cantoDireito = raiz.querySelector(".palco__canto--topo-direita");
   cantoDireito.append(
     grupoDeFerramentas({
@@ -500,6 +525,8 @@ function blocoEstilete() {
     escolha.addEventListener("change", () => {
       estilete[chave] = escolha.value;
       atualizarPrevia();
+      // Mudar o jeito de cortar troca os campos do painel inteiro.
+      if (chave === "modo") atualizarPainel();
     });
     caixa.append(escolha);
     return caixa;
@@ -592,12 +619,23 @@ function blocoEstilete() {
 let pegaDaMalha = null;
 let ultimaPegaDaMalha = null;
 
+function atualizarSeloDaMalha() {
+  if (!raiz) return;
+  const caixa = raiz.querySelector("[data-malha]");
+  const selo = raiz.querySelector("[data-selo-malha]");
+  if (!caixa || !selo) return;
+  caixa.classList.toggle("canto-malha--visivel", malha.ativo());
+  const ficha = malha.MODOS.find((modo) => modo.id === malha.modoAtual());
+  selo.innerHTML = `${iconeFerramenta("nos")}<span>${ficha ? ficha.rotulo : ""}</span>`;
+}
+
 function entrarNaMalha(peca) {
   if (!malha.entrar(peca)) return;
   pecas.alternarModo([peca], "malha");
   soltarGarra();
   pegaDaMalha = new THREE.Object3D();
   cena3d.cena.add(pegaDaMalha);
+  atualizarSeloDaMalha();
   atualizarPainel();
   mostrarAviso("Clique nos pontos da peça para marcar. A seta move o que estiver marcado.");
 }
@@ -609,6 +647,7 @@ function sairDaMalha() {
     cena3d.cena.remove(pegaDaMalha);
     pegaDaMalha = null;
   }
+  atualizarSeloDaMalha();
   atualizarPainel();
 }
 
@@ -1295,7 +1334,11 @@ function alternarPara2D() {
     trocarDeModo?.();
     return;
   }
-  ponte.guardarParaODoisD({ triangulos, nome: "Contorno da base" });
+  ponte.guardarParaODoisD({ grupos: triangulos, nome: "Contorno da base" });
+  // As peças convertidas saem daqui: o desenho é o mesmo trabalho, visto do
+  // outro lado, e não uma cópia.
+  for (const peca of travessia.pecasNaBase()) pecas.remover(peca);
+  selecionar([]);
   projeto.salvarNoCache(nomeDoProjeto).catch(() => {});
   trocarDeModo?.();
 }
@@ -1303,19 +1346,23 @@ function alternarPara2D() {
 // Recebe o desenho vindo do 2D e transforma em volume.
 function receberDoDoisD() {
   const carga = ponte.retirar("3d");
-  if (!carga || !carga.svg) return;
+  if (!carga || !carga.svgs?.length) return;
   try {
-    const peca = travessia.extrudarSVG(carga.svg, {
-      alturaMm: carga.alturaMm,
-      nome: carga.nome,
+    const criadas = [];
+    carga.svgs.forEach((svg, indice) => {
+      const peca = travessia.extrudarSVG(svg, {
+        alturaMm: carga.alturaMm,
+        nome: `${carga.nome} ${indice + 1}`,
+      });
+      if (peca) criadas.push(peca);
     });
-    if (!peca) {
+    if (!criadas.length) {
       mostrarAviso("O desenho não gerou volume.", "alerta");
       return;
     }
-    selecionar([peca]);
+    selecionar(criadas);
     registrar();
-    mostrarAviso(`${carga.nome}: virou volume com ${carga.alturaMm} mm.`);
+    mostrarAviso(`${criadas.length} peça(s) com ${carga.alturaMm} mm de altura.`);
   } catch (erro) {
     console.error(erro);
     mostrarAviso("Não consegui transformar esse desenho em volume.", "erro");
@@ -1576,10 +1623,12 @@ export async function montar(area, setor, aoVoltar, aoTrocarDeModo) {
   const palco = raiz.querySelector(".livre__palco");
   const observador = new ResizeObserver(() => {
     cena.redimensionar(palco.clientWidth, palco.clientHeight);
+    pecas.atualizarResolucaoDasLinhas(palco.clientWidth, palco.clientHeight);
   });
   observador.observe(palco);
   desligar.push(() => observador.disconnect());
   cena.redimensionar(palco.clientWidth, palco.clientHeight);
+  pecas.atualizarResolucaoDasLinhas(palco.clientWidth, palco.clientHeight);
 
   desligar.push(
     ouvir("ajuste:mudou", ({ chave }) => {
