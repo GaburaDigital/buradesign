@@ -132,10 +132,12 @@ export function destacar(selecionadas) {
 }
 
 function comContorno(peca) {
+  const limite = peca.userData?.modo === "malha" ? 1 : 45;
   const arestas = new THREE.LineSegments(
-    // 45 graus: peça rígida mostra só os cantos de verdade. As faces que a
-    // booleana divide em triângulos deixam de aparecer riscadas.
-    new THREE.EdgesGeometry(peca.geometry, 45),
+    // Peça rígida mostra só os cantos de verdade; em modo malha aparecem
+    // todas as arestas, que é como o aluno vai editar vértice por vértice
+    // quando o editor de malhas chegar.
+    new THREE.EdgesGeometry(peca.geometry, limite),
     new THREE.LineBasicMaterial({ color: paleta3d().borda, transparent: true, opacity: 0.55 }),
   );
   arestas.name = "contorno";
@@ -388,6 +390,22 @@ export function esconderPlanoDeCorte() {
 }
 
 // --- Espelhar -----------------------------------------------------------
+
+// Troca entre peça rígida e malha. Por enquanto muda só a aparência; a
+// edição por vértice, aresta e face entra na próxima etapa.
+export function alternarModo(lista, modo) {
+  for (const peca of lista) {
+    peca.userData.modo = modo === "malha" ? "malha" : "rigida";
+    const antigo = peca.getObjectByName("contorno");
+    if (antigo) {
+      antigo.geometry.dispose();
+      antigo.material.dispose();
+      peca.remove(antigo);
+    }
+    comContorno(peca);
+  }
+  return lista;
+}
 
 export function espelhar(lista, eixo = "x") {
   for (const peca of lista) {

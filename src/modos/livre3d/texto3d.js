@@ -40,30 +40,26 @@ function abrirFonte(caminho) {
   return promessa;
 }
 
-// O opentype entrega o desenho com o Y para baixo, como no SVG. Aqui o Y é
-// para cima, então cada ponto é espelhado na hora de montar o caminho.
+// O opentype entrega o desenho com o Y para baixo, como no SVG.
+// O caminho é montado exatamente como veio: espelhar o Y aqui invertia o
+// sentido dos contornos e a montagem das tampas saía quebrada, com o miolo
+// das letras preenchido. O desenho é endireitado depois, girando meia volta
+// no eixo X, que é rotação e não espelho: as faces continuam certas.
 function caminhoParaFormas(desenho) {
   const trilha = new THREE.ShapePath();
   for (const comando of desenho.commands) {
     switch (comando.type) {
       case "M":
-        trilha.moveTo(comando.x, -comando.y);
+        trilha.moveTo(comando.x, comando.y);
         break;
       case "L":
-        trilha.lineTo(comando.x, -comando.y);
+        trilha.lineTo(comando.x, comando.y);
         break;
       case "C":
-        trilha.bezierCurveTo(
-          comando.x1,
-          -comando.y1,
-          comando.x2,
-          -comando.y2,
-          comando.x,
-          -comando.y,
-        );
+        trilha.bezierCurveTo(comando.x1, comando.y1, comando.x2, comando.y2, comando.x, comando.y);
         break;
       case "Q":
-        trilha.quadraticCurveTo(comando.x1, -comando.y1, comando.x, -comando.y);
+        trilha.quadraticCurveTo(comando.x1, comando.y1, comando.x, comando.y);
         break;
       default:
         break;
@@ -86,6 +82,8 @@ export async function geometriaDeTexto(params) {
     bevelEnabled: false,
     curveSegments: 8,
   });
+  // Meia volta no eixo X: o texto fica em pé e legível, sem espelhamento.
+  geometria.rotateX(Math.PI);
   geometria.center();
   garantirOrientacao(geometria);
   aplicarUVsDeCaixa(geometria);

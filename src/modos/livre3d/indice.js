@@ -617,8 +617,8 @@ function moverCamera(tecla, rapido) {
   const passos = {
     w: frente.clone().multiplyScalar(passo),
     s: frente.clone().multiplyScalar(-passo),
-    a: lado.clone().multiplyScalar(passo),
-    d: lado.clone().multiplyScalar(-passo),
+    a: lado.clone().multiplyScalar(-passo),
+    d: lado.clone().multiplyScalar(passo),
     q: new THREE.Vector3(0, passo, 0),
     e: new THREE.Vector3(0, -passo, 0),
   };
@@ -930,6 +930,7 @@ function blocoOrganizar(selecionadas) {
 function blocoAcoes(selecionadas) {
   const secao = grupo("Peça");
   const negativas = selecionadas.every((peca) => peca.userData.negativo);
+  const emMalha = selecionadas.every((peca) => peca.userData.modo === "malha");
   secao.append(
     linhaBotoes(
       botaoSimples("negativo", negativas ? "Voltar a positiva" : "Marcar negativa", () => {
@@ -959,6 +960,13 @@ function blocoAcoes(selecionadas) {
         const voltaram = pecas.desunir(selecionadas[0]);
         selecionar(voltaram || []);
         registrar();
+      }),
+    ),
+    linhaBotoes(
+      botaoSimples("nos", emMalha ? "Ver como rígida" : "Ver como malha", () => {
+        pecas.alternarModo(selecionadas, emMalha ? "rigida" : "malha");
+        registrar();
+        atualizarPainel();
       }),
     ),
     linhaBotoes(

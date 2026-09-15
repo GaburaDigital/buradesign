@@ -133,8 +133,7 @@ de zoom. O botão de tela cheia na barra superior ganha bastante espaço.
 
 Teclas 1 a 4 trocam o modo de movimento, 6 a 9 trocam a ação do clique e do
 toque. O teclado numérico gira a câmera como no Blender (7 topo, 1 frente,
-3 direita, 4 esquerda, 9 trás, 5 perspectiva, 2 base). W, A, S, D andam com a
-câmera, Q e E sobem e descem, e Shift acelera. A lista completa está no botão
+3 direita, 4 esquerda, 9 trás, 5 perspectiva, 2 base). W e S vão e voltam, A e D andam para a esquerda e para a direita, Q e E sobem e descem, e Shift acelera. A lista completa está no botão
 **Atalhos**, dentro das propriedades da base.
 
 ### Estilete e texto 3D
@@ -145,7 +144,12 @@ quatro diagonais), posição e ângulo fino são ajustados com a folha à vista,
 só corta quando você confirma. "Corte separado" gera duas peças independentes;
 "corte completo" devolve uma peça só com a marca do corte.
 
-**Texto 3D** usa as mesmas fontes do 2D, com acentos, e sai já com volume.
+**Texto 3D** usa as mesmas fontes do 2D, com acentos, e sai com malha fechada,
+pronta para o fatiador.
+
+Cada peça pode ser vista como **rígida** (só os cantos aparecem) ou como
+**malha** (todas as arestas à mostra). Por enquanto a troca muda a aparência;
+a edição por vértice, aresta e face entra na próxima etapa.
 
 ### Salvamento
 
