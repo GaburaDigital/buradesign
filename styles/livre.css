@@ -387,3 +387,17 @@
   .livre__painel .grupo-propriedades { padding-top: var(--e-2); margin-top: var(--e-2); }
   .livre__painel .propriedade { margin-bottom: var(--e-1); }
 }
+
+/* Lista de atalhos ----------------------------------------------------- */
+.lista-atalhos { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-1); }
+.lista-atalhos li { display: flex; align-items: center; gap: var(--e-3); font-size: var(--t-12); }
+.lista-atalhos kbd {
+  font-family: var(--fonte-mono);
+  font-size: var(--t-12);
+  border: var(--borda) solid var(--linha-forte);
+  background: var(--fundo-2);
+  padding: 2px var(--e-2);
+  min-width: 4.5rem;
+  text-align: center;
+}
+.livre__ferramentas .selo-ponteiro { margin-bottom: var(--e-2); justify-content: center; }

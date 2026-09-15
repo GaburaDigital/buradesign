@@ -321,6 +321,18 @@ function blocoAcoesPeca(itens) {
       }),
     ),
     linhaBotoes(
+      botao("alternar2d", "Inverter na horizontal", () => {
+        for (const item of itens) item.scale(-1, 1, item.bounds.center);
+        registrar();
+        selecao.atualizarGuias();
+      }),
+      botao("alternar2d", "Inverter na vertical", () => {
+        for (const item of itens) item.scale(1, -1, item.bounds.center);
+        registrar();
+        selecao.atualizarGuias();
+      }),
+    ),
+    linhaBotoes(
       botao("caminho", "Virar caminho", () => {
         for (const item of itens) converterEmCaminho(item);
         registrar();

@@ -4,7 +4,7 @@
 import * as THREE from "three";
 import { carregarScript } from "../../core/carregar-script.js";
 import { carregarCatalogo, familias } from "../livre/texto.js";
-import { aplicarUVsDeCaixa } from "./solidos.js";
+import { aplicarUVsDeCaixa, garantirOrientacao } from "./solidos.js";
 
 export const PADRAO = {
   texto: "Oficina",
@@ -87,6 +87,7 @@ export async function geometriaDeTexto(params) {
     curveSegments: 8,
   });
   geometria.center();
+  garantirOrientacao(geometria);
   aplicarUVsDeCaixa(geometria);
   return geometria;
 }

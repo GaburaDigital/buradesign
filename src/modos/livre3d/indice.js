@@ -247,20 +247,25 @@ function montarEsqueleto(area, aoVoltar) {
   );
 
   const caixa = raiz.querySelector(".livre__ferramentas");
-  const modos = document.createElement("div");
-  modos.className = "garra-modos";
-  for (const modo of MODOS_DE_GARRA) {
-    const alvo = document.createElement("button");
-    alvo.type = "button";
-    alvo.className = "botao";
-    alvo.dataset.garra = modo.id;
-    alvo.title = modo.rotulo;
-    alvo.setAttribute("aria-label", modo.rotulo);
-    alvo.innerHTML = iconeFerramenta(modo.icone);
-    alvo.addEventListener("click", () => trocarGarra(modo.id));
-    modos.append(alvo);
-  }
-  caixa.append(modos);
+  // Os quatro modos moram num grupo só: antes o último ficava escondido
+  // atrás da rolagem da coluna.
+  caixa.append(
+    grupoDeFerramentas({
+      id: "movimento",
+      icone: "naBase",
+      rotulo: "Modo de movimento",
+      opcoes: MODOS_DE_GARRA.map((modo, indice) => ({
+        id: modo.id,
+        icone: modo.icone,
+        rotulo: `${modo.rotulo}  (${indice + 1})`,
+      })),
+      aoEscolher: (opcao) => trocarGarra(opcao.id),
+    }),
+  );
+  const seloGarra = document.createElement("span");
+  seloGarra.className = "selo-ponteiro selo-ponteiro--visivel";
+  seloGarra.dataset.seloGarra = "";
+  caixa.append(seloGarra);
 
   for (const grupo of GRUPOS_DE_SOLIDOS) {
     caixa.append(
@@ -420,15 +425,39 @@ async function inserirTexto3d() {
   }
 }
 
-// Estilete: escolhe o plano, a posição e se as metades ficam juntas ou não.
+// Estilete no estilo do corte guiado: a folha do corte aparece atravessando a
+// peça e acompanha cada mudança de direção, posição e ângulo. Só corta quando
+// o aluno confirma.
+let estilete = null;
+
 function abrirEstilete() {
   if (cena3d.selecao.length !== 1) {
     mostrarAviso("Selecione uma peça para cortar.", "alerta");
     return;
   }
-  const peca = cena3d.selecao[0];
-  const corpo = document.createElement("div");
-  const escolhas = { eixo: "y", deslocamento: 0, tipo: "separado" };
+  estilete = { peca: cena3d.selecao[0], eixo: "y", deslocamento: 0, angulo: 0, tipo: "separado" };
+  pecas.mostrarPlanoDeCorte(estilete.peca, estilete);
+  raiz.classList.add("livre--painel-aberto");
+  atualizarPainel();
+}
+
+function fecharEstilete() {
+  estilete = null;
+  pecas.esconderPlanoDeCorte();
+  atualizarPainel();
+}
+
+function atualizarPrevia() {
+  if (!estilete) return;
+  pecas.mostrarPlanoDeCorte(estilete.peca, estilete);
+}
+
+function blocoEstilete() {
+  const secao = grupo("Estilete");
+  const nota = document.createElement("p");
+  nota.className = "dica";
+  nota.textContent = "A folha verde mostra onde o corte vai passar.";
+  secao.append(nota);
 
   const seletor = (rotulo, opcoes, chave) => {
     const caixa = document.createElement("label");
@@ -439,61 +468,64 @@ function abrirEstilete() {
       const item = document.createElement("option");
       item.value = String(opcao.valor);
       item.textContent = opcao.rotulo;
+      if (String(opcao.valor) === String(estilete[chave])) item.selected = true;
       escolha.append(item);
     }
     escolha.addEventListener("change", () => {
-      escolhas[chave] = escolha.value;
+      estilete[chave] = escolha.value;
+      atualizarPrevia();
     });
     caixa.append(escolha);
     return caixa;
   };
 
-  corpo.append(
+  secao.append(
     seletor(
-      "Direção do corte",
+      "Direção",
       pecas.EIXOS_DE_CORTE.map((eixo) => ({ valor: eixo.id, rotulo: eixo.rotulo })),
       "eixo",
+    ),
+    campoNumero("Posição", deUnidade(estilete.deslocamento), (numero) => {
+      estilete.deslocamento = paraMm(numero);
+      atualizarPrevia();
+    }),
+    campoNumero(
+      "Ângulo fino",
+      estilete.angulo,
+      (numero) => {
+        estilete.angulo = Math.max(-89, Math.min(89, numero));
+        atualizarPrevia();
+      },
+      { semUnidade: true },
     ),
     seletor(
       "Tipo",
       [
-        { valor: "separado", rotulo: "Corte separado (duas peças)" },
-        { valor: "completo", rotulo: "Corte completo (uma peça marcada)" },
+        { valor: "separado", rotulo: "Separado (duas peças)" },
+        { valor: "completo", rotulo: "Completo (uma peça marcada)" },
       ],
       "tipo",
     ),
-    campoNumero("Posição do corte", 0, (numero) => {
-      escolhas.deslocamento = paraMm(numero);
-    }),
+    linhaBotoes(
+      botaoSimples("caneta", "Cortar agora", () => {
+        const alvo = estilete.peca;
+        const escolhas = { ...estilete };
+        const partes = pecas.cortar(alvo, escolhas);
+        if (!partes) {
+          tocar("erro");
+          mostrarAviso("O corte não pegou a peça. Mude a posição.", "alerta");
+          return;
+        }
+        fecharEstilete();
+        selecionar(partes);
+        registrar();
+        tocar("clique");
+        mostrarAviso(partes.length > 1 ? "Peça cortada em duas." : "Corte aplicado.");
+      }),
+      botaoSimples("fechar", "Cancelar", fecharEstilete),
+    ),
   );
-  const nota = document.createElement("p");
-  nota.className = "dica";
-  nota.textContent = "A posição é medida a partir do centro da peça.";
-  corpo.append(nota);
-
-  abrirPainel({
-    titulo: "Estilete",
-    corpo,
-    botoes: [
-      {
-        rotulo: "Cortar",
-        variante: "destaque",
-        aoClicar: () => {
-          const partes = pecas.cortar(peca, escolhas);
-          fecharPainel();
-          if (!partes) {
-            tocar("erro");
-            mostrarAviso("O corte não pegou a peça. Mude a posição.", "alerta");
-            return;
-          }
-          selecionar(partes);
-          registrar();
-          tocar("clique");
-          mostrarAviso(partes.length > 1 ? "Peça cortada em duas." : "Corte aplicado.");
-        },
-      },
-    ],
-  });
+  return secao;
 }
 
 // --- Copiar, colar e duplicar ------------------------------------------
@@ -569,10 +601,70 @@ function trocarGarra(modo) {
   const passo = cena.passoDoEncaixe();
   garra.setTranslationSnap(passo || null);
   garra.setRotationSnap(ficha.garra === "rotate" ? Math.PI / 12 : null);
-  for (const alvo of raiz.querySelectorAll("[data-garra]")) {
-    alvo.classList.toggle("botao--destaque", alvo.dataset.garra === ficha.id);
-  }
+  const selo = raiz?.querySelector("[data-selo-garra]");
+  if (selo) selo.innerHTML = `${iconeFerramenta(ficha.icone)}<span>${ficha.rotulo}</span>`;
   tocar("clique");
+}
+
+// Câmera no teclado, no espírito do Roblox Studio: W e S vão e voltam, A e D
+// andam para os lados, Q e E sobem e descem. Shift anda mais rápido.
+function moverCamera(tecla, rapido) {
+  const camera = cena3d.camera;
+  const alvo = cena3d.orbita.target;
+  const passo = (rapido ? 24 : 8) * (camera.position.distanceTo(alvo) / 220 + 0.5);
+  const frente = new THREE.Vector3().subVectors(alvo, camera.position).setY(0).normalize();
+  const lado = new THREE.Vector3().crossVectors(frente, new THREE.Vector3(0, 1, 0)).normalize();
+  const passos = {
+    w: frente.clone().multiplyScalar(passo),
+    s: frente.clone().multiplyScalar(-passo),
+    a: lado.clone().multiplyScalar(passo),
+    d: lado.clone().multiplyScalar(-passo),
+    q: new THREE.Vector3(0, passo, 0),
+    e: new THREE.Vector3(0, -passo, 0),
+  };
+  const deslocamento = passos[tecla];
+  if (!deslocamento) return;
+  camera.position.add(deslocamento);
+  alvo.add(deslocamento);
+  cena3d.orbita.update();
+}
+
+const ATALHOS = [
+  ["Modos de movimento", [
+    ["1", "Mover na base"], ["2", "Mover livre"], ["3", "Girar"], ["4", "Escalar"],
+  ]],
+  ["Ação do toque e do clique", [
+    ["6", "Selecionar"], ["7", "Somar à seleção"], ["8", "Arrastar a vista"], ["9", "Girar a câmera"],
+  ]],
+  ["Câmera pelo teclado", [
+    ["W e S", "Vai e volta"], ["A e D", "Anda para os lados"], ["Q e E", "Sobe e desce"],
+    ["Shift", "Anda mais rápido"],
+  ]],
+  ["Vistas (teclado numérico)", [
+    ["7", "Topo"], ["1", "Frente"], ["3", "Direita"], ["4", "Esquerda"], ["9", "Trás"],
+    ["5", "Perspectiva"], ["2", "Base"],
+  ]],
+  ["Edição", [
+    ["Ctrl+Z", "Desfazer"], ["Ctrl+Shift+Z", "Refazer"], ["Ctrl+C", "Copiar"],
+    ["Ctrl+V", "Colar"], ["Ctrl+D", "Duplicar"], ["Delete", "Apagar"], ["Esc", "Soltar a seleção"],
+  ]],
+];
+
+function abrirAtalhos() {
+  const corpo = document.createElement("div");
+  for (const [titulo, linhas] of ATALHOS) {
+    const secao = grupo(titulo);
+    const lista = document.createElement("ul");
+    lista.className = "lista-atalhos";
+    for (const [tecla, descricao] of linhas) {
+      const item = document.createElement("li");
+      item.innerHTML = `<kbd>${tecla}</kbd><span>${descricao}</span>`;
+      lista.append(item);
+    }
+    secao.append(lista);
+    corpo.append(secao);
+  }
+  abrirPainel({ titulo: "Atalhos do teclado", corpo, botoes: [] });
 }
 
 function aproximar(fator) {
@@ -643,6 +735,12 @@ function atualizarPainel() {
   painelArea.innerHTML = "";
   const selecionadas = cena3d.selecao;
 
+  if (estilete && cena3d.grupoPecas.children.includes(estilete.peca)) {
+    painelArea.append(blocoEstilete());
+    atualizarStatus();
+    return;
+  }
+
   if (!selecionadas.length) {
     const oi = document.createElement("div");
     oi.innerHTML = fala(
@@ -660,7 +758,7 @@ function atualizarPainel() {
     if (definicao) painelArea.append(blocoParametros(peca, definicao));
     painelArea.append(blocoAjusteFino(peca), blocoAparencia(peca));
   } else {
-    painelArea.append(grupo(`${selecionadas.length} peças selecionadas`));
+    painelArea.append(grupo(`${selecionadas.length} peças selecionadas`), blocoOrganizar(selecionadas));
   }
   painelArea.append(blocoAcoes(selecionadas));
   atualizarStatus();
@@ -677,6 +775,7 @@ function blocoBase() {
       trocarBase({ profundidade: paraMm(numero) }),
     ),
     campoNumero("Grid", deUnidade(grid), (numero) => trocarBase({ grid: paraMm(numero) })),
+    linhaBotoes(botaoSimples("regua", "Atalhos", abrirAtalhos)),
   );
   return secao;
 }
@@ -789,6 +888,45 @@ function blocoAparencia(peca) {
   return secao;
 }
 
+function blocoOrganizar(selecionadas) {
+  const secao = grupo("Organizar");
+  const alinhar = (onde) => () => {
+    pecas.alinhar(selecionadas, onde);
+    registrar();
+    atualizarPainel();
+  };
+  const distribuir = (eixo) => () => {
+    if (!pecas.distribuir(selecionadas, eixo)) {
+      mostrarAviso("Selecione três peças ou mais para distribuir.", "alerta");
+      return;
+    }
+    registrar();
+  };
+  secao.append(
+    linhaBotoes(
+      botaoSimples("alinharEsquerda", "Esquerda", alinhar("esquerda")),
+      botaoSimples("alinharCentroH", "Centro em X", alinhar("centroX")),
+      botaoSimples("alinharDireita", "Direita", alinhar("direita")),
+    ),
+    linhaBotoes(
+      botaoSimples("alinharTopo", "Frente", alinhar("frente")),
+      botaoSimples("alinharMeioV", "Centro em Z", alinhar("centroZ")),
+      botaoSimples("alinharBase", "Trás", alinhar("tras")),
+    ),
+    linhaBotoes(
+      botaoSimples("naBase", "Base", alinhar("base")),
+      botaoSimples("alinharMeioV", "Centro em Y", alinhar("centroY")),
+      botaoSimples("alinharTopo", "Topo", alinhar("topo")),
+    ),
+    linhaBotoes(
+      botaoSimples("distribuirH", "Distribuir em X", distribuir("x")),
+      botaoSimples("distribuirV", "Distribuir em Y", distribuir("y")),
+      botaoSimples("distribuirH", "Distribuir em Z", distribuir("z")),
+    ),
+  );
+  return secao;
+}
+
 function blocoAcoes(selecionadas) {
   const secao = grupo("Peça");
   const negativas = selecionadas.every((peca) => peca.userData.negativo);
@@ -820,6 +958,20 @@ function blocoAcoes(selecionadas) {
         }
         const voltaram = pecas.desunir(selecionadas[0]);
         selecionar(voltaram || []);
+        registrar();
+      }),
+    ),
+    linhaBotoes(
+      botaoSimples("alternar3d", "Inverter em X", () => {
+        pecas.espelhar(selecionadas, "x");
+        registrar();
+      }),
+      botaoSimples("alternar3d", "Inverter em Y", () => {
+        pecas.espelhar(selecionadas, "y");
+        registrar();
+      }),
+      botaoSimples("alternar3d", "Inverter em Z", () => {
+        pecas.espelhar(selecionadas, "z");
         registrar();
       }),
     ),
@@ -1083,10 +1235,31 @@ export async function montar(area, setor, aoVoltar) {
       return;
     }
     if (evento.key === "Escape") selecionar([]);
+    const numero = Number(evento.key);
+    if (evento.code.startsWith("Numpad") && Number.isFinite(numero)) {
+      const vistaNumerica = {
+        1: "frente", 3: "direita", 7: "topo", 9: "tras", 4: "esquerda", 5: "cantoinho", 2: "base",
+      }[numero];
+      if (vistaNumerica) {
+        evento.preventDefault();
+        cena.olharDe(vistaNumerica);
+      }
+      return;
+    }
+    if (numero >= 1 && numero <= 4) {
+      trocarGarra(MODOS_DE_GARRA[numero - 1].id);
+      return;
+    }
+    if (numero >= 6 && numero <= 9) {
+      trocarPonteiro(MODOS_DE_PONTEIRO[numero - 6].id);
+      return;
+    }
+    if ("wasdqe".includes(evento.key.toLowerCase())) {
+      moverCamera(evento.key.toLowerCase(), evento.shiftKey);
+      return;
+    }
     if (evento.key.toLowerCase() === "b") trocarGarra("base");
-    if (evento.key.toLowerCase() === "g") trocarGarra("translate");
     if (evento.key.toLowerCase() === "r") trocarGarra("rotate");
-    if (evento.key.toLowerCase() === "e") trocarGarra("scale");
   };
   window.addEventListener("keydown", aoTeclar);
   desligar.push(() => window.removeEventListener("keydown", aoTeclar));
@@ -1161,6 +1334,7 @@ export function encerrar() {
     }
   }
   desligar = [];
+  estilete = null;
   fecharMenusFlutuantes();
   document.body.classList.remove("sem-rodape");
   clearTimeout(salvamentoPendente);

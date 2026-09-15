@@ -208,6 +208,42 @@ function extrudar(forma, altura) {
   return geometria;
 }
 
+// Volume com sinal. Se der negativo, a peça está do avesso: as faces apontam
+// para dentro e o modelo aparece vazado onde deveria ser cheio.
+export function volumeComSinal(geometria) {
+  const plana = geometria.index ? geometria.toNonIndexed() : geometria;
+  const posicoes = plana.attributes.position;
+  let soma = 0;
+  for (let i = 0; i < posicoes.count; i += 3) {
+    const ax = posicoes.getX(i), ay = posicoes.getY(i), az = posicoes.getZ(i);
+    const bx = posicoes.getX(i + 1), by = posicoes.getY(i + 1), bz = posicoes.getZ(i + 1);
+    const cx = posicoes.getX(i + 2), cy = posicoes.getY(i + 2), cz = posicoes.getZ(i + 2);
+    soma +=
+      (ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx)) / 6;
+  }
+  return soma;
+}
+
+// Vira as faces do avesso para o direito quando necessário. É o conserto do
+// texto 3D, que nascia invertido por causa do espelhamento do eixo Y.
+export function garantirOrientacao(geometria) {
+  if (volumeComSinal(geometria) >= 0) return geometria;
+  const plana = geometria.index ? geometria.toNonIndexed() : geometria;
+  if (plana !== geometria) {
+    geometria.copy(plana);
+    plana.dispose?.();
+  }
+  const posicoes = geometria.attributes.position;
+  for (let i = 0; i < posicoes.count; i += 3) {
+    const x = posicoes.getX(i + 1), y = posicoes.getY(i + 1), z = posicoes.getZ(i + 1);
+    posicoes.setXYZ(i + 1, posicoes.getX(i + 2), posicoes.getY(i + 2), posicoes.getZ(i + 2));
+    posicoes.setXYZ(i + 2, x, y, z);
+  }
+  posicoes.needsUpdate = true;
+  geometria.computeVertexNormals();
+  return geometria;
+}
+
 // Projeção de caixa para as coordenadas de textura.
 // Geometrias vindas de extrusão, de junção manual ou de booleana chegam sem
 // UV, e sem UV a textura simplesmente não aparece. Aqui cada triângulo recebe

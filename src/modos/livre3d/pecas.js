@@ -5,7 +5,13 @@
 import * as THREE from "three";
 import { Brush, Evaluator, ADDITION, SUBTRACTION, INTERSECTION } from "three-bvh-csg";
 import { cena3d, paleta3d, encaixar } from "./cena.js";
-import { geometriaDe, parametrosPadrao, DEFINICOES, aplicarUVsDeCaixa } from "./solidos.js";
+import {
+  geometriaDe,
+  parametrosPadrao,
+  DEFINICOES,
+  aplicarUVsDeCaixa,
+  garantirOrientacao,
+} from "./solidos.js";
 
 export const CORES_PECA = [
   "#7fb3d5",
@@ -316,24 +322,151 @@ export const EIXOS_DE_CORTE = [
   { id: "y", rotulo: "Horizontal (deitado)", normal: [0, 1, 0] },
   { id: "x", rotulo: "Vertical (esquerda e direita)", normal: [1, 0, 0] },
   { id: "z", rotulo: "Vertical (frente e trás)", normal: [0, 0, 1] },
-  { id: "diagonal", rotulo: "Diagonal", normal: [1, 1, 0] },
+  { id: "diagonalDireita", rotulo: "Diagonal para a direita", normal: [1, 1, 0] },
+  { id: "diagonalEsquerda", rotulo: "Diagonal para a esquerda", normal: [-1, 1, 0] },
+  { id: "diagonalFrente", rotulo: "Diagonal para a frente", normal: [0, 1, 1] },
+  { id: "diagonalTras", rotulo: "Diagonal para trás", normal: [0, 1, -1] },
 ];
 
-function caixaDeCorte(peca, eixo, deslocamento) {
+// Direção do plano de corte, já com o ângulo fino aplicado.
+export function normalDoCorte(eixo, anguloEmGraus = 0) {
+  const ficha = EIXOS_DE_CORTE.find((item) => item.id === eixo) || EIXOS_DE_CORTE[0];
+  const normal = new THREE.Vector3(...ficha.normal).normalize();
+  const angulo = (Number(anguloEmGraus) || 0) * (Math.PI / 180);
+  if (angulo) {
+    const deCima = Math.abs(normal.y) > 0.9;
+    const giro = deCima ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
+    normal.applyAxisAngle(giro, angulo).normalize();
+  }
+  return normal;
+}
+
+// Folha translúcida atravessando a peça, para o aluno ver onde vai cortar
+// antes de aplicar.
+export function mostrarPlanoDeCorte(peca, { eixo = "y", deslocamento = 0, angulo = 0 } = {}) {
+  if (!peca || !cena3d.cena) return null;
+  peca.updateMatrixWorld(true);
+  const caixa = new THREE.Box3().setFromObject(peca);
+  const centro = caixa.getCenter(new THREE.Vector3());
+  const tamanho = caixa.getSize(new THREE.Vector3());
+  const lado = Math.max(tamanho.x, tamanho.y, tamanho.z) * 1.7 + 6;
+
+  let plano = cena3d.cena.getObjectByName("planoDeCorte");
+  if (!plano) {
+    plano = new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({
+        color: paleta3d().guia,
+        transparent: true,
+        opacity: 0.32,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
+    plano.name = "planoDeCorte";
+    const borda = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.PlaneGeometry(1, 1)),
+      new THREE.LineBasicMaterial({ color: paleta3d().guia }),
+    );
+    borda.name = "bordaDoCorte";
+    plano.add(borda);
+    cena3d.cena.add(plano);
+  }
+
+  const normal = normalDoCorte(eixo, angulo);
+  plano.scale.set(lado, lado, 1);
+  plano.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+  plano.position.copy(centro.clone().add(normal.clone().multiplyScalar(deslocamento)));
+  plano.material.color.set(paleta3d().guia);
+  plano.visible = true;
+  return plano;
+}
+
+export function esconderPlanoDeCorte() {
+  const plano = cena3d.cena?.getObjectByName("planoDeCorte");
+  if (plano) plano.visible = false;
+}
+
+// --- Espelhar -----------------------------------------------------------
+
+export function espelhar(lista, eixo = "x") {
+  for (const peca of lista) {
+    const escala = { x: [-1, 1, 1], y: [1, -1, 1], z: [1, 1, -1] }[eixo] || [-1, 1, 1];
+    peca.geometry.scale(...escala);
+    garantirOrientacao(peca.geometry);
+    aplicarUVsDeCaixa(peca.geometry);
+    const antigo = peca.getObjectByName("contorno");
+    if (antigo) {
+      antigo.geometry.dispose();
+      antigo.material.dispose();
+      peca.remove(antigo);
+    }
+    comContorno(peca);
+  }
+  return lista;
+}
+
+// --- Alinhar e distribuir ----------------------------------------------
+
+function caixaDe(peca) {
+  peca.updateMatrixWorld(true);
+  return new THREE.Box3().setFromObject(peca);
+}
+
+export function alinhar(lista, onde) {
+  if (lista.length < 2) return false;
+  const geral = new THREE.Box3();
+  for (const peca of lista) geral.union(caixaDe(peca));
+  const centro = geral.getCenter(new THREE.Vector3());
+  for (const peca of lista) {
+    const caixa = caixaDe(peca);
+    switch (onde) {
+      case "esquerda": peca.position.x += geral.min.x - caixa.min.x; break;
+      case "centroX": peca.position.x += centro.x - caixa.getCenter(new THREE.Vector3()).x; break;
+      case "direita": peca.position.x += geral.max.x - caixa.max.x; break;
+      case "frente": peca.position.z += geral.min.z - caixa.min.z; break;
+      case "centroZ": peca.position.z += centro.z - caixa.getCenter(new THREE.Vector3()).z; break;
+      case "tras": peca.position.z += geral.max.z - caixa.max.z; break;
+      case "base": peca.position.y += geral.min.y - caixa.min.y; break;
+      case "centroY": peca.position.y += centro.y - caixa.getCenter(new THREE.Vector3()).y; break;
+      case "topo": peca.position.y += geral.max.y - caixa.max.y; break;
+      default: break;
+    }
+  }
+  return true;
+}
+
+export function distribuir(lista, eixo = "x") {
+  if (lista.length < 3) return false;
+  const chave = eixo === "z" ? "z" : eixo === "y" ? "y" : "x";
+  const ordenadas = [...lista].sort(
+    (a, b) => caixaDe(a).getCenter(new THREE.Vector3())[chave] - caixaDe(b).getCenter(new THREE.Vector3())[chave],
+  );
+  const inicio = caixaDe(ordenadas[0]).getCenter(new THREE.Vector3())[chave];
+  const fim = caixaDe(ordenadas[ordenadas.length - 1]).getCenter(new THREE.Vector3())[chave];
+  const passo = (fim - inicio) / (ordenadas.length - 1);
+  ordenadas.forEach((peca, indice) => {
+    if (indice === 0 || indice === ordenadas.length - 1) return;
+    const atual = caixaDe(peca).getCenter(new THREE.Vector3())[chave];
+    peca.position[chave] += inicio + passo * indice - atual;
+  });
+  return true;
+}
+
+function caixaDeCorte(peca, eixo, deslocamento, angulo) {
   peca.updateMatrixWorld(true);
   const caixa = new THREE.Box3().setFromObject(peca);
   const centro = caixa.getCenter(new THREE.Vector3());
   const tamanho = caixa.getSize(new THREE.Vector3());
   const lado = Math.max(tamanho.x, tamanho.y, tamanho.z) * 4 + 20;
 
-  const ficha = EIXOS_DE_CORTE.find((item) => item.id === eixo) || EIXOS_DE_CORTE[0];
-  const normal = new THREE.Vector3(...ficha.normal).normalize();
+  const normal = normalDoCorte(eixo, angulo);
 
   const faca = new Brush(new THREE.BoxGeometry(lado, lado, lado));
   // A caixa encosta no plano de corte: metade dela fica de um lado só.
+  faca.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
   const plano = centro.clone().add(normal.clone().multiplyScalar(deslocamento));
   faca.position.copy(plano.clone().add(normal.clone().multiplyScalar(lado / 2)));
-  if (eixo === "diagonal") faca.rotation.z = Math.PI / 4;
   faca.updateMatrixWorld(true);
   return { faca, centro };
 }
@@ -363,9 +496,9 @@ function malhaDe(geometria, modelo, sufixo) {
 
 // tipo: "completo" mantém uma peça só com a marca do corte;
 //       "separado" devolve duas peças independentes.
-export function cortar(peca, { eixo = "y", deslocamento = 0, tipo = "separado" } = {}) {
+export function cortar(peca, { eixo = "y", deslocamento = 0, angulo = 0, tipo = "separado" } = {}) {
   if (!peca || !peca.geometry) return null;
-  const { faca } = caixaDeCorte(peca, eixo, deslocamento);
+  const { faca } = caixaDeCorte(peca, eixo, deslocamento, angulo);
 
   peca.updateMatrixWorld(true);
   const inteira = new Brush(peca.geometry.clone());

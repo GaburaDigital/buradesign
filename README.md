@@ -129,12 +129,21 @@ botão. Dois dedos sempre aproximam e arrastam, em qualquer modo.
 No canto superior direito ficam as vistas da câmera, e na lateral os botões
 de zoom. O botão de tela cheia na barra superior ganha bastante espaço.
 
+### Atalhos do 3D
+
+Teclas 1 a 4 trocam o modo de movimento, 6 a 9 trocam a ação do clique e do
+toque. O teclado numérico gira a câmera como no Blender (7 topo, 1 frente,
+3 direita, 4 esquerda, 9 trás, 5 perspectiva, 2 base). W, A, S, D andam com a
+câmera, Q e E sobem e descem, e Shift acelera. A lista completa está no botão
+**Atalhos**, dentro das propriedades da base.
+
 ### Estilete e texto 3D
 
-O **Estilete** corta a peça selecionada por um plano: horizontal, vertical nos
-dois sentidos ou diagonal, com a posição medida a partir do centro. "Corte
-separado" gera duas peças independentes; "corte completo" devolve uma peça só
-com a marca do corte.
+O **Estilete** mostra uma folha verde atravessando a peça, no lugar exato em
+que o corte vai passar. Direção (horizontal, vertical nos dois sentidos e
+quatro diagonais), posição e ângulo fino são ajustados com a folha à vista, e
+só corta quando você confirma. "Corte separado" gera duas peças independentes;
+"corte completo" devolve uma peça só com a marca do corte.
 
 **Texto 3D** usa as mesmas fontes do 2D, com acentos, e sai já com volume.
 
