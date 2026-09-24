@@ -28,6 +28,7 @@ const CANTOS = [
 let modo = null;
 let ancora = null;
 let cantoAtivo = null;
+let proporcional = false;
 let inicioArrasto = null;
 let posicoesIniciais = [];
 let caixaInicial = null;
@@ -106,6 +107,31 @@ export function atualizarGuias() {
     alca.data = { papel: "escala", canto: canto.id };
   }
 
+  // Cantoneira de proporção: fica fora da caixa, afastada das alças comuns,
+  // e redimensiona mantendo a forma.
+  const afastamento = (14 * escalaDasAlcas()) / paper.view.zoom;
+  const cantoProporcional = new paper.Point(caixa.right + afastamento, caixa.bottom + afastamento);
+  const bracoTamanho = lado * 1.3;
+  const cantoneira = new paper.Path({
+    segments: [
+      [cantoProporcional.x - bracoTamanho, cantoProporcional.y],
+      [cantoProporcional.x, cantoProporcional.y],
+      [cantoProporcional.x, cantoProporcional.y - bracoTamanho],
+    ],
+  });
+  cantoneira.strokeColor = tons.guia;
+  cantoneira.strokeWidth = 2.5;
+  cantoneira.strokeScaling = false;
+  cantoneira.strokeCap = "square";
+  cantoneira.data = { papel: "proporcional" };
+  const alvoDaCantoneira = new paper.Path.Rectangle({
+    point: [cantoProporcional.x - bracoTamanho, cantoProporcional.y - bracoTamanho],
+    size: [bracoTamanho * 1.4, bracoTamanho * 1.4],
+  });
+  alvoDaCantoneira.fillColor = tons.guia;
+  alvoDaCantoneira.opacity = 0.001;
+  alvoDaCantoneira.data = { papel: "proporcional" };
+
   const alturaHaste = (26 * escalaDasAlcas()) / paper.view.zoom;
   const topo = new paper.Point(caixa.center.x, caixa.y);
   const haste = new paper.Path.Line(topo, topo.subtract([0, alturaHaste]));
@@ -153,6 +179,14 @@ export function aoPressionar(evento) {
   giroAcumulado = 0;
 
   if (alca && caixaInicial) {
+    if (alca.data.papel === "proporcional") {
+      modo = "escalar";
+      cantoAtivo = { x: 1, y: 1 };
+      ancora = new cena.paper.Point(caixaInicial.x, caixaInicial.y);
+      proporcional = true;
+      return;
+    }
+    proporcional = false;
     if (alca.data.papel === "rotacao") {
       modo = "girar";
       anguloInicial = evento.point.subtract(caixaInicial.center).angle;
@@ -235,7 +269,7 @@ export function aoArrastar(evento) {
     const minimo = 0.001;
     let fatorX = cantoAtivo.x === 0.5 || Math.abs(inicial.x) < minimo ? 1 : atual.x / inicial.x;
     let fatorY = cantoAtivo.y === 0.5 || Math.abs(inicial.y) < minimo ? 1 : atual.y / inicial.y;
-    if (evento.modifiers.shift && cantoAtivo.x !== 0.5 && cantoAtivo.y !== 0.5) {
+    if ((proporcional || evento.modifiers.shift) && cantoAtivo.x !== 0.5 && cantoAtivo.y !== 0.5) {
       const uniforme = Math.max(Math.abs(fatorX), Math.abs(fatorY));
       fatorX = uniforme;
       fatorY = uniforme;
@@ -276,6 +310,7 @@ export function aoSoltar() {
   if (modo && modo !== "regiao") registrar();
   modo = null;
   ancora = null;
+  proporcional = false;
   atualizarGuias();
 }
 

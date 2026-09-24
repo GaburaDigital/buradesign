@@ -15,6 +15,7 @@ export const PADRAO = Object.freeze({
   avisoDispositivo: true,
   alcas: 1,
   opacidadeBase: 0.35,
+  gridMilimetros: false,
   salvarSozinho: true,
   idioma: "pt-BR",
 });
@@ -95,6 +96,8 @@ function aplicarTema() {
     sistema: "#23272b",
     rosa: "#2a0f33",
     flash: "#fffdfd",
+    gloom: "#2a0708",
+    simpzons: "#4a3a05",
   };
   const cor = cores[atuais.tema] || "#000000";
   const etiqueta = document.querySelector('meta[name="theme-color"]');

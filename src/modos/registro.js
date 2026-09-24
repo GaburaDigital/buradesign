@@ -16,9 +16,9 @@ export const SETORES = [
     alien: "nibla",
     chaveNome: "setores.blocos.nome",
     chaveDescricao: "setores.blocos.descricao",
-    aberto: false,
+    aberto: true,
     fase: 3,
-    carregar: () => import("./em-obras.js"),
+    carregar: () => import("./blocos/menu.js"),
   },
   {
     id: "corte",

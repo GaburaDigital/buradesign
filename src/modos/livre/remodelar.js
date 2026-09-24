@@ -9,6 +9,8 @@ import { avisar } from "../../core/eventos.js";
 let alvo = null;
 let segmentosMarcados = new Set();
 let arrastando = null;
+let regiao = null;
+let inicioDaRegiao = null;
 
 export function definirAlvo(item) {
   alvo = item && item.segments ? item : caminhoDentro(item);
@@ -122,12 +124,64 @@ export function aoPressionar(evento) {
     stroke: true,
     tolerance: 4 / cena.paper.view.zoom,
   });
-  definirAlvo(peca ? peca.item : null);
+  if (peca) {
+    definirAlvo(peca.item);
+    arrastando = null;
+    return;
+  }
+
+  // Clique no vazio com um caminho em edição: começa uma seleção por região,
+  // que é o jeito rápido de pegar vários pontos de uma vez.
+  if (alvo) {
+    const somando = evento.modifiers.shift || evento.modifiers.control || evento.modifiers.command;
+    if (!somando) segmentosMarcados = new Set();
+    arrastando = { tipo: "regiao" };
+    inicioDaRegiao = evento.point;
+    const anterior = cena.paper.project.activeLayer;
+    cena.camadaGuias.activate();
+    regiao = new cena.paper.Path.Rectangle(evento.point, evento.point);
+    regiao.strokeColor = paleta().guia;
+    regiao.strokeWidth = 1;
+    regiao.strokeScaling = false;
+    regiao.dashArray = [3, 3];
+    anterior.activate();
+    return;
+  }
+
+  definirAlvo(null);
   arrastando = null;
+}
+
+// Duplo clique na linha cria um ponto ali. Funciona com o dedo também, já que
+// o toque duplo chega como dblclick no navegador.
+export function adicionarPontoEm(ponto) {
+  if (!alvo) return false;
+  const achado = alvo.hitTest(ponto, { curves: true, tolerance: 8 / cena.paper.view.zoom });
+  if (!achado || !achado.location) return false;
+  const novo = alvo.divideAt(achado.location);
+  if (!novo) return false;
+  const indice = alvo.segments.indexOf(novo.segment1 ? novo.segment1 : novo);
+  segmentosMarcados = new Set(indice >= 0 ? [indice] : []);
+  desenharNos();
+  registrar();
+  return true;
 }
 
 export function aoArrastar(evento) {
   if (!alvo || !arrastando) return;
+
+  if (arrastando.tipo === "regiao") {
+    if (regiao) regiao.remove();
+    const anterior = cena.paper.project.activeLayer;
+    cena.camadaGuias.activate();
+    regiao = new cena.paper.Path.Rectangle(inicioDaRegiao, evento.point);
+    regiao.strokeColor = paleta().guia;
+    regiao.strokeWidth = 1;
+    regiao.strokeScaling = false;
+    regiao.dashArray = [3, 3];
+    anterior.activate();
+    return;
+  }
 
   if (arrastando.tipo === "no") {
     const passo = evento.delta;
@@ -165,6 +219,20 @@ export function aoArrastar(evento) {
 }
 
 export function aoSoltar() {
+  if (arrastando && arrastando.tipo === "regiao") {
+    const area = regiao ? regiao.bounds : null;
+    if (regiao) regiao.remove();
+    regiao = null;
+    if (area && alvo) {
+      alvo.segments.forEach((segmento, indice) => {
+        if (area.contains(segmento.point)) segmentosMarcados.add(indice);
+      });
+      desenharNos();
+    }
+    arrastando = null;
+    inicioDaRegiao = null;
+    return;
+  }
   if (arrastando) {
     if (arrastando.tipo === "no") {
       for (const indice of segmentosMarcados) {
@@ -220,6 +288,9 @@ export function marcados() {
 }
 
 export function sair() {
+  if (regiao) regiao.remove();
+  regiao = null;
+  arrastando = null;
   alvo = null;
   segmentosMarcados = new Set();
   if (cena.camadaGuias) cena.camadaGuias.removeChildren();

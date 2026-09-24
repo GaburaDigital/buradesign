@@ -1,0 +1,142 @@
+/* Fase 3 — Design com Programação.
+   A tela divide-se em área de programação e visualização 3D. No celular só
+   um lado aparece por vez, senão nenhum dos dois cabe. */
+
+.blocos__corpo {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  min-height: 0;
+}
+
+.blocos__lado {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.blocos__lado--programa {
+  border-right: var(--borda) solid var(--linha-forte);
+  background: var(--fundo-2);
+}
+
+.blocos__cabecalho {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  flex-wrap: wrap;
+  padding: var(--e-2) var(--e-3);
+  border-bottom: var(--borda) solid var(--linha);
+}
+.blocos__cabecalho h2 {
+  font-family: var(--fonte-mono);
+  font-size: var(--t-12);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--texto-3);
+  margin: 0;
+  flex: 1 1 auto;
+}
+
+.blocos__controles {
+  display: flex;
+  align-items: center;
+  gap: var(--e-1);
+  flex: none;
+}
+.blocos__controles .botao { min-height: 2.25rem; white-space: nowrap; }
+.blocos__controles .rotulo-acao { display: inline; }
+
+/* Enquanto o programa roda, parar é o que importa. */
+.blocos--rodando .blocos__controles .botao--ok,
+.blocos--rodando .blocos__controles .botao[aria-label="Iniciar no modo lento"] { opacity: 0.5; }
+.blocos--rodando .blocos__controles .botao--perigo {
+  border-color: var(--perigo);
+  color: var(--perigo);
+}
+
+.blocos__area {
+  min-height: 0;
+  min-width: 0;
+  background: var(--fundo-2);
+}
+/* O Blockly injeta um div próprio; sem isto ele nasce com altura zero. */
+.blocos__area > .injectionDiv { width: 100%; height: 100%; }
+
+.blocos__lado--programa { position: relative; }
+
+/* Zoom e apagar da área de programação: vertical, encostado na borda, para
+   não comer espaço dos blocos. */
+.blocos__zoom {
+  position: absolute;
+  right: var(--e-2);
+  bottom: var(--e-2);
+  display: grid;
+  gap: var(--e-1);
+  z-index: 6;
+}
+.blocos__zoom .botao {
+  min-height: 2.25rem;
+  min-width: 2.25rem;
+  justify-content: center;
+  padding: var(--e-1);
+  background: color-mix(in srgb, var(--fundo) 82%, transparent);
+}
+.blocos__zoom .rotulo-acao { display: none; }
+
+.blocos__lado--palco { position: relative; display: block; }
+
+.blocos__selo {
+  position: absolute;
+  left: var(--e-2);
+  bottom: var(--e-2);
+  margin: 0;
+  padding: var(--e-1) var(--e-2);
+  font-family: var(--fonte-mono);
+  font-size: var(--t-12);
+  color: var(--texto-3);
+  background: color-mix(in srgb, var(--fundo) 78%, transparent);
+  border: var(--borda) solid var(--linha);
+  pointer-events: none;
+}
+
+/* A visualização não se edita com a mão: o cursor diz isso. */
+.blocos .livre__palco canvas { cursor: grab; }
+.blocos .livre__palco canvas:active { cursor: grabbing; }
+
+/* O bloco que está rodando no modo lento ganha contorno verde. */
+.blocos .bura-rodando > .blocklyPath {
+  stroke: var(--verde);
+  stroke-width: 4px;
+  paint-order: stroke;
+}
+
+/* O contorno do Blockly precisa combinar com o terminal em volta. */
+.blocos .blocklyToolboxDiv {
+  border-right: var(--borda) solid var(--linha-forte);
+  font-family: var(--fonte-mono);
+}
+.blocos .blocklyTreeLabel { font-family: var(--fonte-mono); font-size: var(--t-12); }
+.blocos .blocklyFlyoutBackground { fill-opacity: 0.96; }
+
+@media (max-width: 64rem) {
+  .blocos__corpo { grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr); }
+}
+
+/* Celular e tablet em pé: um lado de cada vez, trocado pelo botão da barra. */
+@media (max-width: 52rem) {
+  .blocos__corpo { grid-template-columns: 1fr; }
+  /* Os três comandos precisam caber na largura do celular. */
+  .blocos__controles .tem-curto .rotulo-acao { display: none; }
+  .blocos__controles .tem-curto .rotulo-curto { display: inline; }
+  .blocos__controles .botao { flex: 1 1 0; justify-content: center; padding: var(--e-2) var(--e-1); }
+  /* A legenda da visualização brigava com os botões de zoom. */
+  .blocos__selo { display: none; }
+  /* Afastado da borda para não cair em cima da barra de rolagem do Blockly. */
+  .blocos__zoom { bottom: var(--e-5); right: var(--e-5); }
+  .blocos__lado--palco { display: none; }
+  .blocos--ver-3d .blocos__lado--programa { display: none; }
+  .blocos--ver-3d .blocos__lado--palco { display: block; }
+  .blocos__cabecalho h2 { display: none; }
+  .blocos__controles { width: 100%; justify-content: space-between; }
+}

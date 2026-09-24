@@ -23,6 +23,8 @@ const PALETAS = {
   claro: { chao: 0xc8d2d8, fundo: 0xf2f4f6, grade: 0xd7dde1, gradeForte: 0xb0b9c0, borda: 0x5c656b, guia: 0x0a7a33 },
   sistema: { chao: 0x4a545c, fundo: 0x2b3238, grade: 0x434c54, gradeForte: 0x6b757d, borda: 0xaab4bc, guia: 0x00d79a },
   rosa: { chao: 0x6a2d7a, fundo: 0x2a0f33, grade: 0x4d2059, gradeForte: 0x713287, borda: 0xb167c9, guia: 0xff5f8d },
+  gloom: { chao: 0x7a2424, fundo: 0x3d1012, grade: 0x5e1b1e, gradeForte: 0x9c3636, borda: 0xe08a8a, guia: 0xff5252, milimetro: 0x4d1618 },
+  simpzons: { chao: 0x9c8420, fundo: 0x6b5500, grade: 0x8a7010, gradeForte: 0xb89a20, borda: 0xffe98a, guia: 0xffd21f, milimetro: 0x7a6208 },
   flash: { chao: 0xf6c9c6, fundo: 0xfffdfd, grade: 0xffdedb, gradeForte: 0xf2b3ae, borda: 0xb21f1f, guia: 0xe6a800 },
 };
 
@@ -105,6 +107,20 @@ export function desenharBase() {
   chao.rotation.x = -Math.PI / 2;
   chao.position.set(largura / 2, -0.06, profundidade / 2);
   grupo.add(chao);
+
+  // Grid de milímetros por baixo, quando ligado nos ajustes.
+  if (valor("gridMilimetros")) {
+    const finos = [];
+    for (let x = 0; x <= largura + 0.001; x += 1) {
+      if (Math.abs(x % grid) < 0.001) continue;
+      finos.push(x, 0, 0, x, 0, profundidade);
+    }
+    for (let z = 0; z <= profundidade + 0.001; z += 1) {
+      if (Math.abs(z % grid) < 0.001) continue;
+      finos.push(0, 0, z, largura, 0, z);
+    }
+    if (finos.length) grupo.add(malhaDeLinhas(finos, tons.milimetro || tons.grade));
+  }
 
   const linhas = [];
   const fortes = [];

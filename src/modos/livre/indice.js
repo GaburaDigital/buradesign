@@ -129,13 +129,14 @@ function montarEsqueleto(area, aoVoltar) {
     }),
     grupoDeFerramentas({
       id: "editar2d",
-      icone: "unir",
-      rotulo: "Editar",
+      icone: "opcoes",
+      rotulo: "Opções",
       modo: "barra",
+      extra: "com-rotulo",
       opcoes: [
-        { id: "copiar", icone: "quadrado", rotulo: t("acoes.copiar"), aoEscolher: copiar },
-        { id: "colar", icone: "quadrado", rotulo: t("acoes.colar"), aoEscolher: colar },
-        { id: "duplicar", icone: "quadrado", rotulo: t("acoes.duplicar"), aoEscolher: duplicar },
+        { id: "copiar", icone: "copiar", rotulo: t("acoes.copiar"), aoEscolher: copiar },
+        { id: "colar", icone: "colar", rotulo: t("acoes.colar"), aoEscolher: colar },
+        { id: "duplicar", icone: "duplicar", rotulo: t("acoes.duplicar"), aoEscolher: duplicar },
       ],
     }),
     separador(),
@@ -739,7 +740,17 @@ function ligarArrasteDoMeio() {
 // Atalho de computador: dois cliques com a seta caem no remodelador.
 function ligarDuploClique() {
   const aoDuplo = (evento) => {
-    if (cena.ferramenta !== "selecionar" || !cena.paper) return;
+    if (!cena.paper) return;
+    const retangulo0 = tela.getBoundingClientRect();
+    const pontoNaMesa = cena.paper.view.viewToProject(
+      new cena.paper.Point(evento.clientX - retangulo0.left, evento.clientY - retangulo0.top),
+    );
+    // No remodelador, dois cliques na linha criam um ponto ali.
+    if (cena.ferramenta === "remodelar") {
+      if (remodelar.adicionarPontoEm(pontoNaMesa)) apos();
+      return;
+    }
+    if (cena.ferramenta !== "selecionar") return;
     const retangulo = tela.getBoundingClientRect();
     const ponto = cena.paper.view.viewToProject(
       new cena.paper.Point(evento.clientX - retangulo.left, evento.clientY - retangulo.top),
@@ -794,7 +805,7 @@ function ligarOuvintes() {
   desligar.push(
     ouvir("ajuste:mudou", ({ chave }) => {
       if (!cena.paper) return;
-      if (chave === "tema" || chave === "*") {
+      if (chave === "tema" || chave === "gridMilimetros" || chave === "*") {
         mesa.desenharMesa();
         selecao.atualizarGuias();
       }
@@ -846,15 +857,20 @@ export async function montar(area, setor, aoVoltar, aoTrocarDeModo) {
   });
   desligar.push(() => limparDestino());
 
-  const guardado = await projeto.lerDoCache();
-  if (guardado) {
-    try {
-      projeto.desempacotar(guardado);
-      mesa.redefinirMesa(cena.mesa);
-      mostrarAviso("Projeto anterior recuperado.");
-    } catch {
-      // projeto velho ou corrompido: começa limpo
+  if (!ponte.temCarga("2d")) {
+    const guardado = await projeto.lerDoCache();
+    if (guardado) {
+      try {
+        projeto.desempacotar(guardado);
+        mesa.redefinirMesa(cena.mesa);
+        mostrarAviso("Projeto anterior recuperado.");
+      } catch {
+        // projeto velho ou corrompido: começa limpo
+      }
     }
+  } else {
+    cena.camadaPecas.removeChildren();
+    limparSelecao();
   }
 
   painel.ligarContinuacao((item) => {

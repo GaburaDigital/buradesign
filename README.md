@@ -60,10 +60,12 @@ de substituir.
 
 ### Estado atual
 
-As fases 1 e 2 estão no ar: **Criação Livre 2D** e **Criação Livre 3D**. Dá para
+As fases 1, 2 e a primeira parte da 3 estão no ar: **Criação Livre 2D**,
+**Criação Livre 3D** e **Design com Programação** no modo livre. Dá para
 desenhar formas, escrever texto com acento, curvar caminhos com a caneta,
-combinar peças com peça negativa, ajustar tudo por número e exportar o SVG
-para a cortadora. Os outros três setores ainda estão em obras.
+combinar peças com peça negativa, ajustar tudo por número, exportar o SVG para
+a cortadora, o STL para a impressora, e montar o modelo programando em blocos.
+Faltam os desafios de programação e os dois últimos setores.
 
 ### O que fazer no setor Criação Livre
 
@@ -176,9 +178,55 @@ no campo "Como cortar": **plano**, com a folha atravessando a peça, e
 que sai.
 
 Peça rígida mostra só os cantos, com traço triplo. Peça em modo malha mostra
-todas as arestas finas e uma cruz discreta no meio de cada face. Durante a
-edição, os modos vértice, aresta e face ficam num grupo flutuante no canto
-superior esquerdo da cena, com o modo ativo escrito ao lado.
+as arestas e uma cruz grossa no meio de cada face, e os triângulos aparecem
+pareados como **quadriláteros**, que é o que torna a edição por face viável.
+O contorno é refeito a cada deformação, então ele acompanha a peça em vez de
+ficar preso no formato antigo. Clicar fora só desmarca: a peça continua em
+edição e os ajustes seguem respondendo.
+
+Durante a edição, os modos vértice, aresta e face ficam num grupo flutuante no
+canto superior esquerdo da cena, cada um com seu ícone, e o modo ativo escrito
+ao lado. Com faces marcadas aparece **Extrusão na face**, que puxa a face para
+fora do centro da peça, nunca para dentro.
+
+### Medidas, seleção e ajuste fino
+
+Os campos de tamanho nas Propriedades são **absolutos**: 20 mm digitado é
+20 mm na peça, mesmo que ela já tenha sido esticada com a alça antes. O mesmo
+vale para diâmetro, altura e raio das formas.
+
+Para somar em cima do que já existe há o botão **Transformação relativa**, que
+abre uma janelinha com **mover**, **girar** e **escalar**, cada um com X, Y e
+Z. Número negativo subtrai. É a forma de dizer "desce 5 mm" ou "dobra de
+tamanho" sem precisar calcular o valor final.
+
+A ferramenta **Selecionar** pega por região: arraste no vazio da base e tudo
+que estiver dentro do retângulo entra na seleção, como no 2D. Com Shift, soma
+à seleção que já existia. Serve para ajustar várias peças de uma vez.
+
+No 2D, a peça selecionada ganha uma **alça de cantoneira** um pouco para fora
+das alças normais: arrastando por ela, o tamanho muda mantendo a proporção. E
+em **Organizar** existe **Centralizar no centro**, que empilha as peças
+selecionadas com o mesmo centro — é como se coloca um círculo bem no meio de
+um quadrado.
+
+Ainda no 2D, o **Remodelar** aceita seleção de pontos por região e **duplo
+clique** (ou dois toques) em cima da linha para criar um ponto novo ali.
+
+### Trazer desenho 2D para o 3D
+
+Três caminhos levam ao mesmo lugar:
+
+- **Caminho 2D**, na coluna de ferramentas, importa um arquivo SVG e pergunta
+  a espessura.
+- **Alternar para 3D**, com um desenho aberto no 2D, converte o que está na
+  mesa.
+- Clicar numa peça 2D da **Bolsa** enquanto o 3D está aberto: aparece uma
+  confirmação com a espessura e a peça entra convertida.
+
+Nos três, partes que não se encostam entram como **peças separadas**, cada uma
+no seu lugar. No 2D, a importação de SVG também oferece separar as partes que
+não se tocam.
 
 ### Salvamento
 
@@ -189,11 +237,60 @@ base** esvazia a mesa e pede confirmação antes.
 
 O salvamento automático pode ser desligado nos Ajustes.
 
+### Design com Programação (fase 3)
+
+Ao entrar no setor, o aluno escolhe entre **Programação de modelo livre** e
+**Desafios de programação**. Os desafios chegam no próximo lote; o modo livre
+já está no ar.
+
+No modo livre a tela é dividida: **Área de programação** à esquerda, com os
+blocos no estilo do Scratch, e **Visualização 3D** à direita. No celular só um
+lado aparece por vez, e o botão **Ver 3D** na barra alterna entre eles.
+
+A visualização não se edita com a mão de propósito: quem monta é o programa. A
+câmera anda à vontade — arrastar gira, dois dedos aproximam, e no canto há as
+vistas prontas (topo, frente, direita, esquerda, trás e perspectiva), o zoom,
+o enquadrar base e o enquadrar modelo.
+
+Três botões comandam a execução:
+
+- **Iniciar** monta tudo de uma vez.
+- **Iniciar no modo lento** executa um bloco por vez, acendendo na tela o
+  bloco que está rodando. É o que mostra ao aluno o caminho que o programa faz.
+- **Parar** interrompe no meio.
+
+Os blocos estão em seis gavetas: **Controle** (o bloco de início e o repetir),
+**Ponteiro** (ir para, mover, girar, voltar ao centro), **Formas** (doze
+sólidos, do cubo à engrenagem), **Combinar** (marcar negativa, combinar,
+pousar), **Aparência** (pintar e acabamento) e **Operadores** (número, conta,
+número da repetição e sorteio).
+
+O ponteiro conta a partir do centro da base: x, y e z em milímetros, com o
+zero no meio do chão. Cada forma nasce onde o ponteiro estiver, com o giro que
+estiver valendo. Os encaixes de número aceitam tanto um valor digitado quanto
+outro bloco por cima — é assim que "mover x (número da repetição × 10)" faz
+uma escada.
+
+O programa é salvo sozinho no navegador e pode ser salvo com nome, baixado
+como arquivo `.buraprog.json` e aberto de novo. O modelo montado exporta em
+**STL**, vai para a **Bolsa** e serve de peça nos outros setores.
+
+Há duas travas de segurança, para o computador da sala não travar: no máximo
+250 peças e 20 mil passos por execução. Passou disso, o programa para e avisa.
+
 ### Temas
 
-Cinco: Escuro, Claro, Sistema (cinzas com marcações vivas), Rosa (rosa e roxo
-com marcações claras) e Flash (vermelho e branco, seleção em amarelo, botões
-com textura). A mesa de corte acompanha o tema escolhido.
+Sete: Escuro, Claro, Sistema (cinzas com marcações vivas), Rosa (rosa e roxo
+com marcações claras), Flash (vermelho e branco, seleção em amarelo, botões
+com textura), **Gloom** (vermelho, botões pretos de contorno vermelho, barras
+em degradê com estrelas) e **SimpZons** (amarelo, botões claros de contorno
+escuro, barras em degradê para o branco). A mesa de corte e a base 3D
+acompanham o tema escolhido.
+
+Nos Ajustes, em **Bancada**, a opção **Mostrar mm no grid** acende um grid de
+um milímetro por quadradinho, numa cor de destaque, por cima do grid normal de
+centímetros. Vem desligada e serve para projeto de encaixe, que não perdoa
+meio milímetro.
 
 Nos Ajustes também dá para aumentar o **tamanho das alças** de seleção, giro e
 dos pontos do remodelador, o que ajuda muito quem está começando e quem usa o
@@ -204,7 +301,7 @@ dedo na tela.
 | 0 | Casca: abertura, instalação, ajustes, som, Bolsa, tela inicial |
 | 1 | Criação Livre em 2D, com caminhos, bezier e exportação em SVG |
 | 2 | Criação Livre em 3D, com formas rígidas, corte e exportação em STL |
-| 3 | Design com Programação, com 60 desafios em lotes de 20 |
+| 3 | Design com Programação: modo livre (no ar) e 60 desafios em lotes de 20 |
 | 4 | Montagem com Peças Cortadas, com encaixes e plano de corte |
 | 5 | Simulação de Mecânica, com juntas e motores |
 
@@ -234,6 +331,8 @@ buradesign/
   src/core/               estado, preferências, depósito, som, arquivos, boot
   src/ui/                 casca, painéis, ícones, aliens, tela inicial
   src/modos/              um módulo por setor, carregado sob demanda
+    livre/ livre3d/        Criação Livre em 2D e em 3D
+    blocos/               Design com Programação (blocos, interpretador, tela)
   styles/                 tokens, base, casca, telas
   libs/                 bibliotecas versionadas (ver libs/LEIA-ME.md)
   ATIVIDADES/             conteúdo dos exercícios (ver ATIVIDADES/LEIA-ME.md)
@@ -254,6 +353,9 @@ buradesign/
 | `src/ui/casca.js` | barras, navegação e carregamento de setores |
 | `src/ui/painel.js` | janelas, confirmações e avisos |
 | `src/modos/registro.js` | lista dos setores e seus carregadores |
+| `src/modos/blocos/blocos.js` | catálogo dos blocos e a caixa de ferramentas |
+| `src/modos/blocos/interprete.js` | caminha pela árvore de blocos e monta as peças |
+| `src/modos/blocos/livre.js` | tela dividida: programação e visualização 3D |
 
 ### Como somar um setor
 
@@ -284,7 +386,9 @@ O seletor de idioma aparece nos Ajustes assim que existir mais de uma opção.
 ### Bibliotecas previstas
 
 Paper.js e opentype.js na fase 1, Three.js e three-bvh-csg na fase 2, Blockly
-na fase 3, Rapier na fase 5. Todas entram em `libs/`, com a versão anotada.
+11 na fase 3, Rapier na fase 5. Todas entram em `libs/`, com a versão anotada.
+O Blockly entra como UMD (`window.Blockly`), carregado só quando o setor de
+programação abre, junto do arquivo de mensagens em português.
 
 ### Testes manuais
 

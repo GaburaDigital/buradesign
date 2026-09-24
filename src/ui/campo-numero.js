@@ -28,10 +28,16 @@ export function campoArrastavel({
 
   const limitar = (numero) => Math.min(max, Math.max(min, numero));
 
+  // Enter aplica e o navegador dispara "change" logo depois. Sem esta
+  // guarda, o mesmo ajuste chegava duas vezes.
+  let ultimoAplicado = null;
   const aplicar = () => {
     const numero = Number(campo.value);
     if (!Number.isFinite(numero)) return;
-    aoAplicar(limitar(inteiro ? Math.round(numero) : numero));
+    const limitado = limitar(inteiro ? Math.round(numero) : numero);
+    if (limitado === ultimoAplicado) return;
+    ultimoAplicado = limitado;
+    aoAplicar(limitado);
   };
 
   campo.addEventListener("change", aplicar);
@@ -67,6 +73,8 @@ export function campoArrastavel({
     const fino = evento.shiftKey ? 0.25 : 1;
     const bruto = valorInicialDoArraste + (distancia / 6) * passo * fino;
     const novo = limitar(inteiro ? Math.round(bruto) : Math.round(bruto * 100) / 100);
+    if (novo === ultimoAplicado) return;
+    ultimoAplicado = novo;
     campo.value = String(novo);
     aoAplicar(novo);
   };

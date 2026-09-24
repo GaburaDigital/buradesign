@@ -59,13 +59,16 @@ function campoOpcoes(rotulo, valorAtual, opcoes, aoMudar) {
   return caixa;
 }
 
-function botao(icone, rotulo, aoClicar, extra = "") {
+function botao(icone, rotulo, aoClicar, extra = "", curto = "") {
   const alvo = document.createElement("button");
   alvo.type = "button";
-  alvo.className = `botao ${extra}`;
+  alvo.className = `botao ${extra}${curto ? " tem-curto" : ""}`;
   alvo.title = rotulo;
   alvo.setAttribute("aria-label", rotulo);
-  alvo.innerHTML = `${ferramenta(icone)}<span class="rotulo-acao">${rotulo}</span>`;
+  // O rótulo curto é o que aparece no celular, onde o texto inteiro não cabe.
+  alvo.innerHTML = `${ferramenta(icone)}<span class="rotulo-acao">${rotulo}</span>${
+    curto ? `<span class="rotulo-curto">${curto}</span>` : ""
+  }`;
   alvo.addEventListener("click", () => {
     tocar("clique");
     aoClicar();
@@ -114,13 +117,16 @@ function blocoParametros(item) {
   const definicao = DEFINICOES[item.data.tipo];
   if (!definicao) return null;
   const secao = grupo(definicao.nome);
+  // A peça é refeita a cada ajuste, então o alvo precisa acompanhar a versão
+  // atual. Guardar o item original duplicava a forma a cada aplicação.
+  let alvo = item;
   for (const [chave, campo] of Object.entries(definicao.params)) {
     const atual = item.data.params[chave];
     if (campo.opcoes) {
       secao.append(
         campoOpcoes(campo.rotulo, atual, campo.opcoes, (novo) => {
-          const novoItem = regerar(item, { [chave]: novo });
-          definirSelecao([novoItem]);
+          alvo = regerar(alvo, { [chave]: novo });
+          definirSelecao([alvo]);
           registrar();
           desenhar();
         }),
@@ -135,10 +141,10 @@ function blocoParametros(item) {
         (numero) => {
           const valorMm = campo.semUnidade ? numero : paraMm(numero);
           const limitado = Math.max(campo.min, Math.min(campo.max, valorMm));
-          const novoItem = regerar(item, {
+          alvo = regerar(alvo, {
             [chave]: campo.inteiro ? Math.round(limitado) : limitado,
           });
-          definirSelecao([novoItem]);
+          definirSelecao([alvo]);
           registrar();
           desenhar();
         },
@@ -152,6 +158,7 @@ function blocoParametros(item) {
 function blocoTexto(item) {
   const secao = grupo("Texto");
   const params = item.data.params;
+  let alvo = item;
 
   const campo = document.createElement("label");
   campo.className = "propriedade";
@@ -161,8 +168,8 @@ function blocoTexto(item) {
   entrada.type = "text";
   entrada.value = params.texto;
   entrada.addEventListener("change", async () => {
-    const novo = await texto.regerar(item, { texto: entrada.value });
-    definirSelecao([novo]);
+    alvo = await texto.regerar(alvo, { texto: entrada.value });
+    definirSelecao([alvo]);
     registrar();
     desenhar();
   });
@@ -175,8 +182,8 @@ function blocoTexto(item) {
       params.familia,
       texto.familias().map((familia) => ({ valor: familia.id, rotulo: familia.nome })),
       async (novo) => {
-        const item2 = await texto.regerar(item, { familia: novo });
-        definirSelecao([item2]);
+        alvo = await texto.regerar(alvo, { familia: novo });
+        definirSelecao([alvo]);
         registrar();
         desenhar();
       },
@@ -185,8 +192,8 @@ function blocoTexto(item) {
       "Tamanho",
       deMm(params.tamanho),
       async (numero) => {
-        const item2 = await texto.regerar(item, { tamanho: Math.max(2, paraMm(numero)) });
-        definirSelecao([item2]);
+        alvo = await texto.regerar(alvo, { tamanho: Math.max(2, paraMm(numero)) });
+        definirSelecao([alvo]);
         registrar();
         desenhar();
       },
@@ -194,15 +201,15 @@ function blocoTexto(item) {
   );
 
   const estilos = linhaBotoes(
-    botao("texto", params.negrito ? "Tirar negrito" : "Negrito", async () => {
-      const item2 = await texto.regerar(item, { negrito: !params.negrito });
-      definirSelecao([item2]);
+    botao("negrito", params.negrito ? "Tirar negrito" : "Negrito", async () => {
+      alvo = await texto.regerar(alvo, { negrito: !params.negrito });
+      definirSelecao([alvo]);
       registrar();
       desenhar();
     }),
-    botao("texto", params.italico ? "Tirar itálico" : "Itálico", async () => {
-      const item2 = await texto.regerar(item, { italico: !params.italico });
-      definirSelecao([item2]);
+    botao("italico", params.italico ? "Tirar itálico" : "Itálico", async () => {
+      alvo = await texto.regerar(alvo, { italico: !params.italico });
+      definirSelecao([alvo]);
       registrar();
       desenhar();
     }),
@@ -298,7 +305,7 @@ function blocoAcoesPeca(itens) {
       botao("negativo", negativos ? "Voltar a positiva" : "Marcar negativa", () => {
         combinar.alternarNegativo(itens);
         desenhar();
-      }),
+      }, "", negativos ? "positiva" : "negativo"),
       botao("unir", "Unir peças", () => {
         if (!combinar.podeCombinar(itens)) {
           mostrarAviso("Selecione pelo menos duas peças para combinar.", "alerta");
@@ -310,7 +317,7 @@ function blocoAcoesPeca(itens) {
           tocar("erro");
         }
         desenhar();
-      }),
+      }, "", "unir"),
       botao("desunir", "Separar", () => {
         if (!combinar.podeDesunir(itens)) {
           mostrarAviso("Só dá para desunir uma peça que foi combinada.", "alerta");
@@ -318,28 +325,28 @@ function blocoAcoesPeca(itens) {
         }
         combinar.desunir(itens[0]);
         desenhar();
-      }),
+      }, "", "separar"),
     ),
     linhaBotoes(
-      botao("alternar2d", "Inverter na horizontal", () => {
+      botao("espelharX", "Inverter na horizontal", () => {
         for (const item of itens) item.scale(-1, 1, item.bounds.center);
         registrar();
         selecao.atualizarGuias();
-      }),
-      botao("alternar2d", "Inverter na vertical", () => {
+      }, "", "invert. h"),
+      botao("espelharY", "Inverter na vertical", () => {
         for (const item of itens) item.scale(1, -1, item.bounds.center);
         registrar();
         selecao.atualizarGuias();
-      }),
+      }, "", "invert. v"),
     ),
     linhaBotoes(
       botao("caminho", "Virar caminho", () => {
         for (const item of itens) converterEmCaminho(item);
         registrar();
         desenhar();
-      }),
-      botao("frente", "Trazer para frente", () => organizar.ordenar(itens, "frente")),
-      botao("tras", "Mandar para trás", () => organizar.ordenar(itens, "tras")),
+      }, "", "caminho"),
+      botao("frente", "Trazer para frente", () => organizar.ordenar(itens, "frente"), "", "frente"),
+      botao("tras", "Mandar para trás", () => organizar.ordenar(itens, "tras"), "", "trás"),
       botao("lixo", "Apagar", () => {
         selecao.apagarSelecao();
         desenhar();
@@ -353,19 +360,23 @@ function blocoOrganizar(itens) {
   const secao = grupo("Organizar");
   secao.append(
     linhaBotoes(
-      botao("alinharEsquerda", "Alinhar à esquerda", () => organizar.alinhar(itens, "esquerda")),
-      botao("alinharCentroH", "Centralizar na horizontal", () => organizar.alinhar(itens, "centroH")),
-      botao("alinharDireita", "Alinhar à direita", () => organizar.alinhar(itens, "direita")),
+      botao("alinharEsquerda", "Alinhar à esquerda", () => organizar.alinhar(itens, "esquerda"), "", "esq."),
+      botao("alinharCentroH", "Centralizar na horizontal", () => organizar.alinhar(itens, "centroH"), "", "centro h"),
+      botao("alinharDireita", "Alinhar à direita", () => organizar.alinhar(itens, "direita"), "", "dir."),
     ),
     linhaBotoes(
-      botao("alinharTopo", "Alinhar ao topo", () => organizar.alinhar(itens, "topo")),
-      botao("alinharMeioV", "Centralizar na vertical", () => organizar.alinhar(itens, "meioV")),
-      botao("alinharBase", "Alinhar à base", () => organizar.alinhar(itens, "base")),
+      botao("alinharTopo", "Alinhar ao topo", () => organizar.alinhar(itens, "topo"), "", "topo"),
+      botao("alinharMeioV", "Centralizar na vertical", () => organizar.alinhar(itens, "meioV"), "", "centro v"),
+      botao("alinharBase", "Alinhar à base", () => organizar.alinhar(itens, "base"), "", "base"),
     ),
     linhaBotoes(
-      botao("distribuirH", "Distribuir na horizontal", () => organizar.distribuir(itens, "horizontal")),
-      botao("distribuirV", "Distribuir na vertical", () => organizar.distribuir(itens, "vertical")),
-      botao("enquadrar", "Centralizar na mesa", () => organizar.centralizarNaMesa(itens)),
+      botao("distribuirH", "Distribuir na horizontal", () => organizar.distribuir(itens, "horizontal"), "", "distr. h"),
+      botao("distribuirV", "Distribuir na vertical", () => organizar.distribuir(itens, "vertical"), "", "distr. v"),
+      botao("centralizarCentro", "Centralizar no centro", () => {
+        organizar.centralizarNoCentro(itens);
+        selecao.atualizarGuias();
+      }, "", "no centro"),
+      botao("enquadrar", "Centralizar na mesa", () => organizar.centralizarNaMesa(itens), "", "na mesa"),
     ),
   );
   return secao;
@@ -381,13 +392,13 @@ function blocoRemodelar() {
   secao.append(
     nota,
     linhaBotoes(
-      botao("caminho", "Fazer curva", () => {
+      botao("curva", "Fazer curva", () => {
         if (!remodelar.fazerCurva()) mostrarAviso("Marque ao menos um ponto.", "alerta");
       }),
-      botao("nos", "Fazer canto", () => {
+      botao("canto", "Fazer canto", () => {
         if (!remodelar.fazerCanto()) mostrarAviso("Marque ao menos um ponto.", "alerta");
       }),
-      botao("lixo", "Apagar ponto", () => {
+      botao("apagarPonto", "Apagar ponto", () => {
         if (!remodelar.apagarNos()) mostrarAviso("Marque ao menos um ponto.", "alerta");
       }),
     ),
@@ -403,7 +414,7 @@ function blocoCaminhoAberto(item) {
   secao.append(
     nota,
     linhaBotoes(
-      botao("caneta", "Continuar desenho", () => aoPedirContinuar(item)),
+      botao("caneta", "Continuar desenho", () => aoPedirContinuar(item), "", "continuar"),
       botao("fecharForma", "Fechar forma", () => {
         item.closed = true;
         registrar();

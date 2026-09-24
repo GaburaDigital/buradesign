@@ -2,7 +2,7 @@
 // Ao somar ou renomear arquivos, atualize a lista ARQUIVOS e suba o número da
 // VERSAO. O cache antigo é apagado sozinho na ativação.
 
-const VERSAO = "1.1.0";
+const VERSAO = "1.2.0";
 const CACHE = `buradesign-${VERSAO}`;
 
 const ARQUIVOS = [
@@ -26,6 +26,9 @@ const ARQUIVOS = [
   "catalogo.json",
   "i18n/pt-BR.js",
   "index.html",
+  "libs/blockly/blockly.min.js",
+  "libs/blockly/media/sprites.png",
+  "libs/blockly/msg-pt-br.js",
   "libs/csg/three-bvh-csg.module.js",
   "libs/csg/three-mesh-bvh.module.js",
   "libs/opentype/opentype.min.js",
@@ -58,6 +61,10 @@ const ARQUIVOS = [
   "src/core/idioma.js",
   "src/core/registrar-sw.js",
   "src/core/som.js",
+  "src/modos/blocos/blocos.js",
+  "src/modos/blocos/interprete.js",
+  "src/modos/blocos/livre.js",
+  "src/modos/blocos/menu.js",
   "src/modos/em-obras.js",
   "src/modos/livre/caneta.js",
   "src/modos/livre/combinar.js",
@@ -94,6 +101,7 @@ const ARQUIVOS = [
   "src/ui/painel-bolsa.js",
   "src/ui/painel.js",
   "styles/base.css",
+  "styles/blocos.css",
   "styles/livre.css",
   "styles/shell.css",
   "styles/telas.css",

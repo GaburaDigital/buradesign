@@ -9,10 +9,18 @@ import { aplicarUVsDeCaixa } from "./solidos.js";
 import { linhaGrossa } from "./pecas.js";
 
 export const MODOS = [
-  { id: "vertice", rotulo: "Vértice" },
-  { id: "aresta", rotulo: "Aresta" },
-  { id: "face", rotulo: "Face" },
+  { id: "vertice", icone: "vertice", rotulo: "Vértice" },
+  { id: "aresta", icone: "aresta", rotulo: "Aresta" },
+  { id: "face", icone: "face", rotulo: "Face" },
 ];
+
+// Avisa quem estiver ouvindo que a malha mudou de forma, para o contorno e as
+// cruzes serem redesenhados no formato novo.
+let aoDeformar = null;
+
+export function ligarAviso(funcao) {
+  aoDeformar = typeof funcao === "function" ? funcao : null;
+}
 
 const estado = {
   peca: null,
@@ -200,6 +208,27 @@ export function quantosMarcados() {
   return estado.marcados.size;
 }
 
+// Triângulos que pertencem à seleção atual. É o que a extrusão de face usa.
+export function trianguloInicial() {
+  if (!estado.peca || !estado.marcados.size) return [];
+  const posicoes = estado.peca.geometry.attributes.position;
+  const inicios = [];
+  for (let i = 0; i < posicoes.count; i += 3) {
+    const trio = [i, i + 1, i + 2].map((k) => estado.porVertice[k]);
+    if (trio.every((indice) => estado.marcados.has(indice))) inicios.push(i);
+  }
+  return inicios;
+}
+
+// Refaz o mapa depois de uma mudança na geometria feita de fora.
+export function remapear() {
+  if (!estado.peca) return;
+  mapear(estado.peca);
+  estado.marcados = new Set();
+  estado.trianguloMarcado = null;
+  desenharPontos();
+}
+
 // Marca o que foi clicado, de acordo com o modo.
 export function marcarPeloRaio(raio, somando = false) {
   if (!estado.peca) return false;
@@ -290,6 +319,9 @@ export function mover(deslocamentoNoMundo) {
   estado.peca.geometry.computeBoundingSphere();
   aplicarUVsDeCaixa(estado.peca.geometry);
   atualizarPontos();
+  // O contorno é uma geometria própria: sem refazer, ele ficava com a forma
+  // antiga enquanto a peça já tinha virado outra coisa.
+  aoDeformar?.(estado.peca);
   return true;
 }
 

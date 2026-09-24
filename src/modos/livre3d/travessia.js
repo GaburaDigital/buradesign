@@ -8,7 +8,7 @@ import { SVGLoader } from "three/addons/loaders/SVGLoader.js";
 import { Brush, Evaluator, INTERSECTION } from "three-bvh-csg";
 import { cena3d } from "./cena.js";
 import { aplicarUVsDeCaixa, garantirOrientacao } from "./solidos.js";
-import { pecaDeGeometria } from "./pecas.js";
+import { pecaDeGeometria, pousarNaBase } from "./pecas.js";
 
 const avaliador = new Evaluator();
 avaliador.attributes = ["position", "normal"];
@@ -26,6 +26,74 @@ export function formasDoSVG(svg) {
 
 // O SVG do modo 2D está em milímetros, com o Y crescendo para baixo. Aqui a
 // profundidade é o Z, então o desenho é deitado na base com uma rotação.
+// Agrupa as formas que se encostam. Peças soltas no mesmo SVG viram sólidos
+// independentes, com a posição preservada.
+function agruparFormas(formas) {
+  const caixas = formas.map((forma) => {
+    const pontos = forma.getPoints(12);
+    const caixa = new THREE.Box2();
+    for (const ponto of pontos) caixa.expandByPoint(new THREE.Vector2(ponto.x, ponto.y));
+    caixa.expandByScalar(0.4);
+    return caixa;
+  });
+  const grupoDe = formas.map((_, indice) => indice);
+  const raizDe = (indice) => {
+    let atual = indice;
+    while (grupoDe[atual] !== atual) atual = grupoDe[atual];
+    return atual;
+  };
+  for (let i = 0; i < formas.length; i += 1) {
+    for (let j = i + 1; j < formas.length; j += 1) {
+      if (!caixas[i].intersectsBox(caixas[j])) continue;
+      const a = raizDe(i);
+      const b = raizDe(j);
+      if (a !== b) grupoDe[b] = a;
+    }
+  }
+  const mapa = new Map();
+  formas.forEach((forma, indice) => {
+    const chave = raizDe(indice);
+    if (!mapa.has(chave)) mapa.set(chave, []);
+    mapa.get(chave).push(forma);
+  });
+  return [...mapa.values()];
+}
+
+// Devolve uma peça por conjunto de formas encostadas.
+export function extrudarSVGSeparado(svg, { alturaMm = 10, nome = "Desenho 2D" } = {}) {
+  const formas = formasDoSVG(svg);
+  if (!formas.length) return [];
+  const grupos = agruparFormas(formas);
+  const criadas = [];
+  grupos.forEach((grupo, indice) => {
+    const peca = montarSolido(grupo, alturaMm, grupos.length > 1 ? `${nome} ${indice + 1}` : nome);
+    if (peca) criadas.push(peca);
+  });
+  // Cada peça nasce centrada na própria geometria; aqui as posições relativas
+  // do desenho original são devolvidas.
+  return criadas;
+}
+
+function montarSolido(formas, alturaMm, nome) {
+  if (!formas.length) return null;
+  const geometria = new THREE.ExtrudeGeometry(formas, {
+    depth: Math.max(0.4, alturaMm),
+    bevelEnabled: false,
+    curveSegments: 16,
+  });
+  geometria.rotateX(Math.PI / 2);
+  geometria.computeBoundingBox();
+  const centro = geometria.boundingBox.getCenter(new THREE.Vector3());
+  geometria.translate(-centro.x, -centro.y, -centro.z);
+  garantirOrientacao(geometria);
+  aplicarUVsDeCaixa(geometria);
+  const peca = pecaDeGeometria(geometria, nome);
+  peca.position.x = cena3d.base.largura / 2 + centro.x;
+  peca.position.z = cena3d.base.profundidade / 2 + centro.z;
+  pousarNaBase(peca);
+  return peca;
+}
+
 export function extrudarSVG(svg, { alturaMm = 10, nome = "Desenho 2D" } = {}) {
   const formas = formasDoSVG(svg);
   if (!formas.length) return null;

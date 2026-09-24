@@ -119,7 +119,98 @@ const FERRAMENTAS = {
   meiaEsfera3d: `<path d="M3.5 15 a8.5 8.5 0 0 1 17 0 Z" ${D}/><path d="M3.5 15 a8.5 3 0 0 0 17 0" ${V}/>`,
   cremalheira3d: `<path d="M3 14 H21 V19 H3 Z" ${D}/>
     <path d="M5 14 V10 H8 V14 M10 14 V10 H13 V14 M15 14 V10 H18 V14" ${V}/>`,
+  opcoes: `<circle cx="5" cy="12" r="1.9" ${D}/><circle cx="12" cy="12" r="1.9" ${V}/><circle cx="19" cy="12" r="1.9" ${D}/>`,
+  copiar: `<rect x="3.5" y="3.5" width="12" height="12" rx="1.5" ${D}/>
+    <path d="M8.5 20.5 H20.5 V8.5" ${V}/><path d="M8.5 20.5 V16" ${V}/>`,
+  colar: `<path d="M6 5.5 H4.5 V20.5 H19.5 V5.5 H18" ${D}/>
+    <rect x="8" y="2.8" width="8" height="4.4" rx="1" ${D}/>
+    <path d="M8.5 12.5 L11 15 L16 10" ${V}/>`,
+  duplicar: `<rect x="3.5" y="6.5" width="11" height="11" rx="1.5" ${D}/>
+    <rect x="9.5" y="3.5" width="11" height="11" rx="1.5" ${V}/>`,
+  vertice: `<path d="M5 18 L12 6 L19 18" ${D}/>
+    <rect x="9.2" y="3.2" width="5.6" height="5.6" rx="0.8" fill="var(--verde)" stroke="var(--verde)" stroke-width="1.4"/>
+    <rect x="2.6" y="15.6" width="4.4" height="4.4" rx="0.6" ${D}/>
+    <rect x="17" y="15.6" width="4.4" height="4.4" rx="0.6" ${D}/>`,
+  aresta: `<path d="M5 18 L12 6 L19 18" fill="none" stroke="var(--texto)" stroke-width="1.4" stroke-linejoin="round"/>
+    <path d="M12 6 L19 18" fill="none" stroke="var(--verde)" stroke-width="3.4" stroke-linecap="round"/>
+    <circle cx="12" cy="6" r="1.8" ${D}/><circle cx="19" cy="18" r="1.8" ${D}/>`,
+  face: `<path d="M12 4 L20.5 9 V19 L12 21.5 L3.5 19 V9 Z" fill="var(--verde)" fill-opacity="0.55" stroke="var(--verde)" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M3.5 9 L12 12 L20.5 9 M12 12 V21.5" fill="none" stroke="var(--texto)" stroke-width="1.2" stroke-opacity="0.8"/>`,
+  extrudarFace: `<path d="M4 15 L10 11 L16 15 L10 19 Z" ${D}/>
+    <path d="M10 11 V3.5" ${V}/><path d="M7 6 L10 3 L13 6" ${V}/>
+    <path d="M4 15 V17.5 L10 21.5 L16 17.5 V15" ${D}/>`,
+  caminhoSvg: `<path d="M4 17.5 C 7 7, 11 19, 14 9.5" fill="none" stroke="var(--texto)" stroke-width="1.7" stroke-linecap="round"/>
+    <rect x="2" y="15.4" width="4.2" height="4.2" ${D}/>
+    <path d="M14.5 13 L21 16 L14.5 19 L8 16 Z" ${V}/>
+    <path d="M8 16 V19.5 L14.5 22.5 V19 M21 16 V19.5 L14.5 22.5" ${V}/>`,
+  relativa: `<path d="M3.5 12 H12" ${D}/><path d="M12 12 V3.5" ${D}/>
+    <path d="M9 6.5 L12 3.5 L15 6.5" ${V}/><path d="M6.5 9 L3.5 12 L6.5 15" ${V}/>
+    <path d="M14 14 a5 5 0 1 0 5 -2" fill="none" stroke="var(--verde)" stroke-width="1.7" stroke-linecap="round"/>
+    <path d="M19.5 9 L19.5 12.5 L16 12.5" ${V}/>`,
+  proporcional: `<rect x="3.5" y="3.5" width="12" height="12" ${D}/>
+    <path d="M13 21 H21 V13" ${V}/><path d="M13 13 L21 21" ${V}/>`,
+  centralizarCentro: `<rect x="3.5" y="7" width="17" height="10" rx="1" ${D}/>
+    <rect x="9" y="9.5" width="6" height="5" fill="var(--verde)" fill-opacity="0.5" stroke="var(--verde)" stroke-width="1.5"/>
+    <path d="M12 2.5 V5.5 M12 18.5 V21.5 M1.5 12 H4.5 M19.5 12 H22.5" ${V}/>`,
+  negrito: `<path d="M7 4.5 H13 a3.6 3.6 0 0 1 0 7.2 H7 Z" ${D}/>
+    <path d="M7 11.7 H14 a3.9 3.9 0 0 1 0 7.8 H7 Z" ${D}/>`,
+  italico: `<path d="M10 4.5 H18 M6 19.5 H14 M14.5 4.5 L9.5 19.5" ${D}/>`,
+  regiao: `<path d="M3 7.5 V3.5 H7.5 M16.5 3.5 H21 V7.5 M21 16.5 V20.5 H16.5 M7.5 20.5 H3 V16.5" fill="none" stroke="var(--texto)" stroke-width="1.7" stroke-dasharray="3 2.4" stroke-linecap="round"/>
+    <rect x="7" y="7" width="4.5" height="4.5" ${V}/><rect x="12.5" y="12.5" width="4.5" height="4.5" ${V}/>`,
+  milimetro: `<rect x="3" y="8" width="18" height="8" ${D}/>
+    <path d="M6.6 8 V12 M10.2 8 V14 M13.8 8 V12 M17.4 8 V14" ${V}/>
+    <path d="M4.8 8 V10.5 M8.4 8 V10.5 M12 8 V10.5 M15.6 8 V10.5 M19.2 8 V10.5" fill="none" stroke="var(--verde)" stroke-width="0.9"/>`,
   regua: `<path d="M3 8 H21 V16 H3 Z" ${D}/><path d="M7 8 V12 M11 8 V13 M15 8 V12 M18 8 V13" ${V}/>`,
+
+  // --- Fase 3: programação ---------------------------------------------
+  // Blocos encaixados, no formato das peças do Blockly.
+  blocos: `<path d="M4 5.5 H10 v1.6 a1.6 1.6 0 0 0 3.2 0 V5.5 H19 V10 H4 Z" ${D}/>
+    <path d="M4 13 H10 v1.6 a1.6 1.6 0 0 0 3.2 0 V13 H19 V17.5 H4 Z" ${V}/>`,
+  iniciar: `<path d="M7 4.5 L19 12 L7 19.5 Z" ${V}/>`,
+  lento: `<path d="M4.5 5 L13.5 12 L4.5 19 Z" ${D}/><circle cx="17.5" cy="16.5" r="4" ${V}/>
+    <path d="M17.5 14.2 V16.5 H19.4" ${V}/>`,
+  parar: `<rect x="6" y="6" width="12" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+    <rect x="9.2" y="9.2" width="5.6" height="5.6" ${V}/>`,
+  programaLivre: `<path d="M3.5 6 H20.5 V18 H3.5 Z" ${D}/><path d="M12 6 V18" ${D}/>
+    <path d="M5.5 9 H9.5 M5.5 12 H10 M5.5 15 H8.5" ${V}/>
+    <path d="M14.5 15.5 L17 10 L19.5 15.5 Z" ${V}/>`,
+  desafios: `<path d="M12 3 L14.4 8.4 L20.3 9 L15.9 13 L17.2 18.8 L12 15.8 L6.8 18.8 L8.1 13 L3.7 9 L9.6 8.4 Z" ${D}/>
+    <path d="M9.8 11.8 L11.4 13.4 L14.4 10.2" ${V}/>`,
+  camera3d: `<path d="M3.5 7.5 H14 V16.5 H3.5 Z" ${D}/><path d="M14 10.5 L20.5 7 V17 L14 13.5 Z" ${V}/>`,
+
+  // --- Eixo da profundidade e espelhos, um ícone por eixo -------------
+  // O alinhamento em Z usa paralelogramos, para não repetir o desenho do
+  // alinhamento em X e em Y.
+  alinharFrente: `<path d="M3 21 H21" ${V}/>
+    <path d="M7.5 6 H21 L16.5 19 H3 Z" ${D}/>`,
+  alinharCentroZ: `<path d="M3 12 H21" fill="none" stroke="var(--verde)" stroke-width="1.8" stroke-dasharray="3 2.4" stroke-linecap="round"/>
+    <path d="M7 4.5 H19 L16 10.5 H4 Z" ${D}/><path d="M7 13.5 H19 L16 19.5 H4 Z" ${D}/>`,
+  alinharTras: `<path d="M3 3 H21" ${V}/>
+    <path d="M7.5 5 H21 L16.5 18 H3 Z" ${D}/>`,
+  alinharCentroY: `<path d="M3 12 H21" ${V}/>
+    <rect x="4" y="6.5" width="6.5" height="11" ${D}/><rect x="13.5" y="8.5" width="6.5" height="7" ${D}/>`,
+  distribuirZ: `<path d="M2.5 17.5 H9 L11 12.5 H4.5 Z" ${D}/>
+    <path d="M7.5 13 H14 L16 8 H9.5 Z" ${V}/>
+    <path d="M12.5 8.5 H19 L21 3.5 H14.5 Z" ${D}/>`,
+  espelharX: `<path d="M12 3 V21" fill="none" stroke="var(--verde)" stroke-width="1.8" stroke-dasharray="3 2.4" stroke-linecap="round"/>
+    <path d="M9.5 6 L4 12 L9.5 18 Z" ${D}/><path d="M14.5 6 L20 12 L14.5 18 Z" ${D}/>`,
+  espelharY: `<path d="M3 12 H21" fill="none" stroke="var(--verde)" stroke-width="1.8" stroke-dasharray="3 2.4" stroke-linecap="round"/>
+    <path d="M6 9.5 L12 4 L18 9.5 Z" ${D}/><path d="M6 14.5 L12 20 L18 14.5 Z" ${D}/>`,
+  espelharZ: `<path d="M4 20 L20 4" fill="none" stroke="var(--verde)" stroke-width="1.8" stroke-dasharray="3 2.4" stroke-linecap="round"/>
+    <path d="M4.5 13.5 L4.5 5 L13 5 Z" ${D}/><path d="M19.5 10.5 L19.5 19 L11 19 Z" ${D}/>`,
+  // Ver como malha: o mesmo cubo, mas repartido em faces.
+  verMalha: `<path d="M4 7 L12 3 L20 7 V17 L12 21 L4 17 Z" ${D}/>
+    <path d="M4 7 L12 11 L20 7 M12 11 V21" ${V}/>`,
+
+  // --- Pontos do remodelador ------------------------------------------
+  curva: `<path d="M4 17 C 7 8, 17 8, 20 17" ${D}/>
+    <path d="M4 17 L9.5 11 M20 17 L14.5 11" fill="none" stroke="var(--verde)" stroke-width="1.1"/>
+    <circle cx="9.5" cy="11" r="1.7" ${V}/><circle cx="14.5" cy="11" r="1.7" ${V}/>
+    <rect x="2.5" y="15.5" width="3" height="3" ${D}/><rect x="18.5" y="15.5" width="3" height="3" ${D}/>`,
+  canto: `<path d="M4 18 L12 6 L20 18" ${D}/><rect x="10" y="4" width="4" height="4" ${V}/>`,
+  apagarPonto: `<path d="M3 18.5 C 7.5 11, 16.5 11, 21 18.5" ${D}/>
+    <rect x="1.5" y="17" width="3" height="3" ${D}/><rect x="19.5" y="17" width="3" height="3" ${D}/>
+    <path d="M8.5 8 L15.5 15 M15.5 8 L8.5 15" fill="none" stroke="var(--perigo, #e03131)" stroke-width="1.9" stroke-linecap="round"/>`,
 };
 
 export function ferramenta(nome, titulo) {

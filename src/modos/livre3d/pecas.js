@@ -172,28 +172,79 @@ function posicoesDasArestas(geometria, limite) {
 
 // Cruz discreta no meio de cada face: é a marca visual da malha, e ajuda a
 // mirar quando o aluno vai editar face por face.
-function cruzesDasFaces(geometria, tamanhoRelativo = 0.22) {
+function cruzesDasFaces(geometria, tamanhoRelativo = 0.3) {
   const plana = geometria.index ? geometria.toNonIndexed() : geometria;
   const posicoes = plana.attributes.position;
+  const total = posicoes.count / 3;
+  const chave = (i) =>
+    `${posicoes.getX(i).toFixed(3)},${posicoes.getY(i).toFixed(3)},${posicoes.getZ(i).toFixed(3)}`;
+
+  // Guarda, para cada aresta, quais triângulos a usam.
+  const porAresta = new Map();
+  const cantos = [];
+  const normais = [];
+  for (let f = 0; f < total; f += 1) {
+    const i = f * 3;
+    const pontos = [0, 1, 2].map((k) => new THREE.Vector3().fromBufferAttribute(posicoes, i + k));
+    cantos.push(pontos);
+    normais.push(
+      new THREE.Vector3()
+        .crossVectors(
+          new THREE.Vector3().subVectors(pontos[1], pontos[0]),
+          new THREE.Vector3().subVectors(pontos[2], pontos[0]),
+        )
+        .normalize(),
+    );
+    const chaves = [0, 1, 2].map((k) => chave(i + k));
+    for (const [a, b] of [[0, 1], [1, 2], [2, 0]]) {
+      const id = [chaves[a], chaves[b]].sort().join("|");
+      if (!porAresta.has(id)) porAresta.set(id, []);
+      porAresta.get(id).push(f);
+    }
+  }
+
+  // Junta os pares coplanares num quad só.
+  const parceiro = new Array(total).fill(-1);
+  for (const usos of porAresta.values()) {
+    if (usos.length !== 2) continue;
+    const [a, b] = usos;
+    if (parceiro[a] !== -1 || parceiro[b] !== -1) continue;
+    if (normais[a].dot(normais[b]) > 0.9995) {
+      parceiro[a] = b;
+      parceiro[b] = a;
+    }
+  }
+
   const lista = [];
-  const a = new THREE.Vector3();
-  const b = new THREE.Vector3();
-  const c = new THREE.Vector3();
-  for (let i = 0; i < posicoes.count; i += 3) {
-    a.fromBufferAttribute(posicoes, i);
-    b.fromBufferAttribute(posicoes, i + 1);
-    c.fromBufferAttribute(posicoes, i + 2);
-    const centro = new THREE.Vector3().add(a).add(b).add(c).divideScalar(3);
-    const lado1 = new THREE.Vector3().subVectors(b, a);
-    const lado2 = new THREE.Vector3().subVectors(c, a);
-    const tamanho = Math.min(lado1.length(), lado2.length()) * tamanhoRelativo;
+  const jaFeito = new Set();
+  for (let f = 0; f < total; f += 1) {
+    if (jaFeito.has(f)) continue;
+    const par = parceiro[f];
+    const pontos = [...cantos[f]];
+    if (par !== -1) {
+      jaFeito.add(par);
+      for (const ponto of cantos[par]) {
+        if (!pontos.some((outro) => outro.distanceToSquared(ponto) < 1e-6)) pontos.push(ponto);
+      }
+    }
+    jaFeito.add(f);
+
+    const centro = new THREE.Vector3();
+    for (const ponto of pontos) centro.add(ponto);
+    centro.divideScalar(pontos.length);
+
+    let menor = Infinity;
+    for (const ponto of pontos) menor = Math.min(menor, ponto.distanceTo(centro));
+    const tamanho = menor * tamanhoRelativo * 2;
     if (tamanho < 0.05) continue;
-    const eixo1 = lado1.clone().normalize().multiplyScalar(tamanho);
-    const eixo2 = new THREE.Vector3().crossVectors(lado1, lado2).normalize();
-    const eixo3 = new THREE.Vector3().crossVectors(eixo2, eixo1).normalize().multiplyScalar(tamanho);
+
+    const eixo1 = new THREE.Vector3().subVectors(cantos[f][1], cantos[f][0]).normalize();
+    const eixo2 = new THREE.Vector3().crossVectors(eixo1, normais[f]).normalize();
+    const a = eixo1.multiplyScalar(tamanho);
+    const b = eixo2.multiplyScalar(tamanho);
     lista.push(
-      ...centro.clone().sub(eixo1).toArray(), ...centro.clone().add(eixo1).toArray(),
-      ...centro.clone().sub(eixo3).toArray(), ...centro.clone().add(eixo3).toArray(),
+      ...centro.clone().sub(a).toArray(), ...centro.clone().add(a).toArray(),
+      ...centro.clone().sub(b).toArray(), ...centro.clone().add(b).toArray(),
     );
   }
   return lista;
@@ -209,11 +260,11 @@ function comContorno(peca) {
   // finas, mais a cruz no meio das faces.
   const arestas = posicoesDasArestas(peca.geometry, malha ? 1 : 45);
   if (arestas.length) {
-    grupo.add(linhaGrossa(arestas, tons.borda, malha ? 1 : 3, malha ? 0.75 : 0.9));
+    grupo.add(linhaGrossa(arestas, tons.borda, malha ? 2.5 : 3, malha ? 0.95 : 0.9));
   }
   if (malha) {
     const cruzes = cruzesDasFaces(peca.geometry);
-    if (cruzes.length) grupo.add(linhaGrossa(cruzes, tons.borda, 1, 0.45));
+    if (cruzes.length) grupo.add(linhaGrossa(cruzes, tons.borda, 2, 0.8));
   }
   peca.add(grupo);
   return peca;
@@ -319,6 +370,9 @@ export function regerar(peca, novosParams) {
   const dados = peca.userData;
   if (!DEFINICOES[dados.tipo]) return peca;
   const params = { ...dados.params, ...novosParams };
+  // Medida pedida é medida final: a escala herdada de um arraste anterior
+  // zera aqui, senão 20 mm digitado virava 20 vezes a escala.
+  peca.scale.set(1, 1, 1);
   const geometria = geometriaDe(dados.tipo, params);
   if (!geometria) return peca;
   peca.geometry.dispose();
@@ -472,6 +526,51 @@ export function esconderPlanoDeCorte() {
 
 // Troca entre peça rígida e malha. Por enquanto muda só a aparência; a
 // edição por vértice, aresta e face entra na próxima etapa.
+// Tamanho absoluto: leva a peça exatamente à medida pedida, seja ela
+// paramétrica, combinada ou importada.
+export function definirTamanho(peca, eixo, milimetros) {
+  peca.updateMatrixWorld(true);
+  const caixa = new THREE.Box3().setFromObject(peca);
+  const atual = caixa.getSize(new THREE.Vector3())[eixo];
+  if (!Number.isFinite(atual) || atual < 0.0001) return peca;
+  const fator = Math.max(0.01, milimetros) / atual;
+  peca.scale[eixo] *= fator;
+  peca.updateMatrixWorld(true);
+  return peca;
+}
+
+export function tamanhoDe(peca) {
+  peca.updateMatrixWorld(true);
+  return new THREE.Box3().setFromObject(peca).getSize(new THREE.Vector3());
+}
+
+// Transformação relativa: soma ao que já existe, aceitando negativos.
+export function transformarRelativo(lista, tipo, { x = 0, y = 0, z = 0 }) {
+  for (const peca of lista) {
+    if (tipo === "mover") {
+      peca.position.add(new THREE.Vector3(x, y, z));
+    } else if (tipo === "girar") {
+      peca.rotation.set(
+        peca.rotation.x + (x * Math.PI) / 180,
+        peca.rotation.y + (y * Math.PI) / 180,
+        peca.rotation.z + (z * Math.PI) / 180,
+      );
+    } else if (tipo === "escalar") {
+      const tamanho = tamanhoDe(peca);
+      const somar = (eixo, quanto) => {
+        if (!quanto) return;
+        const alvo = Math.max(0.2, tamanho[eixo] + quanto);
+        definirTamanho(peca, eixo, alvo);
+      };
+      somar("x", x);
+      somar("y", y);
+      somar("z", z);
+    }
+    peca.updateMatrixWorld(true);
+  }
+  return lista;
+}
+
 export function alternarModo(lista, modo) {
   for (const peca of lista) {
     peca.userData.modo = modo === "malha" ? "malha" : "rigida";
@@ -703,6 +802,70 @@ export function cortarLivre(peca, pontosNoMundo, camera, { separar = false } = {
   const sobra = malhaDe(geometriaRestante, peca, " cortada");
   remover(peca);
   return recorte ? [sobra, recorte] : [sobra];
+}
+
+// Extrusão de face: a região marcada é puxada para fora e as paredes laterais
+// fecham o vão. Só para fora, nunca para dentro da peça.
+export function extrudarFace(peca, triangulos, distancia = 5) {
+  if (!peca || !triangulos || !triangulos.length) return false;
+  const geometria = peca.geometry.index ? peca.geometry.toNonIndexed() : peca.geometry;
+  if (geometria !== peca.geometry) {
+    peca.geometry.dispose();
+    peca.geometry = geometria;
+  }
+  const posicoes = geometria.attributes.position;
+  const antigas = Array.from(posicoes.array);
+
+  const chave = (x, y, z) => `${x.toFixed(3)},${y.toFixed(3)},${z.toFixed(3)}`;
+  const normal = new THREE.Vector3();
+  const centroDaPeca = new THREE.Vector3();
+  geometria.computeBoundingBox();
+  geometria.boundingBox.getCenter(centroDaPeca);
+
+  const movidos = new Map();
+  const paredes = [];
+
+  for (const inicio of triangulos) {
+    const pontos = [0, 1, 2].map((k) =>
+      new THREE.Vector3().fromBufferAttribute(posicoes, inicio + k),
+    );
+    const daFace = new THREE.Vector3()
+      .crossVectors(
+        new THREE.Vector3().subVectors(pontos[1], pontos[0]),
+        new THREE.Vector3().subVectors(pontos[2], pontos[0]),
+      )
+      .normalize();
+    const centroDaFace = new THREE.Vector3().add(pontos[0]).add(pontos[1]).add(pontos[2]).divideScalar(3);
+    // Garante que a extrusão sai da peça, e não entra nela.
+    if (daFace.dot(new THREE.Vector3().subVectors(centroDaFace, centroDaPeca)) < 0) daFace.negate();
+    normal.copy(daFace);
+
+    const novos = pontos.map((ponto) => {
+      const id = chave(ponto.x, ponto.y, ponto.z);
+      if (!movidos.has(id)) movidos.set(id, ponto.clone().add(normal.clone().multiplyScalar(distancia)));
+      return movidos.get(id);
+    });
+
+    for (let k = 0; k < 3; k += 1) {
+      posicoes.setXYZ(inicio + k, novos[k].x, novos[k].y, novos[k].z);
+    }
+    for (const [a, b] of [[0, 1], [1, 2], [2, 0]]) {
+      paredes.push(
+        ...pontos[a].toArray(), ...pontos[b].toArray(), ...novos[b].toArray(),
+        ...pontos[a].toArray(), ...novos[b].toArray(), ...novos[a].toArray(),
+      );
+    }
+  }
+
+  const finais = Array.from(posicoes.array).concat(paredes);
+  const nova = new THREE.BufferGeometry();
+  nova.setAttribute("position", new THREE.Float32BufferAttribute(finais, 3));
+  nova.computeVertexNormals();
+  aplicarUVsDeCaixa(nova);
+  peca.geometry.dispose();
+  peca.geometry = nova;
+  trocarContorno(peca);
+  return true;
 }
 
 // Peça feita a partir de uma geometria pronta (texto 3D, por exemplo).

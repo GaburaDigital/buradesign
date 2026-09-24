@@ -107,6 +107,44 @@ html[data-tema="flash"] {
   --metal-escuro: #f0b4b0;
 }
 
+html[data-tema="gloom"] {
+  --fundo: #2a0708;
+  --fundo-2: #3a0b0d;
+  --fundo-3: #4d1013;
+  --texto: #ffe3e3;
+  --texto-2: #f0a8a8;
+  --texto-3: #c07070;
+  --linha: #7a1f22;
+  --linha-forte: #c23a3a;
+  --verde: #ff5252;
+  --verde-fraco: #5c1414;
+  --ambar: #ff9d6b;
+  --perigo: #ff2d2d;
+  --selecao: #ff8080;
+  --metal-claro: #ffd6d6;
+  --metal-medio: #d98a8a;
+  --metal-escuro: #8f4040;
+}
+
+html[data-tema="simpzons"] {
+  --fundo: #4a3a05;
+  --fundo-2: #5e4a08;
+  --fundo-3: #75600f;
+  --texto: #fff9d6;
+  --texto-2: #f2dd8a;
+  --texto-3: #c9b25c;
+  --linha: #8a7010;
+  --linha-forte: #ffd21f;
+  --verde: #ffd21f;
+  --verde-fraco: #6b5500;
+  --ambar: #ffb300;
+  --perigo: #ff6b2d;
+  --selecao: #fff07a;
+  --metal-claro: #fff3b0;
+  --metal-medio: #e0c463;
+  --metal-escuro: #9c8420;
+}
+
 html[data-tema="claro"] {
   --fundo: #ffffff;
   --fundo-2: #f2f4f6;

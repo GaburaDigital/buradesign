@@ -2,6 +2,7 @@
 // navegação da câmera. Nada aqui pertence ao desenho do usuário.
 
 import { cena, paleta, deMm, unidade } from "./estado.js";
+import { valor } from "../../core/ajustes.js";
 
 let ajustandoCamera = false;
 
@@ -35,6 +36,23 @@ export function desenharMesa() {
   base.strokeColor = tons.borda;
   base.strokeWidth = 0.6;
   base.strokeScaling = false;
+
+  // Grid de milímetros: fica por baixo do grid normal, em tom mais apagado.
+  if (valor("gridMilimetros")) {
+    const milimetros = new paper.Group();
+    for (let x = 0; x <= largura + 0.001; x += 1) {
+      if (Math.abs(x % grid) < 0.001) continue;
+      milimetros.addChild(new paper.Path.Line([x, 0], [x, altura]));
+    }
+    for (let y = 0; y <= altura + 0.001; y += 1) {
+      if (Math.abs(y % grid) < 0.001) continue;
+      milimetros.addChild(new paper.Path.Line([0, y], [largura, y]));
+    }
+    milimetros.strokeColor = tons.milimetro || tons.gradeFina;
+    milimetros.strokeWidth = 0.2;
+    milimetros.strokeScaling = false;
+    milimetros.opacity = 0.75;
+  }
 
   const fino = new paper.Group();
   const grosso = new paper.Group();

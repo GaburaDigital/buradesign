@@ -128,3 +128,56 @@ html[data-tema="flash"] .botao--destaque {
   border-color: var(--selecao);
   color: var(--texto);
 }
+
+/* Tema Gloom: botões pretos com contorno vermelho. */
+html[data-tema="gloom"] .botao,
+html[data-tema="gloom"] .ferramenta,
+html[data-tema="gloom"] .grupo-ferramenta__botao {
+  background-color: #120203;
+  border-color: var(--linha-forte);
+  color: var(--texto);
+}
+html[data-tema="gloom"] .botao:hover,
+html[data-tema="gloom"] .ferramenta:hover { border-color: var(--selecao); color: var(--selecao); }
+
+/* Tema SimpZons: botões amarelo claro, contorno escuro, texto preto. */
+html[data-tema="simpzons"] .botao,
+html[data-tema="simpzons"] .ferramenta,
+html[data-tema="simpzons"] .grupo-ferramenta__botao {
+  background-color: #ffe98a;
+  border-color: #6b5500;
+  color: #1a1400;
+  font-weight: 700;
+}
+html[data-tema="simpzons"] .botao:hover,
+html[data-tema="simpzons"] .ferramenta:hover { background-color: #fff6c4; border-color: #000000; }
+html[data-tema="simpzons"] .botao .icone,
+html[data-tema="simpzons"] .ferramenta .icone { color: #1a1400; }
+
+/* Céu estrelado nas barras dos dois temas homenagem. */
+html[data-tema="gloom"] .barra-topo,
+html[data-tema="gloom"] .barra-base,
+html[data-tema="simpzons"] .barra-topo,
+html[data-tema="simpzons"] .barra-base {
+  position: relative;
+  background-image: var(--ceu-estrelas), var(--ceu-degrade);
+  background-size: 120px 120px, 100% 100%;
+}
+html[data-tema="gloom"] {
+  --ceu-degrade: linear-gradient(180deg, #7d1a1a 0%, #2a0708 100%);
+  --ceu-estrelas: radial-gradient(circle at 14px 18px, #fff 0 1px, transparent 1.4px),
+    radial-gradient(circle at 64px 42px, #fff 0 1px, transparent 1.4px),
+    radial-gradient(circle at 96px 12px, #fff 0 1px, transparent 1.4px),
+    radial-gradient(circle at 38px 78px, #fff 0 1px, transparent 1.4px),
+    radial-gradient(circle at 108px 88px, #fff 0 1px, transparent 1.4px);
+}
+html[data-tema="simpzons"] {
+  --ceu-degrade: linear-gradient(180deg, #ffd21f 0%, #fffdf2 100%);
+  --ceu-estrelas: radial-gradient(circle at 20px 22px, #fff 0 1.2px, transparent 1.6px),
+    radial-gradient(circle at 70px 50px, #fff 0 1.2px, transparent 1.6px),
+    radial-gradient(circle at 100px 16px, #fff 0 1.2px, transparent 1.6px),
+    radial-gradient(circle at 44px 84px, #fff 0 1.2px, transparent 1.6px);
+}
+html[data-tema="simpzons"] .barra-topo,
+html[data-tema="simpzons"] .barra-base { color: #1a1400; }
+html[data-tema="simpzons"] .marca { color: #1a1400; }

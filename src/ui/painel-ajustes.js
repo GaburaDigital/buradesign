@@ -85,6 +85,8 @@ export function abrirAjustes() {
       { valor: "sistema", rotulo: t("ajustes.temaSistema") },
       { valor: "rosa", rotulo: t("ajustes.temaRosa") },
       { valor: "flash", rotulo: t("ajustes.temaFlash") },
+      { valor: "gloom", rotulo: t("ajustes.temaGloom") },
+      { valor: "simpzons", rotulo: t("ajustes.temaSimpzons") },
     ]),
     interruptor("som", t("ajustes.somAtivo")),
     seletor("volume", t("ajustes.volume"), [
@@ -147,6 +149,7 @@ export function abrirAjustes() {
       t("ajustes.opacidadeBaseAjuda"),
     ),
     interruptor("salvarSozinho", t("ajustes.salvarSozinho")),
+    interruptor("gridMilimetros", t("ajustes.gridMilimetros")),
     interruptor("bootRapido", t("ajustes.bootRapido")),
     interruptor("avisoDispositivo", t("ajustes.avisoDispositivo")),
   );

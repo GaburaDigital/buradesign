@@ -233,13 +233,14 @@ function montarEsqueleto(area, aoVoltar) {
     }),
     grupoDeFerramentas({
       id: "editar",
-      icone: "unir",
-      rotulo: "Editar",
+      icone: "opcoes",
+      rotulo: "Opções",
       modo: "barra",
+      extra: "com-rotulo",
       opcoes: [
-        { id: "copiar", icone: "caixas", rotulo: t("acoes.copiar"), aoEscolher: copiar },
-        { id: "colar", icone: "caixas", rotulo: t("acoes.colar"), aoEscolher: colar },
-        { id: "duplicar", icone: "caixas", rotulo: t("acoes.duplicar"), aoEscolher: duplicar },
+        { id: "copiar", icone: "copiar", rotulo: t("acoes.copiar"), aoEscolher: copiar },
+        { id: "colar", icone: "colar", rotulo: t("acoes.colar"), aoEscolher: colar },
+        { id: "duplicar", icone: "duplicar", rotulo: t("acoes.duplicar"), aoEscolher: duplicar },
       ],
     }),
     separador(),
@@ -296,7 +297,7 @@ function montarEsqueleto(area, aoVoltar) {
   const caminhoBotao = document.createElement("button");
   caminhoBotao.type = "button";
   caminhoBotao.className = "ferramenta";
-  caminhoBotao.innerHTML = `${iconeFerramenta("caminho")}<span>Caminho 2D</span>`;
+  caminhoBotao.innerHTML = `${iconeFerramenta("caminhoSvg")}<span>Caminho 2D</span>`;
   caminhoBotao.addEventListener("click", inserirCaminho2d);
   caixa.append(caminhoBotao);
 
@@ -335,7 +336,7 @@ function montarEsqueleto(area, aoVoltar) {
       icone: "nos",
       rotulo: "Ajuste da malha",
       modo: "barra",
-      opcoes: malha.MODOS.map((modo) => ({ id: modo.id, icone: "nos", rotulo: modo.rotulo })),
+      opcoes: malha.MODOS.map((modo) => ({ id: modo.id, icone: modo.icone, rotulo: modo.rotulo })),
       aoEscolher: (opcao) => {
         malha.definirModo(opcao.id);
         garra?.detach();
@@ -626,12 +627,19 @@ function atualizarSeloDaMalha() {
   if (!caixa || !selo) return;
   caixa.classList.toggle("canto-malha--visivel", malha.ativo());
   const ficha = malha.MODOS.find((modo) => modo.id === malha.modoAtual());
-  selo.innerHTML = `${iconeFerramenta("nos")}<span>${ficha ? ficha.rotulo : ""}</span>`;
+  selo.innerHTML = `${iconeFerramenta(ficha ? ficha.icone : "nos")}<span>${ficha ? ficha.rotulo : ""}</span>`;
+}
+
+// Mantém a peça em edição selecionada, sem refazer o destaque geral.
+function selecionarSemSairDaMalha() {
+  const peca = malha.pecaAtual();
+  if (peca && !cena3d.selecao.includes(peca)) cena3d.selecao = [peca];
 }
 
 function entrarNaMalha(peca) {
   if (!malha.entrar(peca)) return;
   pecas.alternarModo([peca], "malha");
+  malha.ligarAviso((alvo) => pecas.trocarContorno(alvo));
   soltarGarra();
   pegaDaMalha = new THREE.Object3D();
   cena3d.cena.add(pegaDaMalha);
@@ -641,6 +649,7 @@ function entrarNaMalha(peca) {
 }
 
 function sairDaMalha() {
+  malha.ligarAviso(null);
   malha.sair();
   if (pegaDaMalha) {
     garra.detach();
@@ -670,14 +679,36 @@ function blocoMalha() {
   nota.textContent = `Marcados: ${malha.quantosMarcados()}. Segure Shift para somar.`;
   const modos = linhaBotoes(
     ...malha.MODOS.map((modo) =>
-      botaoSimples("nos", modo.rotulo, () => {
+      botaoSimples(modo.icone, modo.rotulo, () => {
         malha.definirModo(modo.id);
         garra?.detach();
         atualizarPainel();
       }, malha.modoAtual() === modo.id ? "botao--destaque" : ""),
     ),
   );
-  secao.append(nota, modos, linhaBotoes(botaoSimples("fechar", "Sair da malha", sairDaMalha)));
+  const acoes = linhaBotoes(
+    botaoSimples("extrudarFace", "Extrusão na face", async () => {
+      const inicios = malha.trianguloInicial();
+      if (!inicios.length) {
+        mostrarAviso("Marque uma face inteira primeiro.", "alerta");
+        return;
+      }
+      const distancia = await perguntarTexto("Extrusão na face", "Quanto puxar para fora (mm):", "5");
+      if (distancia === null) return;
+      const peca = malha.pecaAtual();
+      if (!pecas.extrudarFace(peca, inicios, Math.max(0.2, Number(distancia) || 5))) {
+        mostrarAviso("Não consegui extrudar essa face.", "alerta");
+        return;
+      }
+      malha.remapear();
+      garra?.detach();
+      registrar();
+      atualizarPainel();
+      tocar("clique");
+    }),
+    botaoSimples("fechar", "Sair da malha", sairDaMalha),
+  );
+  secao.append(nota, modos, acoes);
   return secao;
 }
 
@@ -871,8 +902,18 @@ function linhaBotoes(...botoes) {
   return linha;
 }
 
-function botaoSimples(nomeIcone, rotulo, aoClicar, extra = "") {
-  return botaoDaBarra(nomeIcone, rotulo, aoClicar, { extra: `com-rotulo ${extra}` });
+function botaoSimples(nomeIcone, rotulo, aoClicar, extra = "", curto = "") {
+  const alvo = botaoDaBarra(nomeIcone, rotulo, aoClicar, { extra: `com-rotulo ${extra}` });
+  // No celular o rótulo inteiro não cabe, e sem rótulo nenhum os alunos se
+  // perdiam. Então cada botão leva também uma versão curta.
+  if (curto) {
+    alvo.classList.add("tem-curto");
+    const abreviado = document.createElement("span");
+    abreviado.className = "rotulo-curto";
+    abreviado.textContent = curto;
+    alvo.append(abreviado);
+  }
+  return alvo;
 }
 
 function deUnidade(mm) {
@@ -1023,9 +1064,29 @@ function blocoAjusteFino(peca) {
       registrar();
     }, { semUnidade: true }),
   );
+  // Tamanho absoluto: o número digitado é a medida final da peça.
+  const tamanho = pecas.tamanhoDe(peca);
+  secao.append(
+    campoNumero("Largura", deUnidade(tamanho.x), (numero) => {
+      pecas.definirTamanho(peca, "x", paraMm(numero));
+      registrar();
+      atualizarPainel();
+    }),
+    campoNumero("Altura", deUnidade(tamanho.y), (numero) => {
+      pecas.definirTamanho(peca, "y", paraMm(numero));
+      registrar();
+      atualizarPainel();
+    }),
+    campoNumero("Profundidade", deUnidade(tamanho.z), (numero) => {
+      pecas.definirTamanho(peca, "z", paraMm(numero));
+      registrar();
+      atualizarPainel();
+    }),
+  );
+
   const nota = document.createElement("p");
   nota.className = "dica";
-  nota.textContent = "Giro em graus. Enter aplica o número.";
+  nota.textContent = "Os números são medidas finais. Giro em graus.";
   secao.append(
     nota,
     linhaBotoes(
@@ -1034,9 +1095,72 @@ function blocoAjusteFino(peca) {
         registrar();
         atualizarPainel();
       }),
+      botaoSimples("relativa", "Transf. relativa", abrirRelativa),
     ),
   );
   return secao;
+}
+
+// Soma ou subtrai de uma vez em X, Y e Z. Aceita números negativos.
+function abrirRelativa() {
+  const selecionadas = cena3d.selecao.slice();
+  if (!selecionadas.length) {
+    mostrarAviso("Selecione alguma peça primeiro.", "alerta");
+    return;
+  }
+  const escolhas = { tipo: "mover", x: 0, y: 0, z: 0 };
+  const corpo = document.createElement("div");
+
+  const caixa = document.createElement("label");
+  caixa.className = "propriedade";
+  caixa.innerHTML = `<span class="propriedade__nome">O que fazer</span>`;
+  const escolha = document.createElement("select");
+  for (const opcao of [
+    { valor: "mover", rotulo: "Mover" },
+    { valor: "girar", rotulo: "Girar" },
+    { valor: "escalar", rotulo: "Escalar" },
+  ]) {
+    const item = document.createElement("option");
+    item.value = opcao.valor;
+    item.textContent = opcao.rotulo;
+    escolha.append(item);
+  }
+  escolha.addEventListener("change", () => {
+    escolhas.tipo = escolha.value;
+  });
+  caixa.append(escolha);
+  corpo.append(caixa);
+
+  for (const eixo of ["x", "y", "z"]) {
+    corpo.append(
+      campoNumero(`Somar em ${eixo.toUpperCase()}`, 0, (numero) => {
+        escolhas[eixo] = numero;
+      }, { semUnidade: true }),
+    );
+  }
+  const nota = document.createElement("p");
+  nota.className = "dica";
+  nota.textContent =
+    "Vale número negativo para subtrair. Mover e escalar em milímetros, girar em graus.";
+  corpo.append(nota);
+
+  abrirPainel({
+    titulo: "Transformação relativa",
+    corpo,
+    botoes: [
+      {
+        rotulo: "Aplicar",
+        variante: "destaque",
+        aoClicar: () => {
+          pecas.transformarRelativo(selecionadas, escolhas.tipo, escolhas);
+          fecharPainel();
+          registrar();
+          atualizarPainel();
+          tocar("clique");
+        },
+      },
+    ],
+  });
 }
 
 function blocoAparencia(peca) {
@@ -1091,24 +1215,24 @@ function blocoOrganizar(selecionadas) {
   };
   secao.append(
     linhaBotoes(
-      botaoSimples("alinharEsquerda", "Esquerda", alinhar("esquerda")),
-      botaoSimples("alinharCentroH", "Centro em X", alinhar("centroX")),
-      botaoSimples("alinharDireita", "Direita", alinhar("direita")),
+      botaoSimples("alinharEsquerda", "Esquerda", alinhar("esquerda"), "", "esq."),
+      botaoSimples("alinharCentroH", "Centro em X", alinhar("centroX"), "", "centro x"),
+      botaoSimples("alinharDireita", "Direita", alinhar("direita"), "", "dir."),
     ),
     linhaBotoes(
-      botaoSimples("alinharTopo", "Frente", alinhar("frente")),
-      botaoSimples("alinharMeioV", "Centro em Z", alinhar("centroZ")),
-      botaoSimples("alinharBase", "Trás", alinhar("tras")),
+      botaoSimples("alinharFrente", "Frente", alinhar("frente"), "", "frente"),
+      botaoSimples("alinharCentroZ", "Centro em Z", alinhar("centroZ"), "", "centro z"),
+      botaoSimples("alinharTras", "Trás", alinhar("tras"), "", "trás"),
     ),
     linhaBotoes(
-      botaoSimples("naBase", "Base", alinhar("base")),
-      botaoSimples("alinharMeioV", "Centro em Y", alinhar("centroY")),
-      botaoSimples("alinharTopo", "Topo", alinhar("topo")),
+      botaoSimples("alinharBase", "Base", alinhar("base"), "", "base"),
+      botaoSimples("alinharCentroY", "Centro em Y", alinhar("centroY"), "", "centro y"),
+      botaoSimples("alinharTopo", "Topo", alinhar("topo"), "", "topo"),
     ),
     linhaBotoes(
-      botaoSimples("distribuirH", "Distribuir em X", distribuir("x")),
-      botaoSimples("distribuirV", "Distribuir em Y", distribuir("y")),
-      botaoSimples("distribuirH", "Distribuir em Z", distribuir("z")),
+      botaoSimples("distribuirH", "Distribuir em X", distribuir("x"), "", "distr. x"),
+      botaoSimples("distribuirV", "Distribuir em Y", distribuir("y"), "", "distr. y"),
+      botaoSimples("distribuirZ", "Distribuir em Z", distribuir("z"), "", "distr. z"),
     ),
   );
   return secao;
@@ -1124,7 +1248,7 @@ function blocoAcoes(selecionadas) {
         pecas.marcarNegativo(selecionadas, !negativas);
         registrar();
         atualizarPainel();
-      }),
+      }, "", negativas ? "positiva" : "negativo"),
       botaoSimples("unir", "Unir peças", () => {
         if (!pecas.podeCombinar(selecionadas)) {
           mostrarAviso("Selecione pelo menos duas peças.", "alerta");
@@ -1138,7 +1262,7 @@ function blocoAcoes(selecionadas) {
         }
         selecionar([nova]);
         registrar();
-      }),
+      }, "", "unir"),
       botaoSimples("desunir", "Separar", () => {
         if (!pecas.podeDesunir(selecionadas)) {
           mostrarAviso("Só dá para desunir uma peça combinada.", "alerta");
@@ -1147,35 +1271,35 @@ function blocoAcoes(selecionadas) {
         const voltaram = pecas.desunir(selecionadas[0]);
         selecionar(voltaram || []);
         registrar();
-      }),
+      }, "", "separar"),
     ),
     linhaBotoes(
-      botaoSimples("nos", emMalha ? "Ver como rígida" : "Ver como malha", () => {
+      botaoSimples("verMalha", emMalha ? "Ver como rígida" : "Ver como malha", () => {
         pecas.alternarModo(selecionadas, emMalha ? "rigida" : "malha");
         registrar();
         atualizarPainel();
-      }),
+      }, "", emMalha ? "ver rígida" : "ver malha"),
       botaoSimples("nos", "Editar malha", () => {
         if (selecionadas.length !== 1) {
           mostrarAviso("Selecione uma peça só para editar a malha.", "alerta");
           return;
         }
         entrarNaMalha(selecionadas[0]);
-      }),
+      }, "", "editar malha"),
     ),
     linhaBotoes(
-      botaoSimples("alternar3d", "Inverter em X", () => {
+      botaoSimples("espelharX", "Inverter em X", () => {
         pecas.espelhar(selecionadas, "x");
         registrar();
-      }),
-      botaoSimples("alternar3d", "Inverter em Y", () => {
+      }, "", "invert. x"),
+      botaoSimples("espelharY", "Inverter em Y", () => {
         pecas.espelhar(selecionadas, "y");
         registrar();
-      }),
-      botaoSimples("alternar3d", "Inverter em Z", () => {
+      }, "", "invert. y"),
+      botaoSimples("espelharZ", "Inverter em Z", () => {
         pecas.espelhar(selecionadas, "z");
         registrar();
-      }),
+      }, "", "invert. z"),
     ),
     linhaBotoes(
       botaoSimples("lixo", "Apagar", () => {
@@ -1369,6 +1493,33 @@ function receberDoDoisD() {
   }
 }
 
+// Peça 2D da bolsa: confirma a conversão e pede a espessura.
+async function converterDaBolsa(item) {
+  const altura = await perguntarTexto(
+    "Converter para 3D",
+    `"${item.nome}" é um desenho 2D. Espessura em milímetros:`,
+    "10",
+  );
+  if (altura === null) return;
+  try {
+    const criadas = travessia.extrudarSVGSeparado(item.dados.svg, {
+      alturaMm: Math.max(0.4, Number(altura) || 10),
+      nome: item.nome,
+    });
+    if (!criadas.length) {
+      mostrarAviso("Essa peça da bolsa não gerou volume.", "alerta");
+      return;
+    }
+    selecionar(criadas);
+    registrar();
+    tocar("pronto");
+    mostrarAviso(`${item.nome}: ${criadas.length} peça(s) com ${altura} mm.`);
+  } catch (erro) {
+    console.error(erro);
+    mostrarAviso("Não consegui converter essa peça.", "erro");
+  }
+}
+
 // Caminho 2D de um arquivo SVG, direto para a base, já com altura.
 async function inserirCaminho2d() {
   const arquivo = await escolherArquivo(".svg,image/svg+xml");
@@ -1377,15 +1528,16 @@ async function inserirCaminho2d() {
   if (altura === null) return;
   try {
     const svg = await arquivo.text();
-    const peca = travessia.extrudarSVG(svg, {
+    const criadas = travessia.extrudarSVGSeparado(svg, {
       alturaMm: Math.max(0.4, Number(altura) || 10),
       nome: arquivo.name.replace(/\.svg$/i, ""),
     });
-    if (!peca) {
+    if (!criadas.length) {
       mostrarAviso("Esse SVG não tem caminho fechado para extrudar.", "alerta");
       return;
     }
-    selecionar([peca]);
+    selecionar(criadas);
+    mostrarAviso(`${criadas.length} peça(s) importada(s).`);
     registrar();
     tocar("pronto");
   } catch (erro) {
@@ -1469,8 +1621,12 @@ export async function montar(area, setor, aoVoltar, aoTrocarDeModo) {
         -((evento.clientY - retangulo.top) / retangulo.height) * 2 + 1,
       );
       raio.setFromCamera(ponteiro, cena3d.camera);
-      malha.marcarPeloRaio(raio, evento.shiftKey || modoDoPonteiro === "somar");
-      prenderGarraNaMalha();
+      const acertou = malha.marcarPeloRaio(raio, evento.shiftKey || modoDoPonteiro === "somar");
+      // Clicar fora da peça só desmarca. A peça continua em edição, senão o
+      // painel some e os ajustes param de responder.
+      if (!acertou) garra?.detach();
+      else prenderGarraNaMalha();
+      selecionarSemSairDaMalha();
       atualizarPainel();
       return;
     }
@@ -1556,6 +1712,69 @@ export async function montar(area, setor, aoVoltar, aoTrocarDeModo) {
     tela.removeEventListener("pointerup", terminarTraco);
   });
 
+  // Seleção por região: arrastar no vazio desenha um retângulo e pega tudo
+  // que estiver dentro dele, como no 2D.
+  let caixaDeSelecao = null;
+  let inicioDaCaixa = null;
+
+  const comecarCaixa = (evento) => {
+    if (evento.button !== 0 || garra.dragging || malha.ativo() || desenhandoCorte) return;
+    if (modoDoPonteiro === "mao" || modoDoPonteiro === "camera") return;
+    if (pecaSobOPonteiro(evento)) return;
+    inicioDaCaixa = { x: evento.clientX, y: evento.clientY };
+    caixaDeSelecao = document.createElement("div");
+    caixaDeSelecao.className = "caixa-selecao";
+    raiz.querySelector(".livre__palco").append(caixaDeSelecao);
+  };
+
+  const moverCaixa = (evento) => {
+    if (!caixaDeSelecao || !inicioDaCaixa) return;
+    const palcoRet = raiz.querySelector(".livre__palco").getBoundingClientRect();
+    const x1 = Math.min(inicioDaCaixa.x, evento.clientX) - palcoRet.left;
+    const y1 = Math.min(inicioDaCaixa.y, evento.clientY) - palcoRet.top;
+    caixaDeSelecao.style.left = `${x1}px`;
+    caixaDeSelecao.style.top = `${y1}px`;
+    caixaDeSelecao.style.width = `${Math.abs(evento.clientX - inicioDaCaixa.x)}px`;
+    caixaDeSelecao.style.height = `${Math.abs(evento.clientY - inicioDaCaixa.y)}px`;
+  };
+
+  const terminarCaixa = (evento) => {
+    if (!caixaDeSelecao || !inicioDaCaixa) return;
+    const largura = Math.abs(evento.clientX - inicioDaCaixa.x);
+    const altura = Math.abs(evento.clientY - inicioDaCaixa.y);
+    caixaDeSelecao.remove();
+    caixaDeSelecao = null;
+    const comeco = inicioDaCaixa;
+    inicioDaCaixa = null;
+    if (largura < 8 && altura < 8) return;
+
+    const retangulo = tela.getBoundingClientRect();
+    const minX = Math.min(comeco.x, evento.clientX);
+    const maxX = Math.max(comeco.x, evento.clientX);
+    const minY = Math.min(comeco.y, evento.clientY);
+    const maxY = Math.max(comeco.y, evento.clientY);
+    const dentro = [];
+    const ponto = new THREE.Vector3();
+    for (const peca of cena3d.grupoPecas.children) {
+      peca.updateMatrixWorld(true);
+      ponto.setFromMatrixPosition(peca.matrixWorld).project(cena3d.camera);
+      const telaX = retangulo.left + ((ponto.x + 1) / 2) * retangulo.width;
+      const telaY = retangulo.top + ((1 - ponto.y) / 2) * retangulo.height;
+      if (telaX >= minX && telaX <= maxX && telaY >= minY && telaY <= maxY) dentro.push(peca);
+    }
+    const somando = evento.shiftKey || evento.ctrlKey || modoDoPonteiro === "somar";
+    selecionar(somando ? [...new Set([...cena3d.selecao, ...dentro])] : dentro);
+  };
+
+  tela.addEventListener("pointerdown", comecarCaixa);
+  tela.addEventListener("pointermove", moverCaixa);
+  tela.addEventListener("pointerup", terminarCaixa);
+  desligar.push(() => {
+    tela.removeEventListener("pointerdown", comecarCaixa);
+    tela.removeEventListener("pointermove", moverCaixa);
+    tela.removeEventListener("pointerup", terminarCaixa);
+  });
+
   tela.addEventListener("pointerdown", aoClicar);
   desligar.push(() => tela.removeEventListener("pointerdown", aoClicar));
 
@@ -1633,7 +1852,7 @@ export async function montar(area, setor, aoVoltar, aoTrocarDeModo) {
   desligar.push(
     ouvir("ajuste:mudou", ({ chave }) => {
       if (!cena3d.renderizador) return;
-      if (chave === "tema" || chave === "*") cena.desenharBase();
+      if (chave === "tema" || chave === "gridMilimetros" || chave === "*") cena.desenharBase();
       if (chave === "opacidadeBase" || chave === "*") cena.atualizarOpacidadeDaBase();
       if (chave === "snap" || chave === "*") trocarGarra(modoDaGarra);
       if (chave === "alcas") garra.setSize(0.9 * Number(ajuste("alcas") || 1));
@@ -1643,6 +1862,11 @@ export async function montar(area, setor, aoVoltar, aoTrocarDeModo) {
 
   definirDestino((item) => {
     if (!cena3d.renderizador) return false;
+    // Peça 2D guardada na bolsa: pergunta a espessura e converte.
+    if (item?.dados?.svg && !item?.dados?.pecas) {
+      converterDaBolsa(item);
+      return true;
+    }
     const deu = projeto.colocarDaBolsa(item);
     if (!deu) return false;
     registrar();
@@ -1659,19 +1883,26 @@ export async function montar(area, setor, aoVoltar, aoTrocarDeModo) {
   window.addEventListener("pagehide", guardarAoSair);
   desligar.push(() => window.removeEventListener("pagehide", guardarAoSair));
 
-  const guardado = await projeto.lerDoCache();
-  if (guardado) {
-    try {
-      projeto.desempacotar(guardado);
-      cena.redefinirBase(cena3d.base);
-      nomeDoProjeto = guardado.nome || nomeDoProjeto;
-      mostrarAviso("Projeto 3D anterior recuperado.");
-    } catch {
-      // projeto velho: começa limpo
+  // Chegando pela travessia, a base começa limpa: o desenho que vem do 2D é
+  // a continuação do mesmo trabalho, não uma peça solta num projeto antigo.
+  if (!ponte.temCarga("3d")) {
+    const guardado = await projeto.lerDoCache();
+    if (guardado) {
+      try {
+        projeto.desempacotar(guardado);
+        cena.redefinirBase(cena3d.base);
+        nomeDoProjeto = guardado.nome || nomeDoProjeto;
+        mostrarAviso("Projeto 3D anterior recuperado.");
+      } catch {
+        // projeto velho: começa limpo
+      }
     }
+  } else {
+    projeto.limparMesa();
   }
 
   receberDoDoisD();
+  cena.enquadrar();
   ultimaFoto = foto();
   cena.comecarDesenho();
   selecionar([]);

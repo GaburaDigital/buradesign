@@ -62,14 +62,14 @@ document.addEventListener("keydown", (evento) => {
 });
 
 // opcoes: [{ id, icone, rotulo, aoEscolher }]
-export function grupoDeFerramentas({ id, icone, rotulo, opcoes, aoEscolher, modo = "acao" }) {
+export function grupoDeFerramentas({ id, icone, rotulo, opcoes, aoEscolher, modo = "acao", extra = "" }) {
   const raiz = document.createElement("div");
   raiz.className = "grupo-ferramenta";
   raiz.dataset.grupo = id;
 
   const botao = document.createElement("button");
   botao.type = "button";
-  botao.className = modo === "barra" ? "botao grupo-ferramenta__botao" : "ferramenta grupo-ferramenta__botao";
+  botao.className = `${modo === "barra" ? "botao" : "ferramenta"} grupo-ferramenta__botao ${extra}`.trim();
   botao.title = rotulo;
   botao.setAttribute("aria-label", rotulo);
   botao.setAttribute("aria-haspopup", "true");

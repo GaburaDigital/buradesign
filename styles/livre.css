@@ -262,6 +262,13 @@
 }
 .modo__botao:hover, .modo__botao:focus-visible { border-color: var(--verde); color: var(--verde); }
 .modo__botao .icone { width: 3.5rem; height: 3.5rem; }
+/* Opção que ainda não abriu: continua visível, mas avisa que é obra. */
+.modo--fechado { border-style: dashed; opacity: 0.8; }
+.modo--fechado .modo__botao { border-style: dashed; color: var(--texto-3); }
+.modo--fechado .modo__botao:hover, .modo--fechado .modo__botao:focus-visible {
+  border-color: var(--ambar);
+  color: var(--ambar);
+}
 .modo__detalhes p { font-size: var(--t-14); color: var(--texto-2); }
 .modo__detalhes ul { margin: 0; padding-left: 1.1rem; font-size: var(--t-12); color: var(--texto-3); font-family: var(--fonte-mono); }
 
@@ -418,3 +425,31 @@
   min-height: 2.25rem;
 }
 .canto-malha .rotulo-acao { display: none; }
+
+/* O rótulo curto só existe no celular; no computador cabe o nome inteiro. */
+.rotulo-curto { display: none; }
+
+/* Seleção por região no 3D. */
+.caixa-selecao {
+  position: absolute;
+  z-index: 9;
+  border: var(--borda) dashed var(--verde);
+  background: color-mix(in srgb, var(--verde) 14%, transparent);
+  pointer-events: none;
+}
+
+/* Celular: os botões das propriedades e o menu de opções levam rótulo, que
+   foi onde os alunos mais se perderam. */
+@media (max-width: 64rem) {
+  .livre__painel .linha-botoes .botao {
+    flex: 1 1 8.5rem;
+    justify-content: flex-start;
+    gap: var(--e-2);
+  }
+  .livre__painel .linha-botoes .rotulo-acao { display: inline; font-size: 0.6875rem; }
+  /* Quem tem versão curta mostra a curta: "invert. h" cabe, o nome inteiro não. */
+  .livre__painel .linha-botoes .tem-curto .rotulo-acao { display: none; }
+  .livre__painel .linha-botoes .tem-curto .rotulo-curto { display: inline; font-size: 0.6875rem; }
+  .livre__barra .grupo-ferramenta__botao.com-rotulo .rotulo-acao { display: inline; }
+  .botao-propriedades span { display: inline; }
+}

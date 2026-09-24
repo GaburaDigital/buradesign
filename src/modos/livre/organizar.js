@@ -83,6 +83,19 @@ export function ordenar(itens, acao) {
   return true;
 }
 
+// Junta as peças uma sobre a outra, pelo centro. Diferente de alinhar, que
+// mantém cada uma na sua coluna ou linha.
+export function centralizarNoCentro(itens) {
+  if (itens.length < 2) return false;
+  const area = caixaGeral(itens);
+  const centro = area.center;
+  for (const item of itens) {
+    item.position = item.position.add(centro.subtract(item.bounds.center));
+  }
+  registrar();
+  return true;
+}
+
 export function centralizarNaMesa(itens) {
   if (!itens.length) return false;
   const area = caixaGeral(itens);
