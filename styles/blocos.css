@@ -130,6 +130,9 @@
   .blocos__controles .tem-curto .rotulo-acao { display: none; }
   .blocos__controles .tem-curto .rotulo-curto { display: inline; }
   .blocos__controles .botao { flex: 1 1 0; justify-content: center; padding: var(--e-2) var(--e-1); }
+  /* Na barra de cima o nome inteiro empurra os outros botões para fora. */
+  .livre__barra .tem-curto .rotulo-acao { display: none; }
+  .livre__barra .tem-curto .rotulo-curto { display: inline; }
   /* A legenda da visualização brigava com os botões de zoom. */
   .blocos__selo { display: none; }
   /* Afastado da borda para não cair em cima da barra de rolagem do Blockly. */
@@ -139,4 +142,137 @@
   .blocos--ver-3d .blocos__lado--palco { display: block; }
   .blocos__cabecalho h2 { display: none; }
   .blocos__controles { width: 100%; justify-content: space-between; }
+}
+
+/* Banda da missão -------------------------------------------------------
+   Fica entre a barra e a tela dividida, visível o tempo todo: o aluno não
+   pode precisar rolar para lembrar o que foi pedido. */
+
+.blocos--desafio { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+
+.desafio {
+  border-bottom: var(--borda) solid var(--linha-forte);
+  background: var(--fundo-2);
+  padding: var(--e-2) var(--e-3);
+  display: grid;
+  gap: var(--e-2);
+  max-height: 34vh;
+  overflow: auto;
+}
+/* Sem isto o "display: grid" ganha do atributo hidden: as dicas abriam
+   sozinhas e, na programação livre, sobrava uma faixa vazia ocupando um
+   terço da tela do celular. */
+.desafio[hidden],
+.desafio [hidden] { display: none; }
+
+.desafio__topo {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  flex-wrap: wrap;
+}
+.desafio__numero {
+  font-family: var(--fonte-mono);
+  font-size: var(--t-12);
+  color: var(--texto-3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.desafio__nome {
+  font-family: var(--fonte-mono);
+  font-size: var(--t-16);
+  margin: 0;
+  color: var(--verde);
+  flex: 1 1 12rem;
+}
+.desafio__acoes { display: flex; gap: var(--e-1); flex-wrap: wrap; }
+.desafio__acoes .botao { min-height: 2.25rem; }
+
+.desafio__estrelas { display: inline-flex; gap: 2px; }
+.desafio__estrela .icone { width: 1.15rem; height: 1.15rem; color: var(--linha-forte); }
+/* Estrela ganha é estrela cheia: só o contorno não se lê de longe. */
+.desafio__estrela--cheia .icone { color: var(--ambar); }
+.desafio__estrela--cheia .icone path { fill: var(--ambar); }
+
+.desafio__enunciado {
+  margin: 0;
+  font-size: var(--t-14);
+  color: var(--texto);
+  max-width: 70ch;
+}
+
+.desafio__detalhes { display: grid; gap: var(--e-2); }
+.desafio__dicas {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-family: var(--fonte-mono);
+  font-size: var(--t-12);
+  color: var(--texto-2);
+}
+.desafio__medidas { margin: 0; font-size: var(--t-12); color: var(--texto-3); }
+
+.desafio__placar { display: grid; gap: var(--e-1); }
+.desafio__nota { margin: 0; font-family: var(--fonte-mono); font-size: var(--t-14); }
+.desafio__tabela {
+  border-collapse: collapse;
+  font-family: var(--fonte-mono);
+  font-size: var(--t-12);
+  width: max-content;
+  max-width: 100%;
+}
+.desafio__tabela th,
+.desafio__tabela td {
+  border: 1px solid var(--linha);
+  padding: 2px var(--e-2);
+  text-align: left;
+}
+.desafio__tabela th { color: var(--texto-3); font-weight: normal; }
+.desafio__tabela tr.acertou td { color: var(--verde); }
+.desafio__tabela tr.errou td { color: var(--ambar); }
+
+/* Lista do lote --------------------------------------------------------- */
+
+.trilha__placar {
+  font-family: var(--fonte-mono);
+  font-size: var(--t-14);
+  color: var(--texto-2);
+  margin: 0 0 var(--e-3);
+}
+.trilha__lista {
+  list-style: none;
+  margin: 0 0 var(--e-4);
+  padding: 0;
+  display: grid;
+  gap: var(--e-1);
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+}
+.trilha__botao {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: var(--e-2);
+  font-family: var(--fonte-mono);
+  font-size: var(--t-14);
+  color: var(--texto);
+  background: var(--fundo-2);
+  border: var(--borda) solid var(--linha);
+  padding: var(--e-2) var(--e-3);
+  cursor: pointer;
+  text-align: left;
+  min-height: 2.75rem;
+}
+.trilha__botao:hover,
+.trilha__botao:focus-visible { border-color: var(--verde); color: var(--verde); }
+.trilha__numero { color: var(--texto-3); }
+.trilha__porcento { color: var(--texto-3); font-size: var(--t-12); min-width: 3ch; text-align: right; }
+.trilha__item--feito .trilha__botao { border-color: var(--verde-fraco); }
+.trilha__acoes { display: flex; gap: var(--e-2); flex-wrap: wrap; }
+
+@media (max-width: 52rem) {
+  .desafio { max-height: 32vh; padding: var(--e-2); }
+  .desafio__enunciado { font-size: var(--t-12); }
+  .desafio__acoes .rotulo-acao { display: none; }
+  .desafio__acoes .tem-curto .rotulo-curto { display: inline; }
+  .trilha__lista { grid-template-columns: 1fr; }
 }

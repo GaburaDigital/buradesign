@@ -29,13 +29,14 @@ const OPCOES = [
     id: "desafios",
     icone: "desafios",
     nome: "Desafios de programação",
-    descricao: "Missões em lotes, com estrelas por precisão. Chega no próximo lote da oficina.",
+    descricao: "Vinte missões com medidas para acertar, do primeiro cubo a um projeto inteiro.",
     detalhes: [
-      "Sessenta desafios em três lotes",
+      "Lote 1 no ar: vinte desafios",
       "Estrelas por acerto de medida",
-      "Ordem livre e desafio pulável",
+      "Ordem livre, com dicas e desafio pulável",
+      "As estrelas ficam guardadas no navegador",
     ],
-    emObras: true,
+    carregar: () => import("./desafios.js"),
   },
 ];
 

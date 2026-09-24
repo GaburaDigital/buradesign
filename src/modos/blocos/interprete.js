@@ -5,66 +5,267 @@
 // parar em cima de cada bloco, acender ele na tela e seguir devagar, que é o
 // "modo lento". Também evita eval, então nada do que o aluno monta vira
 // código solto rodando no navegador.
+//
+// Além dos blocos do BuraDESIGN (bura_*), ele entende os blocos que já vêm no
+// Blockly: controle, lógica, contas, variáveis e procedimentos.
 
 import * as THREE from "three";
 import { cena3d } from "../livre3d/cena.js";
 import * as pecas from "../livre3d/pecas.js";
 import * as projeto from "../livre3d/projeto.js";
 
-// Trava de segurança: o computador da sala não pode travar por causa de um
-// "repetir 999 vezes" dentro de outro.
-const LIMITE_DE_PASSOS = 20000;
+// Travas de segurança: o computador da sala não pode travar por causa de um
+// "repetir 999 vezes" dentro de outro, nem de um procedimento que se chama.
+const LIMITE_DE_PASSOS = 40000;
 const LIMITE_DE_PECAS = 250;
+const LIMITE_DE_VOLTAS = 5000;
+const LIMITE_DE_CHAMADAS = 60;
 
 const grau = (numero) => (numero * Math.PI) / 180;
+const numero = (valor, padrao = 0) => (Number.isFinite(valor) ? valor : padrao);
+
+// Sinal de "sai do procedimento agora", usado pelo bloco de devolver.
+class Retorno {
+  constructor(valor) {
+    this.valor = valor;
+  }
+}
 
 function centroDaBase() {
   return { x: cena3d.base.largura / 2, z: cena3d.base.profundidade / 2 };
 }
 
-function novoEstado() {
+function novoEstado(workspace) {
   return {
+    workspace,
     posicao: { x: 0, y: 0, z: 0 },
     giro: { x: 0, y: 0, z: 0 },
     criadas: [],
     ultima: null,
     contadores: [],
+    variaveis: new Map(),
+    chamadas: 0,
   };
 }
 
 // --- Valores -----------------------------------------------------------
 
-function numeroDe(bloco, nome, estado, padrao = 0) {
-  const alvo = bloco.getInputTargetBlock ? bloco.getInputTargetBlock(nome) : null;
+function alvoDe(bloco, nome) {
+  return bloco.getInputTargetBlock ? bloco.getInputTargetBlock(nome) : null;
+}
+
+function valorDe(bloco, nome, estado, padrao = 0) {
+  const alvo = alvoDe(bloco, nome);
   if (!alvo) return padrao;
-  const valor = avaliar(alvo, estado);
-  return Number.isFinite(valor) ? valor : padrao;
+  const lido = avaliar(alvo, estado);
+  return lido === undefined || lido === null ? padrao : lido;
+}
+
+function numeroDe(bloco, nome, estado, padrao = 0) {
+  return numero(Number(valorDe(bloco, nome, estado, padrao)), padrao);
+}
+
+function verdadeDe(bloco, nome, estado) {
+  const lido = valorDe(bloco, nome, estado, false);
+  return Boolean(lido);
+}
+
+function comparar(a, b, operador) {
+  switch (operador) {
+    case "=":
+    case "EQ":
+      return a === b;
+    case "!=":
+    case "NEQ":
+      return a !== b;
+    case ">":
+    case "GT":
+      return a > b;
+    case ">=":
+    case "GTE":
+      return a >= b;
+    case "<":
+    case "LT":
+      return a < b;
+    case "<=":
+    case "LTE":
+      return a <= b;
+    default:
+      return false;
+  }
 }
 
 function avaliar(bloco, estado) {
   switch (bloco.type) {
+    // --- números e contas ---
     case "bura_numero":
+    case "math_number":
       return Number(bloco.getFieldValue("NUM")) || 0;
     case "bura_conta": {
       const a = numeroDe(bloco, "A", estado);
       const b = numeroDe(bloco, "B", estado);
-      const op = bloco.getFieldValue("OP");
-      if (op === "+") return a + b;
-      if (op === "-") return a - b;
-      if (op === "*") return a * b;
-      return b === 0 ? 0 : a / b;
+      switch (bloco.getFieldValue("OP")) {
+        case "+":
+          return a + b;
+        case "-":
+          return a - b;
+        case "*":
+          return a * b;
+        case "%":
+          return b === 0 ? 0 : a % b;
+        default:
+          return b === 0 ? 0 : a / b;
+      }
     }
-    case "bura_contador":
-      return estado.contadores.length ? estado.contadores[estado.contadores.length - 1] : 0;
+    case "math_arithmetic": {
+      const a = numeroDe(bloco, "A", estado);
+      const b = numeroDe(bloco, "B", estado);
+      switch (bloco.getFieldValue("OP")) {
+        case "ADD":
+          return a + b;
+        case "MINUS":
+          return a - b;
+        case "MULTIPLY":
+          return a * b;
+        case "POWER":
+          return a ** b;
+        default:
+          return b === 0 ? 0 : a / b;
+      }
+    }
+    case "math_random_int": {
+      const a = Math.round(numeroDe(bloco, "FROM", estado, 1));
+      const b = Math.round(numeroDe(bloco, "TO", estado, 10));
+      const menor = Math.min(a, b);
+      return menor + Math.floor(Math.random() * (Math.max(a, b) - menor + 1));
+    }
     case "bura_acaso": {
       const a = Math.round(numeroDe(bloco, "A", estado));
       const b = Math.round(numeroDe(bloco, "B", estado));
       const menor = Math.min(a, b);
-      const maior = Math.max(a, b);
-      return menor + Math.floor(Math.random() * (maior - menor + 1));
+      return menor + Math.floor(Math.random() * (Math.max(a, b) - menor + 1));
     }
+
+    // --- comparações e lógica ---
+    case "bura_comparar":
+      return comparar(numeroDe(bloco, "A", estado), numeroDe(bloco, "B", estado), bloco.getFieldValue("OP"));
+    case "logic_compare":
+      return comparar(valorDe(bloco, "A", estado, 0), valorDe(bloco, "B", estado, 0), bloco.getFieldValue("OP"));
+    case "logic_operation": {
+      const a = verdadeDe(bloco, "A", estado);
+      const b = verdadeDe(bloco, "B", estado);
+      return bloco.getFieldValue("OP") === "OR" ? a || b : a && b;
+    }
+    case "logic_negate":
+      return !verdadeDe(bloco, "BOOL", estado);
+    case "logic_boolean":
+      return bloco.getFieldValue("BOOL") === "TRUE";
+
+    // --- estado do ponteiro e da mesa ---
+    case "bura_posicao":
+      return estado.posicao[bloco.getFieldValue("EIXO")] || 0;
+    case "bura_rotacao":
+      return estado.giro[bloco.getFieldValue("EIXO")] || 0;
+    case "bura_contador":
+      return estado.contadores.length ? estado.contadores[estado.contadores.length - 1] : 0;
+    case "bura_quantas":
+      return estado.criadas.filter((peca) => peca.parent).length;
+
+    // --- variáveis e procedimentos ---
+    case "variables_get": {
+      const id = bloco.getFieldValue("VAR");
+      return estado.variaveis.has(id) ? estado.variaveis.get(id) : 0;
+    }
+    case "procedures_callreturn":
+      return chamarDeUmaVez(bloco, estado, true);
+
+    case "text":
+      return bloco.getFieldValue("TEXT");
+
     default:
       return 0;
+  }
+}
+
+// --- Procedimentos -----------------------------------------------------
+
+function nomeDaChamada(bloco) {
+  return bloco.getProcedureCall ? bloco.getProcedureCall() : bloco.getFieldValue("NAME");
+}
+
+function acharDefinicao(nome, estado) {
+  const alvo = String(nome).toLowerCase();
+  for (const topo of estado.workspace.getTopBlocks(false)) {
+    if (topo.type !== "procedures_defnoreturn" && topo.type !== "procedures_defreturn") continue;
+    if (String(topo.getFieldValue("NAME")).toLowerCase() === alvo) return topo;
+  }
+  return null;
+}
+
+// Guarda o valor antigo de cada parâmetro e põe o novo no lugar. Ao sair, o
+// antigo volta: sem isso, chamar um bloco dentro do outro embaralhava tudo.
+function abrirQuadro(definicao, chamada, estado) {
+  const modelos = definicao.getVarModels?.() || [];
+  const guardado = [];
+  modelos.forEach((modelo, indice) => {
+    const id = modelo.getId();
+    guardado.push([id, estado.variaveis.has(id) ? estado.variaveis.get(id) : undefined]);
+    estado.variaveis.set(id, valorDe(chamada, `ARG${indice}`, estado, 0));
+  });
+  estado.chamadas += 1;
+  if (estado.chamadas > LIMITE_DE_CHAMADAS) {
+    throw new Error("Um bloco está chamando a si mesmo sem parar. Confira a condição de saída.");
+  }
+  return guardado;
+}
+
+function fecharQuadro(guardado, estado) {
+  for (const [id, antigo] of guardado) {
+    if (antigo === undefined) estado.variaveis.delete(id);
+    else estado.variaveis.set(id, antigo);
+  }
+  estado.chamadas -= 1;
+}
+
+// Chamada dentro de uma expressão: roda de uma vez só, sem passo a passo,
+// porque um valor precisa ficar pronto na hora.
+function chamarDeUmaVez(bloco, estado, querResposta) {
+  const definicao = acharDefinicao(nomeDaChamada(bloco), estado);
+  if (!definicao) return querResposta ? 0 : undefined;
+  const guardado = abrirQuadro(definicao, bloco, estado);
+  let resposta = 0;
+  try {
+    const gerador = caminhar(definicao.getInputTargetBlock("STACK"), estado);
+    // Consumir o gerador inteiro é o mesmo que executar tudo.
+    for (const _passo of gerador) {
+      // sem pausa aqui
+    }
+    if (definicao.type === "procedures_defreturn") {
+      resposta = valorDe(definicao, "RETURN", estado, 0);
+    }
+  } catch (erro) {
+    if (erro instanceof Retorno) resposta = erro.valor;
+    else throw erro;
+  } finally {
+    fecharQuadro(guardado, estado);
+  }
+  return resposta;
+}
+
+// Chamada como comando: entra no procedimento passo a passo, então o modo
+// lento acende os blocos de dentro também.
+function* chamarComPassos(bloco, estado) {
+  const definicao = acharDefinicao(nomeDaChamada(bloco), estado);
+  if (!definicao) {
+    throw new Error(`Não achei o bloco "${nomeDaChamada(bloco)}". Ele foi apagado?`);
+  }
+  const guardado = abrirQuadro(definicao, bloco, estado);
+  try {
+    yield* caminhar(definicao.getInputTargetBlock("STACK"), estado);
+  } catch (erro) {
+    if (!(erro instanceof Retorno)) throw erro;
+  } finally {
+    fecharQuadro(guardado, estado);
   }
 }
 
@@ -146,8 +347,7 @@ function nascerForma(bloco, estado) {
   // Medidas abaixo de zero quebram a geometria; um aluno vai digitar isso.
   for (const chave of Object.keys(params)) {
     if (!Number.isFinite(params[chave])) params[chave] = 1;
-    if (chave !== "furo") params[chave] = Math.max(0.5, params[chave]);
-    else params[chave] = Math.max(0, params[chave]);
+    params[chave] = chave === "furo" ? Math.max(0, params[chave]) : Math.max(0.5, params[chave]);
   }
   const peca = pecas.criar(tipo, params);
   if (!peca) throw new Error("Não consegui montar essa forma com esses números.");
@@ -175,6 +375,7 @@ function* executar(bloco, estado) {
   }
 
   switch (bloco.type) {
+    // --- ponteiro ---
     case "bura_ir_para":
       estado.posicao = {
         x: numeroDe(bloco, "X", estado),
@@ -191,17 +392,20 @@ function* executar(bloco, estado) {
       };
       break;
 
-    case "bura_girar": {
-      const eixo = bloco.getFieldValue("EIXO") || "y";
-      estado.giro[eixo] += numeroDe(bloco, "ANGULO", estado, 0);
+    case "bura_girar":
+      estado.giro[bloco.getFieldValue("EIXO") || "y"] += numeroDe(bloco, "ANGULO", estado, 0);
       break;
-    }
+
+    case "bura_apontar":
+      estado.giro[bloco.getFieldValue("EIXO") || "y"] = numeroDe(bloco, "ANGULO", estado, 0);
+      break;
 
     case "bura_centro":
       estado.posicao = { x: 0, y: 0, z: 0 };
       estado.giro = { x: 0, y: 0, z: 0 };
       break;
 
+    // --- combinar ---
     case "bura_negativa":
       if (estado.ultima) pecas.marcarNegativo([estado.ultima], true);
       break;
@@ -222,6 +426,7 @@ function* executar(bloco, estado) {
       }
       break;
 
+    // --- aparência ---
     case "bura_pintar":
       if (estado.ultima) {
         estado.ultima.userData.cor = bloco.getFieldValue("COR") || "#7fb3d5";
@@ -236,8 +441,9 @@ function* executar(bloco, estado) {
       }
       break;
 
+    // --- controle ---
     case "bura_repetir": {
-      const vezes = Math.max(0, Math.min(500, Math.round(numeroDe(bloco, "N", estado, 0))));
+      const vezes = Math.max(0, Math.min(LIMITE_DE_VOLTAS, Math.round(numeroDe(bloco, "N", estado, 0))));
       const corpo = bloco.getInputTargetBlock("DENTRO");
       for (let volta = 1; volta <= vezes; volta += 1) {
         estado.contadores.push(volta);
@@ -246,6 +452,88 @@ function* executar(bloco, estado) {
       }
       break;
     }
+
+    case "controls_repeat_ext": {
+      const vezes = Math.max(0, Math.min(LIMITE_DE_VOLTAS, Math.round(numeroDe(bloco, "TIMES", estado, 0))));
+      const corpo = bloco.getInputTargetBlock("DO");
+      for (let volta = 1; volta <= vezes; volta += 1) {
+        estado.contadores.push(volta);
+        yield* caminhar(corpo, estado);
+        estado.contadores.pop();
+      }
+      break;
+    }
+
+    case "controls_for": {
+      const id = bloco.getFieldValue("VAR");
+      const de = numeroDe(bloco, "FROM", estado, 1);
+      const ate = numeroDe(bloco, "TO", estado, 1);
+      const passoBruto = Math.abs(numeroDe(bloco, "BY", estado, 1)) || 1;
+      const corpo = bloco.getInputTargetBlock("DO");
+      const passo = de <= ate ? passoBruto : -passoBruto;
+      let voltas = 0;
+      for (let i = de; passo > 0 ? i <= ate : i >= ate; i += passo) {
+        estado.variaveis.set(id, i);
+        estado.contadores.push(voltas + 1);
+        yield* caminhar(corpo, estado);
+        estado.contadores.pop();
+        voltas += 1;
+        if (voltas > LIMITE_DE_VOLTAS) throw new Error("O 'para' deu voltas demais.");
+      }
+      break;
+    }
+
+    case "controls_whileUntil": {
+      const ateSerVerdade = bloco.getFieldValue("MODE") === "UNTIL";
+      const corpo = bloco.getInputTargetBlock("DO");
+      let voltas = 0;
+      for (;;) {
+        const condicao = verdadeDe(bloco, "BOOL", estado);
+        if (ateSerVerdade ? condicao : !condicao) break;
+        yield* caminhar(corpo, estado);
+        voltas += 1;
+        if (voltas > LIMITE_DE_VOLTAS) {
+          throw new Error("O 'repetir enquanto' não parou. Confira a condição.");
+        }
+      }
+      break;
+    }
+
+    case "controls_if": {
+      let escolhido = null;
+      for (let i = 0; bloco.getInput(`IF${i}`); i += 1) {
+        if (verdadeDe(bloco, `IF${i}`, estado)) {
+          escolhido = bloco.getInputTargetBlock(`DO${i}`);
+          break;
+        }
+      }
+      if (!escolhido && bloco.getInput("ELSE")) escolhido = bloco.getInputTargetBlock("ELSE");
+      if (escolhido) yield* caminhar(escolhido, estado);
+      break;
+    }
+
+    // --- variáveis ---
+    case "variables_set":
+      estado.variaveis.set(bloco.getFieldValue("VAR"), valorDe(bloco, "VALUE", estado, 0));
+      break;
+
+    case "math_change": {
+      const id = bloco.getFieldValue("VAR");
+      const antes = Number(estado.variaveis.get(id)) || 0;
+      estado.variaveis.set(id, antes + numeroDe(bloco, "DELTA", estado, 1));
+      break;
+    }
+
+    // --- procedimentos ---
+    case "procedures_callnoreturn":
+      yield* chamarComPassos(bloco, estado);
+      break;
+
+    case "procedures_ifreturn":
+      if (verdadeDe(bloco, "CONDITION", estado)) {
+        throw new Retorno(bloco.getInput("VALUE") ? valorDe(bloco, "VALUE", estado, 0) : 0);
+      }
+      break;
 
     default:
       // Bloco desconhecido: ignora em silêncio, para um arquivo antigo não
@@ -295,7 +583,7 @@ export function executarPrograma(workspace, opcoes = {}) {
   }
 
   limparCena();
-  const estado = novoEstado();
+  const estado = novoEstado(workspace);
   const passos = caminhar(inicio.getNextBlock(), estado);
   let vivo = true;
   let relogio = null;
@@ -324,12 +612,11 @@ export function executarPrograma(workspace, opcoes = {}) {
   if (!lento) {
     try {
       for (;;) {
-        const bloco = avancar();
-        if (bloco === false) break;
+        if (avancar() === false) break;
       }
       encerrar(null);
     } catch (erro) {
-      encerrar(erro);
+      encerrar(erro instanceof Retorno ? null : erro);
     }
     return { parar: () => encerrar(null), estado, lento: false };
   }
@@ -345,7 +632,7 @@ export function executarPrograma(workspace, opcoes = {}) {
       aoDestacar(bloco);
       relogio = setTimeout(tique, intervalo);
     } catch (erro) {
-      encerrar(erro);
+      encerrar(erro instanceof Retorno ? null : erro);
     }
   };
   relogio = setTimeout(tique, 60);

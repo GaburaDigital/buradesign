@@ -20,6 +20,7 @@ import {
   abrirPainel,
   fecharPainel,
 } from "../../ui/painel.js";
+import { fala } from "../../ui/aliens.js";
 import { grupoDeFerramentas, fecharMenusFlutuantes } from "../../ui/menu-flutuante.js";
 
 import * as cena from "../livre3d/cena.js";
@@ -28,8 +29,13 @@ import * as pecas from "../livre3d/pecas.js";
 import * as projeto from "../livre3d/projeto.js";
 import { CAIXA, PROGRAMA_INICIAL, registrar } from "./blocos.js";
 import * as interprete from "./interprete.js";
+import * as avaliar from "./avaliar.js";
 
 const ID_CACHE = "blocos:atual";
+// Só o bloco de começo: num desafio, o programa é o aluno que escreve.
+const SO_O_COMECO = {
+  blocks: { languageVersion: 0, blocks: [{ type: "bura_inicio", x: 40, y: 40 }] },
+};
 const VISTAS = [
   ["topo", "Topo"],
   ["frente", "Frente"],
@@ -46,7 +52,12 @@ let areaAtual = null;
 let tela = null;
 let statusArea = null;
 let execucao = null;
+let botaoLado = null;
 let desligar = [];
+// Quando a bancada abre dentro de um desafio, isto traz a missão e os botões
+// de navegar. Fora do desafio fica nulo e a tela é a de programação livre.
+let missao = null;
+let painelDesafio = null;
 let nomeDoProjeto = "Programa 1";
 let blocoAceso = null;
 
@@ -117,6 +128,7 @@ function montarEsqueleto(area, aoVoltar) {
   raiz.className = "livre blocos";
   raiz.innerHTML = `
     <div class="livre__barra" role="toolbar" aria-label="Ações do programa"></div>
+    <section class="desafio" hidden aria-label="Missão"></section>
     <div class="blocos__corpo">
       <section class="blocos__lado blocos__lado--programa" aria-label="Área de programação">
         <header class="blocos__cabecalho">
@@ -160,8 +172,12 @@ function montarEsqueleto(area, aoVoltar) {
     separador(),
     botao("lixo", "Limpar programa", limparPrograma, { extra: "botao--perigo com-rotulo" }),
     botao("telaCheia", t("acoes.telaCheia"), alternarTelaCheia),
-    botao("alternar3d", "Ver 3D", alternarLado, { extra: "so-estreito com-rotulo-sempre", }),
   );
+  botaoLado = botao("alternar3d", "Ver 3D", alternarLado, {
+    extra: "so-estreito com-rotulo-sempre",
+  });
+  barra.append(botaoLado);
+  atualizarBotaoLado();
 
   const controles = raiz.querySelector(".blocos__controles");
   controles.append(
@@ -210,6 +226,92 @@ function montarEsqueleto(area, aoVoltar) {
 
   tela = raiz.querySelector("#tela-blocos");
   statusArea = raiz.querySelector(".livre__status");
+  painelDesafio = raiz.querySelector(".desafio");
+  if (missao) {
+    raiz.classList.add("blocos--desafio");
+    montarPainelDesafio();
+  }
+}
+
+// --- Desafio -----------------------------------------------------------
+
+function estrelasEmSvg(quantas) {
+  return [0, 1, 2]
+    .map(
+      (i) =>
+        `<span class="desafio__estrela${i < quantas ? " desafio__estrela--cheia" : ""}">${iconeFerramenta("estrela")}</span>`,
+    )
+    .join("");
+}
+
+function montarPainelDesafio() {
+  const { dados, indice, total } = missao;
+  painelDesafio.hidden = false;
+  painelDesafio.innerHTML = `
+    <div class="desafio__topo">
+      <span class="desafio__numero">Desafio ${indice + 1} de ${total}</span>
+      <h2 class="desafio__nome">${dados.nome}</h2>
+      <span class="desafio__estrelas" data-estrelas>${estrelasEmSvg(missao.estrelas || 0)}</span>
+      <div class="desafio__acoes"></div>
+    </div>
+    <p class="desafio__enunciado">${dados.enunciado}</p>
+    <div class="desafio__detalhes" hidden data-detalhes>
+      ${fala(dados.alien || "nibla", dados.fala || "")}
+      <ul class="desafio__dicas">${(dados.dicas || []).map((linha) => `<li>${linha}</li>`).join("")}</ul>
+      <p class="desafio__medidas">Medidas conferidas: ${dados.metas
+        .map((meta) => meta.rotulo || meta.tipo)
+        .join(", ")}.</p>
+    </div>
+    <div class="desafio__placar" data-placar hidden></div>`;
+
+  const acoes = painelDesafio.querySelector(".desafio__acoes");
+  const dicas = botao("desafios", "Dicas", () => {
+    const caixa = painelDesafio.querySelector("[data-detalhes]");
+    caixa.hidden = !caixa.hidden;
+    dicas.classList.toggle("botao--destaque", !caixa.hidden);
+  }, { extra: "com-rotulo" });
+  acoes.append(
+    botao("iniciar", "Conferir", () => rodar({ lento: false }), {
+      extra: "com-rotulo botao--destaque",
+      curto: "conferir",
+    }),
+    dicas,
+    botao("voltar", "Lista de desafios", () => missao.aoNavegar("lista"), {
+      usarIconeUI: true,
+      extra: "com-rotulo",
+      curto: "lista",
+    }),
+    botao("alternar2d", "Desafio anterior", () => missao.aoNavegar("anterior"), { curto: "antes" }),
+    botao("alternar3d", "Próximo desafio", () => missao.aoNavegar("proximo"), { curto: "depois" }),
+    botao("parar", "Pular este desafio", () => missao.aoNavegar("pular"), { curto: "pular" }),
+  );
+}
+
+// Roda o programa e confere as medidas. A nota é da peça montada, nunca do
+// caminho que o aluno escolheu para chegar nela.
+function avaliarAgora() {
+  if (!missao) return;
+  const resultado = avaliar.conferir(missao.dados.metas);
+  const placar = painelDesafio.querySelector("[data-placar]");
+  placar.hidden = false;
+  placar.innerHTML = `
+    <p class="desafio__nota"><strong>${resultado.porcentagem}%</strong> — ${avaliar.recado(resultado)}</p>
+    <table class="desafio__tabela">
+      <thead><tr><th>Medida</th><th>Pedido</th><th>Seu</th></tr></thead>
+      <tbody>${resultado.linhas
+        .map(
+          (linha) => `<tr class="${linha.acertou ? "acertou" : "errou"}">
+            <td>${linha.rotulo}</td>
+            <td>${linha.alvo}${linha.unidade}</td>
+            <td>${linha.real.toFixed(linha.casas)}${linha.unidade}</td></tr>`,
+        )
+        .join("")}</tbody>
+    </table>`;
+  painelDesafio.querySelector("[data-estrelas]").innerHTML = estrelasEmSvg(resultado.estrelas);
+  missao.estrelas = Math.max(missao.estrelas || 0, resultado.estrelas);
+  missao.aoAvaliar?.(resultado);
+  tocar(resultado.estrelas >= 1 ? "pronto" : "erro");
+  dizer(`${resultado.porcentagem}% — ${avaliar.recado(resultado)}`);
 }
 
 // Apagar sem lixeira: o bloco escolhido some, e a tecla Delete faz o mesmo.
@@ -223,9 +325,36 @@ function apagarBlocoEscolhido() {
   dizer("Bloco apagado.");
 }
 
-function alternarLado() {
-  raiz.classList.toggle("blocos--ver-3d");
+// No celular só um lado aparece por vez. O botão diz para onde ele leva, não
+// onde o aluno está: era isso que confundia.
+function estreito() {
+  return window.matchMedia("(max-width: 52rem)").matches;
+}
+
+function verO3d() {
+  return Boolean(raiz?.classList.contains("blocos--ver-3d"));
+}
+
+function atualizarBotaoLado() {
+  if (!botaoLado) return;
+  const no3d = verO3d();
+  const rotulo = no3d ? "Voltar para programação" : "Ver 3D";
+  const curto = no3d ? "blocos" : "3D";
+  botaoLado.title = rotulo;
+  botaoLado.setAttribute("aria-label", rotulo);
+  botaoLado.classList.add("tem-curto");
+  botaoLado.innerHTML = `${iconeFerramenta(no3d ? "blocos" : "alternar3d")}<span class="rotulo-acao">${rotulo}</span><span class="rotulo-curto">${curto}</span>`;
+}
+
+function mostrarLado(ver3d) {
+  if (!raiz) return;
+  raiz.classList.toggle("blocos--ver-3d", ver3d);
+  atualizarBotaoLado();
   redimensionar();
+}
+
+function alternarLado() {
+  mostrarLado(!verO3d());
 }
 
 function alternarTelaCheia() {
@@ -283,6 +412,9 @@ function rodar({ lento }) {
   if (execucao) execucao.parar();
   execucao = null;
   acender(null);
+  // No celular a montagem acontece do outro lado da tela. Sem virar para lá,
+  // o aluno aperta iniciar e parece que nada aconteceu.
+  if (estreito()) mostrarLado(true);
   marcarRodando(true);
   dizer(lento ? "Rodando no modo lento…" : "Montando…");
   tocar("clique");
@@ -299,10 +431,14 @@ function rodar({ lento }) {
       interprete.enquadrarResultado();
       const quantas = cena3d.grupoPecas.children.length;
       const tempo = Math.round(performance.now() - comeco);
+      guardarNoCache();
+      if (missao) {
+        avaliarAgora();
+        return;
+      }
       dizer(`Pronto: ${quantas} peça(s) em ${tempo} ms.`);
       tocar(quantas ? "pronto" : "clique");
       if (!quantas) mostrarAviso("O programa rodou, mas não criou nenhuma peça.", "alerta");
-      guardarNoCache();
     },
     aoErro: (erro) => {
       execucao = null;
@@ -345,11 +481,15 @@ function pacote(nome) {
   };
 }
 
+function chaveDoCache() {
+  return missao ? `blocos:desafio:${missao.dados.id}` : ID_CACHE;
+}
+
 async function guardarNoCache() {
   if (!ajuste("salvarSozinho")) return;
   try {
     await deposito.guardar("projetos", {
-      id: ID_CACHE,
+      id: chaveDoCache(),
       nome: nomeDoProjeto,
       modo: "blocos",
       criadoEm: Date.now(),
@@ -404,7 +544,7 @@ async function importarPrograma() {
 
 async function abrirPrograma() {
   const salvos = (await deposito.listar("projetos")).filter(
-    (item) => item.modo === "blocos" && item.id !== ID_CACHE,
+    (item) => item.modo === "blocos" && !String(item.id).startsWith("blocos:"),
   );
   const corpo = document.createElement("div");
   if (!salvos.length) {
@@ -488,7 +628,7 @@ async function limparPrograma() {
   if (!certeza) return;
   parar();
   workspace.clear();
-  carregarPrograma(PROGRAMA_INICIAL);
+  carregarPrograma(missao ? missao.dados.programaInicial || SO_O_COMECO : PROGRAMA_INICIAL);
   interprete.limparCena();
   dizer("Programa novo.");
 }
@@ -503,9 +643,11 @@ function redimensionar() {
   if (workspace) Blockly.svgResize(workspace);
 }
 
-export async function montar(area, setor, aoVoltar) {
+export async function montar(area, setor, aoVoltar, opcoes = {}) {
   carregarEstilo("styles/livre.css");
   carregarEstilo("styles/blocos.css");
+  missao = opcoes.desafio || null;
+  nomeDoProjeto = missao ? missao.dados.nome : "Programa 1";
   montarEsqueleto(area, aoVoltar);
   dizer("Carregando a oficina de blocos…");
 
@@ -532,11 +674,12 @@ export async function montar(area, setor, aoVoltar) {
     move: { scrollbars: true, drag: true, wheel: true },
   });
 
-  const guardado = await deposito.buscar("projetos", ID_CACHE).catch(() => null);
-  if (!carregarPrograma(guardado?.pacote?.programa)) carregarPrograma(PROGRAMA_INICIAL);
+  const guardado = await deposito.buscar("projetos", chaveDoCache()).catch(() => null);
+  const inicial = missao ? missao.dados.programaInicial || SO_O_COMECO : PROGRAMA_INICIAL;
+  if (!carregarPrograma(guardado?.pacote?.programa)) carregarPrograma(inicial);
   else {
     nomeDoProjeto = guardado.nome || nomeDoProjeto;
-    mostrarAviso("Programa anterior recuperado.");
+    if (!missao) mostrarAviso("Programa anterior recuperado.");
   }
 
   const aoMudar = (evento) => {
@@ -614,7 +757,10 @@ export function encerrar() {
     console.warn("Falha ao encerrar os blocos", erro);
   }
   workspace = null;
+  botaoLado = null;
   blocoAceso = null;
+  missao = null;
+  painelDesafio = null;
   try {
     cena.encerrar();
   } catch (erro) {

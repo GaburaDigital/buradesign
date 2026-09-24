@@ -5,7 +5,11 @@
 //
 // Os números não são campos fixos: são encaixes com um bloquinho de número
 // por baixo (a "sombra"). Quem quiser só digitar, digita; quem quiser
-// encaixar uma conta ou o contador da repetição, encaixa por cima.
+// encaixar uma conta, uma variável ou o contador da repetição, encaixa.
+//
+// Controle, lógica, variáveis e procedimentos são os blocos que já vêm no
+// Blockly, em português. Não vale reinventá-los: eles trazem de graça o
+// mutador do "senão se", o criador de variáveis e o editor de parâmetros.
 
 export const CORES = {
   ponteiro: "#4C97FF",
@@ -14,11 +18,35 @@ export const CORES = {
   aparencia: "#CF63CF",
   controle: "#FFBF00",
   operadores: "#59C059",
+  variaveis: "#FF8C1A",
+  procedimentos: "#FF6680",
 };
 
-// Atalho para descrever um encaixe numérico e sua sombra.
-const encaixe = (nome) => ({ type: "input_value", name: nome, check: "Number" });
+const encaixe = (nome, tipo = "Number") => ({ type: "input_value", name: nome, check: tipo });
 export const sombra = (valor) => ({ shadow: { type: "bura_numero", fields: { NUM: valor } } });
+
+const EIXOS = [
+  ["em pé (Y)", "y"],
+  ["para frente (X)", "x"],
+  ["de lado (Z)", "z"],
+];
+
+// Paleta de pintura. O Blockly 11 tirou o campo de cor do núcleo — era por
+// isso que o bloco de pintar aparecia sem onde escolher a cor. Uma lista de
+// cores com nome resolve, funciona no toque e ainda ensina o nome da cor.
+export const TINTAS = [
+  ["azul", "#7fb3d5"],
+  ["verde", "#8fd19e"],
+  ["amarelo", "#f2d06b"],
+  ["salmão", "#e8a598"],
+  ["roxo", "#c5a6e0"],
+  ["água", "#9fd8d2"],
+  ["cinza", "#d9d9d9"],
+  ["vermelho", "#e06c6c"],
+  ["laranja", "#f0a860"],
+  ["preto", "#3a3f44"],
+  ["branco", "#f4f6f8"],
+];
 
 export const DEFINICOES = [
   // --- Controle ---
@@ -66,23 +94,22 @@ export const DEFINICOES = [
   {
     type: "bura_girar",
     message0: "girar %1 em %2 graus",
-    args0: [
-      {
-        type: "field_dropdown",
-        name: "EIXO",
-        options: [
-          ["em pé (Y)", "y"],
-          ["para frente (X)", "x"],
-          ["de lado (Z)", "z"],
-        ],
-      },
-      encaixe("ANGULO"),
-    ],
+    args0: [{ type: "field_dropdown", name: "EIXO", options: EIXOS }, encaixe("ANGULO")],
     previousStatement: null,
     nextStatement: null,
     colour: CORES.ponteiro,
     inputsInline: true,
-    tooltip: "Gira as próximas peças que forem criadas.",
+    tooltip: "Soma graus ao giro que já estava valendo.",
+  },
+  {
+    type: "bura_apontar",
+    message0: "apontar %1 para %2 graus",
+    args0: [{ type: "field_dropdown", name: "EIXO", options: EIXOS }, encaixe("ANGULO")],
+    previousStatement: null,
+    nextStatement: null,
+    colour: CORES.ponteiro,
+    inputsInline: true,
+    tooltip: "Giro absoluto: esquece o giro anterior e vai direto para esse ângulo.",
   },
   {
     type: "bura_centro",
@@ -91,6 +118,42 @@ export const DEFINICOES = [
     nextStatement: null,
     colour: CORES.ponteiro,
     tooltip: "Devolve o ponteiro ao meio da base e zera o giro.",
+  },
+  {
+    type: "bura_posicao",
+    message0: "posição %1",
+    args0: [
+      {
+        type: "field_dropdown",
+        name: "EIXO",
+        options: [
+          ["x", "x"],
+          ["y", "y"],
+          ["z", "z"],
+        ],
+      },
+    ],
+    output: "Number",
+    colour: CORES.ponteiro,
+    tooltip: "Diz onde o ponteiro está nesse eixo, em milímetros.",
+  },
+  {
+    type: "bura_rotacao",
+    message0: "rotação %1",
+    args0: [
+      {
+        type: "field_dropdown",
+        name: "EIXO",
+        options: [
+          ["x", "x"],
+          ["y", "y"],
+          ["z", "z"],
+        ],
+      },
+    ],
+    output: "Number",
+    colour: CORES.ponteiro,
+    tooltip: "Diz quantos graus o ponteiro está girado nesse eixo.",
   },
 
   // --- Formas ---
@@ -227,16 +290,24 @@ export const DEFINICOES = [
     nextStatement: null,
     colour: CORES.combinar,
   },
+  {
+    type: "bura_quantas",
+    message0: "quantas peças tem",
+    output: "Number",
+    colour: CORES.combinar,
+    tooltip: "Diz quantas peças o programa já criou.",
+  },
 
   // --- Aparência ---
   {
     type: "bura_pintar",
     message0: "pintar a última peça de %1",
-    args0: [{ type: "field_colour", name: "COR", colour: "#7fb3d5" }],
+    args0: [{ type: "field_dropdown", name: "COR", options: TINTAS }],
     previousStatement: null,
     nextStatement: null,
     colour: CORES.aparencia,
     inputsInline: true,
+    tooltip: "Troca a cor da peça criada por último.",
   },
   {
     type: "bura_textura",
@@ -281,6 +352,7 @@ export const DEFINICOES = [
           ["-", "-"],
           ["x", "*"],
           ["÷", "/"],
+          ["resto de", "%"],
         ],
       },
       encaixe("B"),
@@ -289,6 +361,30 @@ export const DEFINICOES = [
     colour: CORES.operadores,
     inputsInline: true,
     tooltip: "Faz a conta e devolve o resultado.",
+  },
+  {
+    type: "bura_comparar",
+    message0: "%1 %2 %3",
+    args0: [
+      encaixe("A"),
+      {
+        type: "field_dropdown",
+        name: "OP",
+        options: [
+          ["=", "="],
+          [">", ">"],
+          ["<", "<"],
+          ["≥", ">="],
+          ["≤", "<="],
+          ["≠", "!="],
+        ],
+      },
+      encaixe("B"),
+    ],
+    output: "Boolean",
+    colour: CORES.operadores,
+    inputsInline: true,
+    tooltip: "Compara dois números e responde sim ou não.",
   },
   {
     type: "bura_contador",
@@ -319,6 +415,15 @@ export const CAIXA = {
       contents: [
         { kind: "block", type: "bura_inicio" },
         { kind: "block", type: "bura_repetir", inputs: { N: sombra(4) } },
+        {
+          kind: "block",
+          type: "controls_for",
+          fields: { VAR: { name: "i" } },
+          inputs: { FROM: sombra(1), TO: sombra(6), BY: sombra(1) },
+        },
+        { kind: "block", type: "controls_if" },
+        { kind: "block", type: "controls_if", extraState: { elseIfCount: 0, hasElse: true } },
+        { kind: "block", type: "controls_whileUntil" },
       ],
     },
     {
@@ -329,7 +434,10 @@ export const CAIXA = {
         { kind: "block", type: "bura_ir_para", inputs: { X: sombra(0), Y: sombra(0), Z: sombra(0) } },
         { kind: "block", type: "bura_mover", inputs: { X: sombra(20), Y: sombra(0), Z: sombra(0) } },
         { kind: "block", type: "bura_girar", inputs: { ANGULO: sombra(45) } },
+        { kind: "block", type: "bura_apontar", inputs: { ANGULO: sombra(90) } },
         { kind: "block", type: "bura_centro" },
+        { kind: "block", type: "bura_posicao" },
+        { kind: "block", type: "bura_rotacao" },
       ],
     },
     {
@@ -359,6 +467,7 @@ export const CAIXA = {
         { kind: "block", type: "bura_negativa" },
         { kind: "block", type: "bura_combinar" },
         { kind: "block", type: "bura_pousar" },
+        { kind: "block", type: "bura_quantas" },
       ],
     },
     {
@@ -377,9 +486,26 @@ export const CAIXA = {
       contents: [
         { kind: "block", type: "bura_numero" },
         { kind: "block", type: "bura_conta", inputs: { A: sombra(10), B: sombra(2) } },
+        { kind: "block", type: "bura_comparar", inputs: { A: sombra(1), B: sombra(1) } },
+        { kind: "block", type: "logic_operation" },
+        { kind: "block", type: "logic_negate" },
+        { kind: "block", type: "logic_boolean" },
         { kind: "block", type: "bura_contador" },
         { kind: "block", type: "bura_acaso", inputs: { A: sombra(1), B: sombra(10) } },
       ],
+    },
+    { kind: "sep" },
+    {
+      kind: "category",
+      name: "Variáveis",
+      colour: CORES.variaveis,
+      custom: "VARIABLE",
+    },
+    {
+      kind: "category",
+      name: "Meus blocos",
+      colour: CORES.procedimentos,
+      custom: "PROCEDURE",
     },
   ],
 };

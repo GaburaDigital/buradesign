@@ -60,12 +60,13 @@ de substituir.
 
 ### Estado atual
 
-As fases 1, 2 e a primeira parte da 3 estão no ar: **Criação Livre 2D**,
-**Criação Livre 3D** e **Design com Programação** no modo livre. Dá para
-desenhar formas, escrever texto com acento, curvar caminhos com a caneta,
-combinar peças com peça negativa, ajustar tudo por número, exportar o SVG para
-a cortadora, o STL para a impressora, e montar o modelo programando em blocos.
-Faltam os desafios de programação e os dois últimos setores.
+As fases 1, 2 e 3 estão no ar: **Criação Livre 2D**, **Criação Livre 3D** e
+**Design com Programação**, com o modo livre e o primeiro lote de vinte
+desafios. Dá para desenhar formas, escrever texto com acento, curvar caminhos
+com a caneta, combinar peças com peça negativa, ajustar tudo por número,
+exportar o SVG para a cortadora, o STL para a impressora, e montar o modelo
+programando em blocos. Faltam os lotes 2 e 3 de desafios e os dois últimos
+setores.
 
 ### O que fazer no setor Criação Livre
 
@@ -259,24 +260,79 @@ Três botões comandam a execução:
   bloco que está rodando. É o que mostra ao aluno o caminho que o programa faz.
 - **Parar** interrompe no meio.
 
-Os blocos estão em seis gavetas: **Controle** (o bloco de início e o repetir),
-**Ponteiro** (ir para, mover, girar, voltar ao centro), **Formas** (doze
-sólidos, do cubo à engrenagem), **Combinar** (marcar negativa, combinar,
-pousar), **Aparência** (pintar e acabamento) e **Operadores** (número, conta,
-número da repetição e sorteio).
+As gavetas:
+
+| Gaveta | O que tem |
+| --- | --- |
+| Controle | o bloco de início, repetir, **contar com i de … até … de … em …**, **se / senão** e repetir enquanto |
+| Ponteiro | ir para, mover, girar (soma graus), **apontar** (giro absoluto), voltar ao centro, e os valores **posição x/y/z** e **rotação x/y/z** |
+| Formas | doze sólidos, do cubo à engrenagem |
+| Combinar | marcar negativa, combinar, pousar, quantas peças tem |
+| Aparência | pintar (lista de cores) e acabamento |
+| Operadores | número, conta (+ − × ÷ e resto), **comparação (= > < ≥ ≤ ≠)**, e / ou / não, número da repetição, sorteio |
+| Variáveis | criar, guardar e somar em variáveis suas |
+| Meus blocos | criar procedimentos, com ou sem parâmetro, e chamá-los |
+
+Variáveis e procedimentos são os do próprio Blockly, em português: vêm com o
+botão de criar, o editor de parâmetros e o renomear já prontos.
 
 O ponteiro conta a partir do centro da base: x, y e z em milímetros, com o
 zero no meio do chão. Cada forma nasce onde o ponteiro estiver, com o giro que
-estiver valendo. Os encaixes de número aceitam tanto um valor digitado quanto
-outro bloco por cima — é assim que "mover x (número da repetição × 10)" faz
-uma escada.
+estiver valendo. **Girar** soma graus ao que já havia; **apontar** troca o giro
+inteiro. Os encaixes de número aceitam tanto um valor digitado quanto outro
+bloco por cima — é assim que "mover x (número da repetição × 10)" faz uma
+escada, ou que "se posição x > 20" muda o rumo do programa no meio.
 
 O programa é salvo sozinho no navegador e pode ser salvo com nome, baixado
 como arquivo `.buraprog.json` e aberto de novo. O modelo montado exporta em
 **STL**, vai para a **Bolsa** e serve de peça nos outros setores.
 
-Há duas travas de segurança, para o computador da sala não travar: no máximo
-250 peças e 20 mil passos por execução. Passou disso, o programa para e avisa.
+No celular a tela mostra um lado por vez. O botão da barra diz para onde ele
+leva: **Ver 3D** enquanto o aluno programa, **Voltar para programação** quando
+está olhando o modelo. Apertar iniciar já vira para a visualização, senão
+parece que nada aconteceu.
+
+Há travas de segurança, para o computador da sala não travar: no máximo 250
+peças, 40 mil passos por execução, 5 mil voltas por repetição e 60 chamadas
+encaixadas de procedimento. Passou disso, o programa para e avisa.
+
+### Os desafios (lote 1)
+
+Vinte missões, do primeiro cubo até um projeto que usa tudo junto. Dá para
+fazer na ordem que quiser, pular o que travar e voltar depois; as estrelas
+ficam guardadas no navegador.
+
+Cada desafio é conferido **pela peça que saiu, não pelo programa que a fez**.
+Caminhos diferentes chegam na mesma peça, e é isso que queremos que a turma
+descubra. O botão **Conferir** roda o programa e mostra uma tabela: o que era
+para dar, o que deu, e quanto por cento ficou. São três estrelas a partir de
+97%, duas a partir de 92% e uma a partir de 85%.
+
+As medidas conferidas saem da peça montada: largura, altura e profundidade da
+peça inteira, número de peças na base, volume em centímetros cúbicos e posição
+do centro. Cada desafio escolhe quais deles valem.
+
+| Nº | Desafio | O que treina |
+| --- | --- | --- |
+| 1–3 | O primeiro cubo, A caixa da encomenda, O pilar | as três medidas de uma forma |
+| 4–5 | Dois postes, Pino com cabeça | mover o ponteiro em X e em Y |
+| 6–7 | Torre de quatro, A escada | repetir |
+| 8 | Pirâmide de andares | número da repetição dentro de uma conta |
+| 9–10 | O cata-vento, Torre em caracol | girar |
+| 11–12 | O anel, A porca sextavada | peça negativa e combinar |
+| 13 | A letra L | ir para e combinar |
+| 14 | Roda dentada | engrenagem e eixo |
+| 15 | Cubos que crescem | variável |
+| 16 | Escada de cilindros | contar com i |
+| 17 | Par e ímpar | resto de divisão e condição |
+| 18 | Meu bloco: a mesa | procedimento |
+| 19 | Suporte de celular | giro absoluto, peça de verdade |
+| 20 | O carimbo da oficina | tudo junto |
+
+Cada desafio guarda um **gabarito** em blocos dentro do código. Ele nunca é
+comparado com o programa do aluno: serve para o teste automático provar que as
+medidas pedidas são alcançáveis — se um gabarito não tira três estrelas, a meta
+está errada, não o aluno.
 
 ### Temas
 
@@ -301,7 +357,7 @@ dedo na tela.
 | 0 | Casca: abertura, instalação, ajustes, som, Bolsa, tela inicial |
 | 1 | Criação Livre em 2D, com caminhos, bezier e exportação em SVG |
 | 2 | Criação Livre em 3D, com formas rígidas, corte e exportação em STL |
-| 3 | Design com Programação: modo livre (no ar) e 60 desafios em lotes de 20 |
+| 3 | Design com Programação: modo livre e desafios (lote 1 de 3 no ar) |
 | 4 | Montagem com Peças Cortadas, com encaixes e plano de corte |
 | 5 | Simulação de Mecânica, com juntas e motores |
 
@@ -356,6 +412,10 @@ buradesign/
 | `src/modos/blocos/blocos.js` | catálogo dos blocos e a caixa de ferramentas |
 | `src/modos/blocos/interprete.js` | caminha pela árvore de blocos e monta as peças |
 | `src/modos/blocos/livre.js` | tela dividida: programação e visualização 3D |
+| `src/modos/blocos/lote1.js` | os vinte desafios do primeiro lote, com gabarito |
+| `src/modos/blocos/avaliar.js` | mede a peça montada e dá a nota e as estrelas |
+| `src/modos/blocos/desafios.js` | lista do lote e navegação entre as missões |
+| `src/modos/blocos/progresso.js` | as estrelas de cada desafio, no localStorage |
 
 ### Como somar um setor
 
@@ -372,6 +432,7 @@ para o setor novo.
 | Onde | O que | Chave |
 | --- | --- | --- |
 | localStorage | preferências | `buradesign:ajustes` |
+| localStorage | estrelas dos desafios | `buradesign:desafios` |
 | IndexedDB | Bolsa e projetos | banco `buradesign` |
 
 A separação é proposital: limpar preferências não pode custar o trabalho do
