@@ -1,0 +1,114 @@
+/* Setor Montagem com Peças Cortadas.
+   A bancada em si reaproveita o layout do Criação Livre (livre.css); aqui fica
+   só o que é próprio do corte: o formulário da caixa, a prévia do plano e a
+   lista de peças. */
+
+/* Formulário da caixa por medida: em telas largas as medidas ficam lado a
+   lado, que é como a régua da oficina lê. */
+.corte__formulario {
+  display: grid;
+  gap: var(--e-3);
+}
+
+@media (min-width: 30rem) {
+  .corte__formulario {
+    grid-template-columns: 1fr 1fr;
+  }
+  .corte__formulario > .campo--linha,
+  .corte__formulario > .dica {
+    grid-column: 1 / -1;
+  }
+}
+
+.corte__formulario .campo {
+  margin-bottom: 0;
+}
+
+/* Campo com o rótulo à esquerda e o controle à direita: usado para as opções
+   de sim/não, onde a grade de duas colunas ficaria torta. */
+.campo--linha {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  margin-bottom: var(--e-2);
+}
+
+.campo--linha .campo__rotulo {
+  flex: 1;
+}
+
+.campo--linha input[type="checkbox"] {
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: var(--verde);
+  flex: none;
+}
+
+/* Aviso dentro dos painéis: mesma dica, em âmbar, para o aluno ver que uma
+   peça ficou de fora ou que uma junta não fechou. */
+.dica--alerta {
+  color: var(--ambar);
+  border-left: var(--borda) solid var(--ambar);
+  padding-left: var(--e-2);
+}
+
+/* O plano de corte aberto no painel. */
+.corte__plano {
+  display: grid;
+  gap: var(--e-3);
+}
+
+/* A prévia é o SVG do plano, do tamanho do painel. Fundo sempre claro: o
+   traço de corte é preto de propósito, para sair certo na cortadora, e no
+   modo escuro ele sumiria. */
+.corte__previa {
+  background: #ffffff;
+  border: var(--borda) solid var(--linha-forte);
+  padding: var(--e-2);
+  max-height: 24rem;
+  overflow: auto;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.corte__previa svg {
+  width: auto;
+  height: auto;
+  max-width: min(100%, 26rem);
+  max-height: 22rem;
+  display: block;
+}
+
+/* A lista de peças: o aluno risca conforme tira da chapa. */
+.corte__lista {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--fonte-mono);
+  font-size: var(--t-12);
+}
+
+.corte__lista th,
+.corte__lista td {
+  border: 1px solid var(--linha);
+  padding: var(--e-1) var(--e-2);
+  text-align: left;
+}
+
+.corte__lista th {
+  color: var(--verde);
+  background: var(--fundo-3);
+  font-weight: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.corte__lista td:first-child,
+.corte__lista th:first-child {
+  width: 2.5rem;
+  text-align: right;
+}
+
+.corte__lista tbody tr:nth-child(even) td {
+  background: var(--fundo-2);
+}

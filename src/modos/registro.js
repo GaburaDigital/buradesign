@@ -25,9 +25,9 @@ export const SETORES = [
     alien: "krux",
     chaveNome: "setores.corte.nome",
     chaveDescricao: "setores.corte.descricao",
-    aberto: false,
+    aberto: true,
     fase: 4,
-    carregar: () => import("./em-obras.js"),
+    carregar: () => import("./corte/menu.js"),
   },
   {
     id: "fisica",

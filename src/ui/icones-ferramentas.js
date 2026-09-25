@@ -223,6 +223,27 @@ const FERRAMENTAS = {
   pular: `<path d="M3 18 C 7 5, 17 5, 21 18" ${D}/>
     <path d="M21 18 L21 13.5 M21 18 L16.5 18" ${D}/>
     <rect x="10.5" y="15.5" width="3" height="5" ${V}/>`,
+  // --- Fase 4: montagem com peças cortadas ----------------------------
+  // Chapa plantada de três jeitos: deitada, em pé de frente e em pé de lado.
+  chapaDeitada: `<path d="M3 13.5 L12 9 L21 13.5 L12 18 Z" ${D}/>
+    <path d="M3 13.5 V15.6 L12 20.1 L21 15.6 V13.5" ${V}/>`,
+  chapaFrente: `<path d="M4.5 4.5 H19.5 V17 H4.5 Z" ${D}/>
+    <path d="M19.5 4.5 L21.5 6 V18.5 L19.5 17" ${V}/>`,
+  chapaLado: `<path d="M8 3.5 L16 6 V18 L8 20.5 Z" ${D}/>
+    <path d="M16 6 L18 7 V19 L16 18" ${V}/>`,
+  // Plano de corte: a folha com as peças arranjadas.
+  planoCorte: `<rect x="3" y="4" width="18" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="3 2"/>
+    <path d="M5.5 6.5 H11 v1.6 h1.4 V6.5 H14 V12 H5.5 Z" ${V}/>
+    <path d="M15.5 13.5 H19 V18 H15.5 Z" ${D}/>
+    <path d="M5.5 14 H13 V18 H5.5 Z" ${D}/>`,
+  // Fatiar: o sólido repartido em camadas.
+  fatiar: `<path d="M4 8.5 L12 5 L20 8.5 L12 12 Z" ${D}/>
+    <path d="M4 13 L12 9.5 L20 13 L12 16.5 Z" ${V}/>
+    <path d="M4 17.5 L12 14 L20 17.5 L12 21 Z" ${D}/>`,
+  // Encaixe de dedos, para a explicação na tela.
+  encaixe: `<path d="M3 9 H7 V6 H11 V9 H15 V6 H19 V12 H3 Z" ${D}/>
+    <path d="M3 13 H7 V16 H11 V13 H15 V16 H19 V19.5 H3 Z" ${V}/>`,
+
   // Lista das missões, com as estrelas ao lado.
   listaDesafios: `<path d="M3.5 6.5 H14 M3.5 12 H14 M3.5 17.5 H14" ${D}/>
     <path d="M18 4.5 L18.9 6.6 L21.2 6.8 L19.5 8.3 L20 10.5 L18 9.3 L16 10.5 L16.5 8.3 L14.8 6.8 L17.1 6.6 Z" ${V}/>

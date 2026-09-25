@@ -60,11 +60,14 @@ de substituir.
 
 ### Estado atual
 
-As fases 1, 2 e 3 estão no ar: **Criação Livre 2D**, **Criação Livre 3D** e
-**Design com Programação**, com o modo livre e os três lotes de desafios. Dá para desenhar formas, escrever texto com acento, curvar caminhos
-com a caneta, combinar peças com peça negativa, ajustar tudo por número,
-exportar o SVG para a cortadora, o STL para a impressora, e montar o modelo
-programando em blocos. Faltam os dois últimos setores.
+As fases 1, 2, 3 e 4 estão no ar: **Criação Livre 2D**, **Criação Livre 3D**,
+**Design com Programação** (modo livre e os três lotes de desafios) e
+**Montagem com Peças Cortadas** (montagem com chapas e fatiador). Dá para
+desenhar formas, escrever texto com acento, curvar caminhos com a caneta,
+combinar peças com peça negativa, ajustar tudo por número, exportar o SVG para
+a cortadora, o STL para a impressora, montar o modelo programando em blocos e
+tirar da peça 3D o plano de corte em chapa. Falta o último setor, o de
+simulação de mecânica.
 
 ### O que fazer no setor Criação Livre
 
@@ -430,6 +433,49 @@ medidas pedidas são alcançáveis — se um gabarito não tira três estrelas, 
 está errada, não o aluno — e, no lote 2, é o que o botão "ver a peça pronta"
 monta na tela.
 
+### Montagem com Peças Cortadas (fase 4)
+
+O setor onde o projeto vira material de verdade. Duas bancadas, escolhidas na
+porta de entrada, terminando as duas no mesmo lugar: um **plano de corte em
+SVG**, em milímetros, pronto para a cortadora a laser, a faca de vinil ou a
+tesoura com paciência.
+
+**Montagem com chapas.** O aluno planta chapas no espaço — deitada, em pé de
+frente, em pé de lado — ou pede uma **caixa pronta** por medida e mexe nela
+depois. Quem acha os encaixes é o programa: sempre que a montagem muda, os
+cantos onde duas chapas se encontram viram **dedos de encaixe** automáticos,
+riscados em verde no 3D antes de gastar chapa. Os dedos têm ajuste de largura
+e de folga, e quando uma chapa encosta no meio de outra em vez de no canto, o
+programa abre um **rasgo passante** da espessura da chapa, que é como as
+prateleiras entram na estante.
+
+**Fatiar um modelo.** Para as formas que não se montam com paredes — um morro,
+um peixe, um rosto. O modelo entra pelo Design 3D, pela Bolsa ou por um
+arquivo STL, OBJ ou GLB, e sai como uma pilha de camadas da espessura da
+chapa. Dá para separar as camadas na tela para ver a pilha por dentro e pedir
+um **furo de alinhamento** no meio de cada uma: enfia um palito de churrasco
+no furo e nenhuma camada entra torta.
+
+**A chapa da escola.** Na lista de materiais já vêm MDF de 3, 6 e 9 mm,
+papelão de 2 e 4 mm, acrílico de 3 mm e EVA de 5 mm, cada um com a fresta de
+corte (o *kerf*) que a máquina come de verdade. Quem tem outro material usa
+**Espessura livre** e digita a medida. Esse detalhe é o que separa a peça que
+encaixa da peça que fica frouxa, e vale a conversa com a turma.
+
+**O plano de corte.** As peças são arrumadas sozinhas dentro do tamanho de
+chapa escolhido (A4, A3, quadrada de 300 ou 600 mm, ou medida livre), com o
+respiro que você pedir entre elas. Cada peça sai com um **número gravado**, e
+a tela mostra a lista com o número, o nome e o tamanho. O que não couber na
+chapa é avisado, não escondido. No SVG, o traço preto fino é corte e o
+vermelho é gravação — é assim que a maioria das cortadoras lê o arquivo.
+
+**Ideias para a aula.** Peça uma caixa que caiba num objeto trazido de casa e
+meça o erro no fim; dê a mesma caixa com folga 0,0 mm e com 0,2 mm e deixe a
+turma descobrir qual encaixa; mande fatiar a mão de um colega escaneada, ou um
+morro inventado no Design 3D, e monte a pilha em papelão; peça o plano de
+corte com o melhor aproveitamento de chapa, que é uma aula de área sem
+parecer uma aula de área.
+
 ### Temas
 
 Sete: Escuro, Claro, Sistema (cinzas com marcações vivas), Rosa (rosa e roxo
@@ -454,7 +500,7 @@ dedo na tela.
 | 1 | Criação Livre em 2D, com caminhos, bezier e exportação em SVG |
 | 2 | Criação Livre em 3D, com formas rígidas, corte e exportação em STL |
 | 3 | Design com Programação: modo livre e sessenta desafios em três lotes |
-| 4 | Montagem com Peças Cortadas, com encaixes e plano de corte |
+| 4 | Montagem com Peças Cortadas: chapas com encaixe, fatiador e plano de corte |
 | 5 | Simulação de Mecânica, com juntas e motores |
 
 ---
@@ -485,6 +531,7 @@ buradesign/
   src/modos/              um módulo por setor, carregado sob demanda
     livre/ livre3d/        Criação Livre em 2D e em 3D
     blocos/               Design com Programação (blocos, interpretador, tela)
+    corte/                Montagem com Peças Cortadas (chapas, juntas, fatiador)
   styles/                 tokens, base, casca, telas
   libs/                 bibliotecas versionadas (ver libs/LEIA-ME.md)
   ATIVIDADES/             conteúdo dos exercícios (ver ATIVIDADES/LEIA-ME.md)
@@ -516,6 +563,16 @@ buradesign/
 | `src/modos/blocos/avaliar.js` | mede a peça montada e dá a nota e as estrelas |
 | `src/modos/blocos/desafios.js` | lista do lote e navegação entre as missões |
 | `src/modos/blocos/progresso.js` | as estrelas de cada desafio, no localStorage |
+| `src/modos/corte/materiais.js` | lista de chapas da escola, kerf e folha; guarda a escolha |
+| `src/modos/corte/chapas.js` | a chapa no espaço, seus planos e a caixa pronta por medida |
+| `src/modos/corte/juntas.js` | acha os encontros entre chapas e desenha os dedos de encaixe |
+| `src/modos/corte/planificar.js` | abre cada chapa em contorno 2D, com abas e entalhes |
+| `src/modos/corte/fatias.js` | corta o modelo 3D em camadas, sem booleana |
+| `src/modos/corte/arranjo.js` | arruma as peças dentro do tamanho da folha |
+| `src/modos/corte/planosvg.js` | escreve o SVG em milímetros e a lista de peças |
+| `src/modos/corte/montagem.js` | bancada de montagem com chapas |
+| `src/modos/corte/fatiador.js` | bancada do fatiador |
+| `src/modos/corte/menu.js` | porta de entrada do setor, entre as duas bancadas |
 
 ### Como somar um setor
 
@@ -533,6 +590,7 @@ para o setor novo.
 | --- | --- | --- |
 | localStorage | preferências | `buradesign:ajustes` |
 | localStorage | estrelas dos desafios | `buradesign:desafios` |
+| localStorage | material, folha e folga do corte | `buradesign:corte` |
 | IndexedDB | Bolsa e projetos | banco `buradesign` |
 
 A separação é proposital: limpar preferências não pode custar o trabalho do
@@ -547,7 +605,9 @@ O seletor de idioma aparece nos Ajustes assim que existir mais de uma opção.
 ### Bibliotecas previstas
 
 Paper.js e opentype.js na fase 1, Three.js e three-bvh-csg na fase 2, Blockly
-11 na fase 3, Rapier na fase 5. Todas entram em `libs/`, com a versão anotada.
+11 na fase 3, Rapier na fase 5. A fase 4 não trouxe biblioteca nenhuma: as
+juntas, a planificação, o arranjo na chapa e o fatiador são geometria escrita
+à mão, em módulos que rodam sem a tela e por isso dá para testar sozinhos. Todas entram em `libs/`, com a versão anotada.
 O Blockly entra como UMD (`window.Blockly`), carregado só quando o setor de
 programação abre, junto do arquivo de mensagens em português.
 
@@ -557,6 +617,12 @@ Chrome e Safari, em janela larga, tablet e celular. Vale conferir: abertura e
 pulo da abertura, som ligado e desligado, troca de tema, salvar e recarregar,
 instalação como aplicativo, funcionamento com a rede desligada, e o ciclo
 completo de baixar e importar a Bolsa.
+
+No setor de corte, vale conferir também: a caixa pronta aparece no meio da
+mesa; mexer no tamanho do dedo ou na folga muda os riscos verdes na hora; o
+plano de corte abre com todas as peças numeradas e a lista bate com o desenho;
+o fatiador aceita modelo do Design 3D, da Bolsa e de arquivo; e o SVG baixado
+abre no Inkscape com as medidas certas em milímetros.
 
 ### Publicar no GitHub Pages
 

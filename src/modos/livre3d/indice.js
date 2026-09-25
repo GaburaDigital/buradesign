@@ -1455,13 +1455,20 @@ let voltarParaEscolha = () => {};
 let trocarDeModo = null;
 
 // Leva para a bancada 2D o contorno do que encosta na base.
-function alternarPara2D() {
+//
+// A troca some com as peças convertidas, então ela pergunta antes: em aula,
+// um toque sem querer aqui apagava o modelo inteiro.
+async function alternarPara2D() {
   const triangulos = travessia.triangulosNaBase();
   if (!triangulos.length) {
     mostrarAviso("Nenhuma peça está encostando na base para virar contorno.", "alerta");
     trocarDeModo?.();
     return;
   }
+  const certeza = await confirmar(
+    "Atenção à conversão: ao alternar para o 2D, as peças que encostam na base viram contorno e saem do 3D. Você pode perder seu modelo. Continuar?",
+  );
+  if (!certeza) return;
   ponte.guardarParaODoisD({ grupos: triangulos, nome: "Contorno da base" });
   // As peças convertidas saem daqui: o desenho é o mesmo trabalho, visto do
   // outro lado, e não uma cópia.
