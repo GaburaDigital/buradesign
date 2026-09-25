@@ -316,8 +316,11 @@ export function arestasDeVinco(geometria, grausLimite = 25) {
 }
 
 // Cruz discreta no meio de cada face: é a marca visual da malha, e ajuda a
-// mirar quando o aluno vai editar face por face.
-function cruzesDasFaces(geometria, tamanhoRelativo = 0.3) {
+// mirar quando o aluno vai editar face por face. Tem que ser pequena — numa
+// peça com muitas faces, cruz grande vira rabisco e some o volume.
+const TETO_DA_CRUZ = 2.2; // milímetros, para face grande não ganhar cruz enorme
+
+function cruzesDasFaces(geometria, tamanhoRelativo = 0.22) {
   const plana = geometria.index ? geometria.toNonIndexed() : geometria;
   const posicoes = plana.attributes.position;
   const total = posicoes.count / 3;
@@ -378,13 +381,23 @@ function cruzesDasFaces(geometria, tamanhoRelativo = 0.3) {
     for (const ponto of pontos) centro.add(ponto);
     centro.divideScalar(pontos.length);
 
-    let menor = Infinity;
-    for (const ponto of pontos) menor = Math.min(menor, ponto.distanceTo(centro));
-    const tamanho = menor * tamanhoRelativo * 2;
-    if (tamanho < 0.05) continue;
-
     const eixo1 = new THREE.Vector3().subVectors(cantos[f][1], cantos[f][0]).normalize();
     const eixo2 = new THREE.Vector3().crossVectors(eixo1, normais[f]).normalize();
+
+    // O braço da cruz sai do alcance real da face em cada direção, não da
+    // distância até o canto: numa face comprida e estreita o canto fica longe
+    // e a cruz passava por fora da própria face.
+    let alcance = Infinity;
+    const daqui = new THREE.Vector3();
+    for (const ponto of pontos) {
+      daqui.subVectors(ponto, centro);
+      alcance = Math.min(alcance, Math.abs(daqui.dot(eixo1)), Math.abs(daqui.dot(eixo2)));
+    }
+    // Marca discreta: serve para enxergar o volume e mirar a face, não para
+    // desenhar por cima dela.
+    const tamanho = Math.min(alcance * tamanhoRelativo, TETO_DA_CRUZ);
+    if (tamanho < 0.08) continue;
+
     const a = eixo1.multiplyScalar(tamanho);
     const b = eixo2.multiplyScalar(tamanho);
     lista.push(

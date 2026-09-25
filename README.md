@@ -61,10 +61,10 @@ de substituir.
 ### Estado atual
 
 As fases 1, 2 e 3 estão no ar: **Criação Livre 2D**, **Criação Livre 3D** e
-**Design com Programação**, com o modo livre e dois lotes de vinte desafios. Dá para desenhar formas, escrever texto com acento, curvar caminhos
+**Design com Programação**, com o modo livre e os três lotes de desafios. Dá para desenhar formas, escrever texto com acento, curvar caminhos
 com a caneta, combinar peças com peça negativa, ajustar tudo por número,
 exportar o SVG para a cortadora, o STL para a impressora, e montar o modelo
-programando em blocos. Faltam o lote 3 de desafios e os dois últimos setores.
+programando em blocos. Faltam os dois últimos setores.
 
 ### O que fazer no setor Criação Livre
 
@@ -190,6 +190,11 @@ O contorno é refeito a cada deformação, então ele acompanha a peça em vez d
 ficar preso no formato antigo. Clicar fora só desmarca: a peça continua em
 edição e os ajustes seguem respondendo.
 
+A cruz no meio de cada face é uma marca pequena: o braço sai do alcance real
+da face em cada direção, não da distância até o canto, e tem um teto em
+milímetros. Antes, numa face comprida e estreita, a cruz saía por fora da
+própria face.
+
 A **face é o quadrado inteiro**, não meio triângulo: clicar numa face marca os
 dois triângulos que a formam e os quatro cantos dela. Dá para marcar **vários**
 vértices, arestas ou faces ao mesmo tempo, segurando Shift (ou com o modo
@@ -278,7 +283,7 @@ As gavetas:
 | Controle | o bloco de início, repetir, **contar com i de … até … de … em …**, **se / senão** e repetir enquanto |
 | Ponteiro | ir para, mover, girar (soma graus), **apontar** (giro absoluto), voltar ao centro, os blocos de **pivô** (girar, apontar, endireitar, **avançar**, deitar a peça no rumo dele) e os valores **posição**, **rotação** e **pivô** em x, y e z |
 | Formas | doze sólidos, do cubo à engrenagem |
-| Combinar | marcar negativa, combinar, pousar, quantas peças tem |
+| Combinar | marcar negativa, combinar, **fechar esta peça e começar outra**, pousar, quantas peças tem |
 | Aparência | pintar (lista de cores) e acabamento |
 | Operadores | número, conta (+ − × ÷ e resto), **comparação (= > < ≥ ≤ ≠)**, e / ou / não, número da repetição, sorteio |
 | Variáveis | criar, guardar e somar em variáveis suas |
@@ -309,6 +314,11 @@ repetir 12 vezes
 pivô** — senão a roda acima não fecharia. Para endireitar o pivô existe um
 bloco só para isso.
 
+**Fechar esta peça e começar outra** tira da mira do "combinar" o que já está
+montado: a peça continua na base, pronta, e o próximo combinar só junta o que
+vier depois. É o que permite sair de um programa só com duas peças combinadas
+— uma caixa e a tampa dela, por exemplo.
+
 O ponteiro conta a partir do centro da base: x, y e z em milímetros, com o
 zero no meio do chão. Cada forma nasce onde o ponteiro estiver, com o giro que
 estiver valendo. **Girar** soma graus ao que já havia; **apontar** troca o giro
@@ -331,11 +341,11 @@ encaixadas de procedimento. Passou disso, o programa para e avisa.
 
 ### Os desafios
 
-Dois lotes de vinte missões. Dá para fazer na ordem que quiser, pular o que
+Três lotes de vinte missões. Dá para fazer na ordem que quiser, pular o que
 travar e voltar depois; as estrelas ficam guardadas no navegador.
 
-No **lote 1** o enunciado dá as medidas: o aluno aprende os comandos. No
-**lote 2** o enunciado não dá medida nenhuma — em vez disso, o botão **Ver a
+No **lote 1** o enunciado dá as medidas: o aluno aprende os comandos. Nos
+**lotes 2 e 3** o enunciado não dá medida nenhuma — em vez disso, o botão **Ver a
 peça pronta** mostra o alvo em 3D, pintado de amarelo, para o aluno girar,
 contar e comparar. Ele decide sozinho quantas peças, que formas e que
 tamanhos. Por isso o número de peças é conferido no osso e as medidas com
@@ -391,6 +401,29 @@ do centro. Cada desafio escolhe quais deles valem.
 | 19 | A estante | peças fixas mais um laço |
 | 20 | A engrenagem de verdade | tudo junto, terminando numa peça só |
 
+**Lote 3 — Peças que encaixam**
+
+| Nº | Desafio | O que treina |
+| --- | --- | --- |
+| 1–2 | O tijolo de encaixe, A torre de tijolos | pino e furo do mesmo tamanho, virando bloco seu |
+| 3 | A placa perfurada | laço dentro de laço com peça negativa |
+| 4 | O favo | condição que desloca uma fileira |
+| 5 | A escada em U | condição que muda o rumo no meio |
+| 6 | O parafuso | espiral com pivô e altura crescente |
+| 7 | A hélice | inclinar a peça depois de virar no pivô |
+| 8 | A treliça | condição alternando o sinal do ângulo |
+| 9 | A caixa de compartimentos | peças fixas mais um laço |
+| 10–11 | O domo, A pirâmide de blocos | dois e três laços encaixados |
+| 12 | As duas engrenagens | peças no mesmo eixo |
+| 13 | A chave sextavada | giro absoluto e combinar |
+| 14 | A medalha | relevo mais furo, numa peça só |
+| 15 | O pente ritmado | três casos com se dentro de senão |
+| 16 | A escada caracol dupla | duas peças por volta do laço |
+| 17 | O relógio | condição pelo resto da divisão |
+| 18 | A árvore | bloco seu **com parâmetro** |
+| 19 | O tabuleiro | condição pela soma de linha e coluna |
+| 20 | A caixa e a tampa | duas peças combinadas no mesmo programa |
+
 Cada desafio guarda um **gabarito** em blocos dentro do código. Ele nunca é
 comparado com o programa do aluno: serve para o teste automático provar que as
 medidas pedidas são alcançáveis — se um gabarito não tira três estrelas, a meta
@@ -420,7 +453,7 @@ dedo na tela.
 | 0 | Casca: abertura, instalação, ajustes, som, Bolsa, tela inicial |
 | 1 | Criação Livre em 2D, com caminhos, bezier e exportação em SVG |
 | 2 | Criação Livre em 3D, com formas rígidas, corte e exportação em STL |
-| 3 | Design com Programação: modo livre e desafios (lotes 1 e 2 no ar) |
+| 3 | Design com Programação: modo livre e sessenta desafios em três lotes |
 | 4 | Montagem com Peças Cortadas, com encaixes e plano de corte |
 | 5 | Simulação de Mecânica, com juntas e motores |
 
@@ -477,6 +510,7 @@ buradesign/
 | `src/modos/blocos/livre.js` | tela dividida: programação e visualização 3D |
 | `src/modos/blocos/lote1.js` | os vinte desafios do lote 1, com gabarito |
 | `src/modos/blocos/lote2.js` | os vinte desafios do lote 2, sem medida no enunciado |
+| `src/modos/blocos/lote3.js` | os vinte desafios do lote 3, com peças que encaixam |
 | `src/modos/blocos/receita.js` | atalhos para escrever gabarito sem afogar em JSON |
 | `src/modos/blocos/gizmo.js` | o ponteiro e a seta do pivô desenhados na bancada |
 | `src/modos/blocos/avaliar.js` | mede a peça montada e dá a nota e as estrelas |

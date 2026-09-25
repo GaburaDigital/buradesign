@@ -348,6 +348,15 @@ export const DEFINICOES = [
     tooltip: "Soma as peças normais e desconta as negativas.",
   },
   {
+    type: "bura_travar",
+    message0: "fechar esta peça e começar outra",
+    previousStatement: null,
+    nextStatement: null,
+    colour: CORES.combinar,
+    tooltip:
+      "O que já está montado fica pronto na base: o próximo combinar não mexe mais nele. Serve para montar duas peças separadas no mesmo programa.",
+  },
+  {
     type: "bura_pousar",
     message0: "pousar tudo na base",
     previousStatement: null,
@@ -536,6 +545,7 @@ export const CAIXA = {
       contents: [
         { kind: "block", type: "bura_negativa" },
         { kind: "block", type: "bura_combinar" },
+        { kind: "block", type: "bura_travar" },
         { kind: "block", type: "bura_pousar" },
         { kind: "block", type: "bura_quantas" },
       ],

@@ -466,6 +466,14 @@ function* executar(bloco, estado) {
       break;
     }
 
+    // Fecha a peça: o que está na base continua lá, mas sai da lista do
+    // programa. Sem isto, montar duas peças combinadas no mesmo desafio era
+    // impossível — o segundo "combinar" engolia a primeira.
+    case "bura_travar":
+      estado.criadas = [];
+      estado.ultima = null;
+      break;
+
     case "bura_pousar":
       for (const peca of estado.criadas) {
         if (peca.parent) pecas.pousarNaBase(peca);

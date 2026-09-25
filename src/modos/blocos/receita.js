@@ -120,6 +120,7 @@ export const comparar = (a, op, b) => ({
 export const negativa = () => ({ type: "bura_negativa" });
 export const combinar = () => ({ type: "bura_combinar" });
 export const pousar = () => ({ type: "bura_pousar" });
+export const travar = () => ({ type: "bura_travar" });
 export const pintar = (cor) => ({ type: "bura_pintar", fields: { COR: cor } });
 
 // --- procedimentos ---

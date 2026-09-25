@@ -13,9 +13,10 @@ import { fala } from "../../ui/aliens.js";
 
 import { LOTE as LOTE1 } from "./lote1.js";
 import { LOTE as LOTE2 } from "./lote2.js";
+import { LOTE as LOTE3 } from "./lote3.js";
 import * as progresso from "./progresso.js";
 
-const LOTES = [LOTE1, LOTE2];
+const LOTES = [LOTE1, LOTE2, LOTE3];
 
 let areaAtual = null;
 let bancada = null;
@@ -49,7 +50,7 @@ function mostrarLista() {
   tela.innerHTML = `
     <div class="inicio__cabecalho">
       <h1>Desafios de programação</h1>
-      <p>Dois lotes: primeiro com as medidas na mão, depois só de olho na peça pronta.</p>
+      <p>Três lotes: das medidas na mão até peças que encaixam umas nas outras.</p>
     </div>
     ${fala("nibla", "Pode fazer na ordem que quiser e pular o que travar. A estrela fica guardada.")}`;
   area.append(tela);

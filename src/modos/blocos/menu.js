@@ -29,11 +29,11 @@ const OPCOES = [
     id: "desafios",
     icone: "desafios",
     nome: "Desafios de programação",
-    descricao: "Dois lotes de vinte missões, do primeiro cubo até montar uma engrenagem do zero.",
+    descricao: "Sessenta missões em três lotes, do primeiro cubo até uma caixa com tampa que encaixa.",
     detalhes: [
       "Lote 1: com as medidas no enunciado",
       "Lote 2: sem medida — a peça pronta aparece em 3D para você contar e comparar",
-      "Estrelas por acerto de medida, com folga no lote 2",
+      "Lote 3: peças que encaixam, laço dentro de laço e bloco seu com parâmetro",
       "Ordem livre, com dicas e desafio pulável",
     ],
     carregar: () => import("./desafios.js"),
