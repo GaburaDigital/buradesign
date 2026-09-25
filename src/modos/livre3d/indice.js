@@ -676,7 +676,11 @@ function blocoMalha() {
   const secao = grupo("Editar malha");
   const nota = document.createElement("p");
   nota.className = "dica";
-  nota.textContent = `Marcados: ${malha.quantosMarcados()}. Segure Shift para somar.`;
+  const quantasFaces = malha.quantasFaces?.() || 0;
+  nota.textContent =
+    malha.modoAtual() === "face"
+      ? `Faces marcadas: ${quantasFaces}. Segure Shift (ou use "somar") para marcar várias.`
+      : `Marcados: ${malha.quantosMarcados()}. Segure Shift (ou use "somar") para marcar vários.`;
   const modos = linhaBotoes(
     ...malha.MODOS.map((modo) =>
       botaoSimples(modo.icone, modo.rotulo, () => {
@@ -690,7 +694,7 @@ function blocoMalha() {
     botaoSimples("extrudarFace", "Extrusão na face", async () => {
       const inicios = malha.trianguloInicial();
       if (!inicios.length) {
-        mostrarAviso("Marque uma face inteira primeiro.", "alerta");
+        mostrarAviso("Marque uma face primeiro, no modo Face.", "alerta");
         return;
       }
       const distancia = await perguntarTexto("Extrusão na face", "Quanto puxar para fora (mm):", "5");

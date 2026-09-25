@@ -170,6 +170,151 @@ function posicoesDasArestas(geometria, limite) {
   return lista;
 }
 
+// --- Contorno das peças rígidas ---------------------------------------
+//
+// O EdgesGeometry do Three desenha toda aresta que não encontra par. Depois
+// de uma booleana isso é um desastre: a peça sai cheia de junções em T (um
+// vértice no meio da aresta do vizinho), e cada uma vira um risco atravessando
+// uma superfície que devia ser lisa. Era o "vidro quebrado" que os alunos
+// viam ao combinar peças.
+//
+// Aqui o contorno é calculado por regiões planas: só vira linha a aresta que
+// separa dois planos diferentes. Uma aresta sem par só é desenhada se do outro
+// lado dela não houver mais superfície no mesmo plano — ou seja, se for de
+// verdade a beirada da peça.
+
+const CASAS = 3;
+const chaveDoPonto = (v) => `${v.x.toFixed(CASAS)},${v.y.toFixed(CASAS)},${v.z.toFixed(CASAS)}`;
+
+// Junta os triângulos em planos. Comparar chave de texto não serve: um
+// "-0.00" contra um "0.00" separava faces que estão no mesmo plano, e a
+// aresta entre elas voltava a virar risco. Aqui a comparação é numérica,
+// com folga, e a lista de planos de uma peça é sempre curta.
+function agruparEmPlanos(normais, cantos) {
+  const planos = [];
+  const deCadaFace = new Array(normais.length).fill(-1);
+  for (let f = 0; f < normais.length; f += 1) {
+    const normal = normais[f];
+    if (!normal) continue;
+    const distancia = normal.dot(cantos[f][0]);
+    let achou = -1;
+    for (let p = 0; p < planos.length; p += 1) {
+      if (planos[p].normal.dot(normal) > 0.9995 && Math.abs(planos[p].distancia - distancia) < 0.02) {
+        achou = p;
+        break;
+      }
+    }
+    if (achou === -1) {
+      achou = planos.length;
+      planos.push({ normal: normal.clone(), distancia, faces: [] });
+    }
+    planos[achou].faces.push(f);
+    deCadaFace[f] = achou;
+  }
+  return { planos, deCadaFace };
+}
+
+function trianguloContem(a, b, c, ponto) {
+  const v0 = new THREE.Vector3().subVectors(c, a);
+  const v1 = new THREE.Vector3().subVectors(b, a);
+  const v2 = new THREE.Vector3().subVectors(ponto, a);
+  const d00 = v0.dot(v0);
+  const d01 = v0.dot(v1);
+  const d02 = v0.dot(v2);
+  const d11 = v1.dot(v1);
+  const d12 = v1.dot(v2);
+  const base = d00 * d11 - d01 * d01;
+  if (Math.abs(base) < 1e-12) return false;
+  const u = (d11 * d02 - d01 * d12) / base;
+  const v = (d00 * d12 - d01 * d02) / base;
+  return u >= -1e-4 && v >= -1e-4 && u + v <= 1 + 1e-4;
+}
+
+export function arestasDeVinco(geometria, grausLimite = 25) {
+  const plana = geometria.index ? geometria.toNonIndexed() : geometria;
+  const posicoes = plana.attributes.position;
+  const total = Math.floor(posicoes.count / 3);
+  if (!total) return [];
+
+  const cantos = [];
+  const normais = [];
+  const porAresta = new Map();
+
+  for (let f = 0; f < total; f += 1) {
+    const i = f * 3;
+    const pontos = [0, 1, 2].map((k) => new THREE.Vector3().fromBufferAttribute(posicoes, i + k));
+    cantos.push(pontos);
+    const normal = new THREE.Vector3().crossVectors(
+      new THREE.Vector3().subVectors(pontos[1], pontos[0]),
+      new THREE.Vector3().subVectors(pontos[2], pontos[0]),
+    );
+    // Triângulo degenerado: a booleana deixa alguns e eles não têm contorno.
+    normais.push(normal.lengthSq() < 1e-14 ? null : normal.normalize());
+
+    const chaves = pontos.map(chaveDoPonto);
+    for (const [a, b] of [[0, 1], [1, 2], [2, 0]]) {
+      const id = [chaves[a], chaves[b]].sort().join("|");
+      if (!porAresta.has(id)) porAresta.set(id, { faces: [], pontos: [pontos[a], pontos[b]] });
+      porAresta.get(id).faces.push(f);
+    }
+  }
+
+  const { planos, deCadaFace } = agruparEmPlanos(normais, cantos);
+  const limite = Math.cos((grausLimite * Math.PI) / 180);
+  const lista = [];
+
+  // Uma aresta sem par continua sendo desenhada quando é mesmo a beirada da
+  // peça. Para saber, damos um passinho para fora dela, dentro do plano, e
+  // perguntamos se ainda existe superfície ali.
+  const eBeirada = (aresta) => {
+    const face = aresta.faces[0];
+    const plano = planos[deCadaFace[face]];
+    if (!plano || plano.faces.length > 800) return true;
+    const [a, b] = aresta.pontos;
+    const meio = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5);
+    const direcao = new THREE.Vector3().subVectors(b, a);
+    if (direcao.lengthSq() < 1e-12) return false;
+    direcao.normalize();
+    const paraFora = new THREE.Vector3().crossVectors(normais[face], direcao).normalize();
+    // Qual lado é "fora"? O contrário de onde está o terceiro canto da face.
+    const terceiro = cantos[face].find(
+      (ponto) => ponto.distanceToSquared(a) > 1e-8 && ponto.distanceToSquared(b) > 1e-8,
+    );
+    if (terceiro && paraFora.dot(new THREE.Vector3().subVectors(terceiro, meio)) > 0) {
+      paraFora.negate();
+    }
+    const sonda = meio.addScaledVector(paraFora, 0.01);
+    for (const outra of plano.faces) {
+      if (outra === face) continue;
+      const [p, q, r] = cantos[outra];
+      if (trianguloContem(p, q, r, sonda)) return false;
+    }
+    return true;
+  };
+
+  for (const aresta of porAresta.values()) {
+    const [a, b] = aresta.pontos;
+    let desenha = false;
+    if (aresta.faces.length === 1) {
+      desenha = eBeirada(aresta);
+    } else {
+      // Faces do mesmo plano nunca viram linha, venham de onde vierem.
+      const usados = new Set(aresta.faces.map((f) => deCadaFace[f]));
+      if (usados.size > 1) {
+        desenha = aresta.faces.some((f, i) =>
+          aresta.faces.some(
+            (g, j) => j > i && normais[f] && normais[g] && normais[f].dot(normais[g]) < limite,
+          ),
+        );
+      }
+    }
+    // Caco de aresta com menos de um quarto de milímetro não é quina nenhuma:
+    // é sujeira da booleana, e aparecia como pontinho solto sobre a peça.
+    if (desenha && a.distanceToSquared(b) > 0.0625) lista.push(a.x, a.y, a.z, b.x, b.y, b.z);
+  }
+  return lista;
+}
+
 // Cruz discreta no meio de cada face: é a marca visual da malha, e ajuda a
 // mirar quando o aluno vai editar face por face.
 function cruzesDasFaces(geometria, tamanhoRelativo = 0.3) {
@@ -256,9 +401,12 @@ function comContorno(peca) {
   const grupo = new THREE.Group();
   grupo.name = "contorno";
 
-  // Peça rígida: só os cantos, com traço triplo. Malha: todas as arestas
-  // finas, mais a cruz no meio das faces.
-  const arestas = posicoesDasArestas(peca.geometry, malha ? 1 : 45);
+  // Peça rígida: só os vincos de verdade, com traço triplo — nada de riscos
+  // atravessando superfície lisa. Malha: todas as arestas finas, mais a cruz
+  // no meio das faces.
+  const arestas = malha
+    ? posicoesDasArestas(peca.geometry, 1)
+    : arestasDeVinco(peca.geometry, 25);
   if (arestas.length) {
     grupo.add(linhaGrossa(arestas, tons.borda, malha ? 2.5 : 3, malha ? 0.95 : 0.9));
   }
@@ -281,11 +429,24 @@ function pintarContorno(peca, cor, forte) {
   });
 }
 
+// Caixa da peça contando só a forma dela.
+//
+// O setFromObject do Three mede os filhos junto, e a peça carrega contorno e,
+// em modo malha, os pontos. Já aconteceu de uma peça editada "crescer" quase
+// dois milímetros por causa disso — e o tamanho errado ia parar no ajuste de
+// altura e na nota do desafio. Aqui a medida é da geometria, e ponto.
+export function caixaDaPeca(peca, alvo = new THREE.Box3()) {
+  peca.updateMatrixWorld(true);
+  const geometria = peca.geometry;
+  if (!geometria) return alvo.makeEmpty();
+  geometria.computeBoundingBox();
+  return alvo.copy(geometria.boundingBox).applyMatrix4(peca.matrixWorld);
+}
+
 // Pousa a peça na base: sobe o que estiver afundado e baixa o que estiver
 // flutuando. Antes só subia, e por isso o botão parecia não funcionar.
 export function pousarNaBase(peca) {
-  peca.updateMatrixWorld(true);
-  const caixa = new THREE.Box3().setFromObject(peca);
+  const caixa = caixaDaPeca(peca);
   if (!Number.isFinite(caixa.min.y)) return peca;
   peca.position.y -= caixa.min.y;
   peca.updateMatrixWorld(true);
@@ -294,9 +455,7 @@ export function pousarNaBase(peca) {
 
 // A peça está encostando na base?
 export function estaNaBase(peca, folga = 0.4) {
-  peca.updateMatrixWorld(true);
-  const caixa = new THREE.Box3().setFromObject(peca);
-  return caixa.min.y <= folga;
+  return caixaDaPeca(peca).min.y <= folga;
 }
 
 // Sombra da área apoiada, para o aluno enxergar onde a peça encosta.
@@ -825,6 +984,17 @@ export function extrudarFace(peca, triangulos, distancia = 5) {
   const movidos = new Map();
   const paredes = [];
 
+  // Aresta que dois triângulos extrudados dividem fica por dentro do bloco
+  // novo: levantar parede ali deixaria uma lâmina presa no meio da peça.
+  const vezesNaBorda = new Map();
+  for (const inicio of triangulos) {
+    const p = [0, 1, 2].map((k) => new THREE.Vector3().fromBufferAttribute(posicoes, inicio + k));
+    for (const [a, b] of [[0, 1], [1, 2], [2, 0]]) {
+      const id = [chave(p[a].x, p[a].y, p[a].z), chave(p[b].x, p[b].y, p[b].z)].sort().join("|");
+      vezesNaBorda.set(id, (vezesNaBorda.get(id) || 0) + 1);
+    }
+  }
+
   for (const inicio of triangulos) {
     const pontos = [0, 1, 2].map((k) =>
       new THREE.Vector3().fromBufferAttribute(posicoes, inicio + k),
@@ -850,6 +1020,13 @@ export function extrudarFace(peca, triangulos, distancia = 5) {
       posicoes.setXYZ(inicio + k, novos[k].x, novos[k].y, novos[k].z);
     }
     for (const [a, b] of [[0, 1], [1, 2], [2, 0]]) {
+      const id = [
+        chave(pontos[a].x, pontos[a].y, pontos[a].z),
+        chave(pontos[b].x, pontos[b].y, pontos[b].z),
+      ]
+        .sort()
+        .join("|");
+      if ((vezesNaBorda.get(id) || 0) > 1) continue;
       paredes.push(
         ...pontos[a].toArray(), ...pontos[b].toArray(), ...novos[b].toArray(),
         ...pontos[a].toArray(), ...novos[b].toArray(), ...novos[a].toArray(),

@@ -61,12 +61,10 @@ de substituir.
 ### Estado atual
 
 As fases 1, 2 e 3 estão no ar: **Criação Livre 2D**, **Criação Livre 3D** e
-**Design com Programação**, com o modo livre e o primeiro lote de vinte
-desafios. Dá para desenhar formas, escrever texto com acento, curvar caminhos
+**Design com Programação**, com o modo livre e dois lotes de vinte desafios. Dá para desenhar formas, escrever texto com acento, curvar caminhos
 com a caneta, combinar peças com peça negativa, ajustar tudo por número,
 exportar o SVG para a cortadora, o STL para a impressora, e montar o modelo
-programando em blocos. Faltam os lotes 2 e 3 de desafios e os dois últimos
-setores.
+programando em blocos. Faltam o lote 3 de desafios e os dois últimos setores.
 
 ### O que fazer no setor Criação Livre
 
@@ -178,6 +176,13 @@ no campo "Como cortar": **plano**, com a folha atravessando a peça, e
 **livre**, em que você clica em "Desenhar o corte" e contorna na tela a parte
 que sai.
 
+**Peça combinada fica lisa.** Antes, unir ou furar deixava a peça riscada como
+vidro quebrado: a booleana devolve a superfície cheia de junções em T, e o
+contorno desenhava cada uma delas como se fosse uma quina. Agora o contorno é
+calculado por regiões planas — só vira linha a aresta que separa dois planos de
+verdade — e a peça rígida sai com as faces limpas, como no Tinkercad. No modo
+malha o visual facetado continua, porque ali ele é a ferramenta de trabalho.
+
 Peça rígida mostra só os cantos, com traço triplo. Peça em modo malha mostra
 as arestas e uma cruz grossa no meio de cada face, e os triângulos aparecem
 pareados como **quadriláteros**, que é o que torna a edição por face viável.
@@ -185,10 +190,16 @@ O contorno é refeito a cada deformação, então ele acompanha a peça em vez d
 ficar preso no formato antigo. Clicar fora só desmarca: a peça continua em
 edição e os ajustes seguem respondendo.
 
+A **face é o quadrado inteiro**, não meio triângulo: clicar numa face marca os
+dois triângulos que a formam e os quatro cantos dela. Dá para marcar **vários**
+vértices, arestas ou faces ao mesmo tempo, segurando Shift (ou com o modo
+"somar", no celular); clicar de novo no que já está marcado desmarca.
+
 Durante a edição, os modos vértice, aresta e face ficam num grupo flutuante no
 canto superior esquerdo da cena, cada um com seu ícone, e o modo ativo escrito
-ao lado. Com faces marcadas aparece **Extrusão na face**, que puxa a face para
-fora do centro da peça, nunca para dentro.
+ao lado. Com faces marcadas aparece **Extrusão na face**, que puxa as faces
+para fora do centro da peça, nunca para dentro, e não deixa parede solta entre
+duas faces extrudadas juntas.
 
 ### Medidas, seleção e ajuste fino
 
@@ -265,7 +276,7 @@ As gavetas:
 | Gaveta | O que tem |
 | --- | --- |
 | Controle | o bloco de início, repetir, **contar com i de … até … de … em …**, **se / senão** e repetir enquanto |
-| Ponteiro | ir para, mover, girar (soma graus), **apontar** (giro absoluto), voltar ao centro, e os valores **posição x/y/z** e **rotação x/y/z** |
+| Ponteiro | ir para, mover, girar (soma graus), **apontar** (giro absoluto), voltar ao centro, os blocos de **pivô** (girar, apontar, endireitar, **avançar**, deitar a peça no rumo dele) e os valores **posição**, **rotação** e **pivô** em x, y e z |
 | Formas | doze sólidos, do cubo à engrenagem |
 | Combinar | marcar negativa, combinar, pousar, quantas peças tem |
 | Aparência | pintar (lista de cores) e acabamento |
@@ -275,6 +286,28 @@ As gavetas:
 
 Variáveis e procedimentos são os do próprio Blockly, em português: vêm com o
 botão de criar, o editor de parâmetros e o renomear já prontos.
+
+**O ponteiro aparece na bancada.** Enquanto o programa roda, uma cruzinha
+marca onde a próxima peça vai nascer e uma seta verde mostra para onde o pivô
+está apontado. No modo lento dá para ver o ponteiro andando passo a passo. O
+botão de ponteiro, no canto da visualização, liga e desliga o desenho.
+
+**O pivô** é a direção do "avançar". Ele começa apontando para a direita;
+girar o pivô e mandar avançar leva a peça para onde a seta aponta, sem nenhuma
+conta de seno e cosseno. É assim que se espalha peça em roda:
+
+```
+repetir 12 vezes
+    girar o pivô em pé (Y) em 30 graus
+    voltar ao centro da base
+    avançar 34
+    deitar a peça no rumo do pivô
+    cubo de lado 10
+```
+
+"Voltar ao centro" devolve a posição e o giro das peças, mas **não mexe no
+pivô** — senão a roda acima não fecharia. Para endireitar o pivô existe um
+bloco só para isso.
 
 O ponteiro conta a partir do centro da base: x, y e z em milímetros, com o
 zero no meio do chão. Cada forma nasce onde o ponteiro estiver, com o giro que
@@ -296,11 +329,18 @@ Há travas de segurança, para o computador da sala não travar: no máximo 250
 peças, 40 mil passos por execução, 5 mil voltas por repetição e 60 chamadas
 encaixadas de procedimento. Passou disso, o programa para e avisa.
 
-### Os desafios (lote 1)
+### Os desafios
 
-Vinte missões, do primeiro cubo até um projeto que usa tudo junto. Dá para
-fazer na ordem que quiser, pular o que travar e voltar depois; as estrelas
-ficam guardadas no navegador.
+Dois lotes de vinte missões. Dá para fazer na ordem que quiser, pular o que
+travar e voltar depois; as estrelas ficam guardadas no navegador.
+
+No **lote 1** o enunciado dá as medidas: o aluno aprende os comandos. No
+**lote 2** o enunciado não dá medida nenhuma — em vez disso, o botão **Ver a
+peça pronta** mostra o alvo em 3D, pintado de amarelo, para o aluno girar,
+contar e comparar. Ele decide sozinho quantas peças, que formas e que
+tamanhos. Por isso o número de peças é conferido no osso e as medidas com
+folga larga: proporção parecida vale estrela. A tabela mostra a folga aceita
+ao lado do valor pedido.
 
 Cada desafio é conferido **pela peça que saiu, não pelo programa que a fez**.
 Caminhos diferentes chegam na mesma peça, e é isso que queremos que a turma
@@ -311,6 +351,8 @@ para dar, o que deu, e quanto por cento ficou. São três estrelas a partir de
 As medidas conferidas saem da peça montada: largura, altura e profundidade da
 peça inteira, número de peças na base, volume em centímetros cúbicos e posição
 do centro. Cada desafio escolhe quais deles valem.
+
+**Lote 1 — Primeiros comandos**
 
 | Nº | Desafio | O que treina |
 | --- | --- | --- |
@@ -329,10 +371,31 @@ do centro. Cada desafio escolhe quais deles valem.
 | 19 | Suporte de celular | giro absoluto, peça de verdade |
 | 20 | O carimbo da oficina | tudo junto |
 
+**Lote 2 — Olhe e descubra**
+
+| Nº | Desafio | O que treina |
+| --- | --- | --- |
+| 1–2 | A escadinha, A torre torcida | repetição com passo constante |
+| 3 | O totem | condição dentro do laço |
+| 4 | A ponte | posicionar peças que se apoiam |
+| 5–6 | A roda de peças, O sol | pivô e avançar |
+| 7 | A escada caracol | pivô somado à altura da volta |
+| 8–9 | O pente, A pirâmide | conta com o número da repetição |
+| 10 | O alvo | formas dentro de formas |
+| 11–12 | A porca grande, O queijo | peça negativa e combinar |
+| 13 | O pinheiro | tamanho que diminui a cada volta |
+| 14 | A ponte de degraus | condição que muda o rumo no meio |
+| 15 | O banquinho | procedimento |
+| 16–17 | A flor, A mola | pivô em roda e em espiral |
+| 18 | O ábaco | laço dentro de laço |
+| 19 | A estante | peças fixas mais um laço |
+| 20 | A engrenagem de verdade | tudo junto, terminando numa peça só |
+
 Cada desafio guarda um **gabarito** em blocos dentro do código. Ele nunca é
 comparado com o programa do aluno: serve para o teste automático provar que as
 medidas pedidas são alcançáveis — se um gabarito não tira três estrelas, a meta
-está errada, não o aluno.
+está errada, não o aluno — e, no lote 2, é o que o botão "ver a peça pronta"
+monta na tela.
 
 ### Temas
 
@@ -357,7 +420,7 @@ dedo na tela.
 | 0 | Casca: abertura, instalação, ajustes, som, Bolsa, tela inicial |
 | 1 | Criação Livre em 2D, com caminhos, bezier e exportação em SVG |
 | 2 | Criação Livre em 3D, com formas rígidas, corte e exportação em STL |
-| 3 | Design com Programação: modo livre e desafios (lote 1 de 3 no ar) |
+| 3 | Design com Programação: modo livre e desafios (lotes 1 e 2 no ar) |
 | 4 | Montagem com Peças Cortadas, com encaixes e plano de corte |
 | 5 | Simulação de Mecânica, com juntas e motores |
 
@@ -412,7 +475,10 @@ buradesign/
 | `src/modos/blocos/blocos.js` | catálogo dos blocos e a caixa de ferramentas |
 | `src/modos/blocos/interprete.js` | caminha pela árvore de blocos e monta as peças |
 | `src/modos/blocos/livre.js` | tela dividida: programação e visualização 3D |
-| `src/modos/blocos/lote1.js` | os vinte desafios do primeiro lote, com gabarito |
+| `src/modos/blocos/lote1.js` | os vinte desafios do lote 1, com gabarito |
+| `src/modos/blocos/lote2.js` | os vinte desafios do lote 2, sem medida no enunciado |
+| `src/modos/blocos/receita.js` | atalhos para escrever gabarito sem afogar em JSON |
+| `src/modos/blocos/gizmo.js` | o ponteiro e a seta do pivô desenhados na bancada |
 | `src/modos/blocos/avaliar.js` | mede a peça montada e dá a nota e as estrelas |
 | `src/modos/blocos/desafios.js` | lista do lote e navegação entre as missões |
 | `src/modos/blocos/progresso.js` | as estrelas de cada desafio, no localStorage |

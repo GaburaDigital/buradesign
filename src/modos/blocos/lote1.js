@@ -2,52 +2,28 @@
 // até um projeto que usa tudo junto.
 //
 // Cada desafio traz o "gabarito": um programa em blocos que resolve a missão.
-// Ele serve para duas coisas — provar no teste que as medidas pedidas são
-// alcançáveis, e um dia virar o botão de "mostrar uma solução". Nunca é
-// comparado com o programa do aluno: quem é medido é a peça que saiu.
+// Ele prova no teste que as medidas pedidas são alcançáveis e nunca é
+// comparado com o programa do aluno — quem é medido é a peça que saiu. Os
+// atalhos de montagem moram em receita.js.
 
-const n = (valor) => ({ shadow: { type: "bura_numero", fields: { NUM: valor } } });
-
-// Encadeia blocos um embaixo do outro.
-function fila(...lista) {
-  const copia = lista.filter(Boolean).map((bloco) => ({ ...bloco }));
-  for (let i = copia.length - 2; i >= 0; i -= 1) copia[i].next = { block: copia[i + 1] };
-  return copia[0];
-}
-
-const programa = (topo, extras = [], variaveis = []) => ({
-  ...(variaveis.length ? { variables: variaveis } : {}),
-  blocks: {
-    languageVersion: 0,
-    blocks: [{ type: "bura_inicio", x: 40, y: 40, next: { block: topo } }, ...extras],
-  },
-});
-
-// --- atalhos de blocos -------------------------------------------------
-const cubo = (lado) => ({ type: "bura_cubo", inputs: { LADO: n(lado) } });
-const caixa = (l, a, p) => ({ type: "bura_cuboide", inputs: { L: n(l), A: n(a), P: n(p) } });
-const cilindro = (d, a) => ({ type: "bura_cilindro", inputs: { D: n(d), A: n(a) } });
-const mover = (x, y, z) => ({ type: "bura_mover", inputs: { X: n(x), Y: n(y), Z: n(z) } });
-const irPara = (x, y, z) => ({ type: "bura_ir_para", inputs: { X: n(x), Y: n(y), Z: n(z) } });
-const girar = (eixo, graus) => ({
-  type: "bura_girar",
-  fields: { EIXO: eixo },
-  inputs: { ANGULO: n(graus) },
-});
-const apontar = (eixo, graus) => ({
-  type: "bura_apontar",
-  fields: { EIXO: eixo },
-  inputs: { ANGULO: n(graus) },
-});
-const repetir = (vezes, dentro) => ({
-  type: "bura_repetir",
-  inputs: { N: n(vezes), DENTRO: { block: dentro } },
-});
-const negativa = () => ({ type: "bura_negativa" });
-const combinar = () => ({ type: "bura_combinar" });
-const contador = () => ({ block: { type: "bura_contador" } });
-const conta = (a, op, b) => ({ block: { type: "bura_conta", fields: { OP: op }, inputs: { A: a, B: b } } });
-const pegar = (id) => ({ block: { type: "variables_get", fields: { VAR: { id } } } });
+import {
+  n,
+  fila,
+  programa,
+  cubo,
+  caixa,
+  cilindro,
+  mover,
+  irPara,
+  girar,
+  apontar,
+  repetir,
+  contador,
+  conta,
+  pegar,
+  negativa,
+  combinar,
+} from "./receita.js";
 
 export const DESAFIOS = [
   {

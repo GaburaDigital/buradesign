@@ -11,8 +11,11 @@ import { icone } from "../../ui/icones.js";
 import { confirmar, mostrarAviso } from "../../ui/painel.js";
 import { fala } from "../../ui/aliens.js";
 
-import { LOTE } from "./lote1.js";
+import { LOTE as LOTE1 } from "./lote1.js";
+import { LOTE as LOTE2 } from "./lote2.js";
 import * as progresso from "./progresso.js";
+
+const LOTES = [LOTE1, LOTE2];
 
 let areaAtual = null;
 let bancada = null;
@@ -41,58 +44,71 @@ function mostrarLista() {
   area.innerHTML = "";
   area.classList.remove("conteudo--cheio");
 
-  const conta = progresso.resumo(LOTE.desafios);
   const tela = document.createElement("div");
   tela.className = "inicio trilha";
   tela.innerHTML = `
     <div class="inicio__cabecalho">
-      <h1>${LOTE.nome}</h1>
-      <p>${LOTE.descricao}</p>
+      <h1>Desafios de programação</h1>
+      <p>Dois lotes: primeiro com as medidas na mão, depois só de olho na peça pronta.</p>
     </div>
-    ${fala("nibla", "Pode fazer na ordem que quiser e pular o que travar. A estrela fica guardada.")}
-    <p class="trilha__placar">
-      ${conta.feitos} de ${conta.total} resolvidos — ${conta.estrelas} de ${conta.maximo} estrelas
-    </p>
-    <ol class="trilha__lista"></ol>`;
+    ${fala("nibla", "Pode fazer na ordem que quiser e pular o que travar. A estrela fica guardada.")}`;
   area.append(tela);
 
-  const lista = tela.querySelector(".trilha__lista");
-  LOTE.desafios.forEach((desafio, indice) => {
-    const nota = progresso.resultadoDe(desafio.id);
-    const item = document.createElement("li");
-    item.className = `trilha__item${nota?.estrelas ? " trilha__item--feito" : ""}`;
-    const botao = document.createElement("button");
-    botao.type = "button";
-    botao.className = "trilha__botao";
-    botao.innerHTML = `
-      <span class="trilha__numero">${String(indice + 1).padStart(2, "0")}</span>
-      <span class="trilha__nome">${desafio.nome}</span>
-      <span class="desafio__estrelas">${estrelasEmSvg(nota?.estrelas || 0)}</span>
-      <span class="trilha__porcento">${nota ? `${nota.porcentagem}%` : ""}</span>`;
-    botao.addEventListener("click", () => abrir(indice));
-    item.append(botao);
-    lista.append(item);
+  LOTES.forEach((lote, indiceDoLote) => {
+    const conta = progresso.resumo(lote.desafios);
+    const secao = document.createElement("section");
+    secao.className = "trilha__lote";
+    secao.innerHTML = `
+      <h2 class="trilha__titulo">${lote.nome}</h2>
+      <p class="trilha__descricao">${lote.descricao}</p>
+      <p class="trilha__placar">
+        ${conta.feitos} de ${conta.total} resolvidos — ${conta.estrelas} de ${conta.maximo} estrelas
+      </p>
+      <ol class="trilha__lista"></ol>`;
+    const lista = secao.querySelector(".trilha__lista");
+    lote.desafios.forEach((desafio, indice) => {
+      const nota = progresso.resultadoDe(desafio.id);
+      const item = document.createElement("li");
+      item.className = `trilha__item${nota?.estrelas ? " trilha__item--feito" : ""}`;
+      const botao = document.createElement("button");
+      botao.type = "button";
+      botao.className = "trilha__botao";
+      botao.innerHTML = `
+        <span class="trilha__numero">${String(indice + 1).padStart(2, "0")}</span>
+        <span class="trilha__nome">${desafio.nome}</span>
+        <span class="desafio__estrelas">${estrelasEmSvg(nota?.estrelas || 0)}</span>
+        <span class="trilha__porcento">${nota ? `${nota.porcentagem}%` : ""}</span>`;
+      botao.addEventListener("click", () => abrir(indiceDoLote, indice));
+      item.append(botao);
+      lista.append(item);
+    });
+
+    const acoes = document.createElement("div");
+    acoes.className = "trilha__acoes";
+    const continuar = document.createElement("button");
+    continuar.type = "button";
+    continuar.className = "botao botao--destaque";
+    continuar.innerHTML = `${ferramenta("iniciar")}<span>Continuar o lote ${lote.numero}</span>`;
+    continuar.addEventListener("click", () => {
+      const proximo = lote.desafios.findIndex(
+        (d) => (progresso.resultadoDe(d.id)?.estrelas || 0) < 3,
+      );
+      abrir(indiceDoLote, proximo === -1 ? 0 : proximo);
+    });
+    const sorteio = document.createElement("button");
+    sorteio.type = "button";
+    sorteio.className = "botao";
+    sorteio.innerHTML = `${ferramenta("desafios")}<span>Sortear</span>`;
+    sorteio.addEventListener("click", () => {
+      abrir(indiceDoLote, Math.floor(Math.random() * lote.desafios.length));
+    });
+    acoes.append(continuar, sorteio);
+    secao.append(acoes);
+    tela.append(secao);
   });
 
   const rodape = document.createElement("div");
   rodape.className = "trilha__acoes";
-
-  const continuar = document.createElement("button");
-  continuar.type = "button";
-  continuar.className = "botao botao--destaque";
-  continuar.innerHTML = `${ferramenta("iniciar")}<span>Continuar de onde parei</span>`;
-  continuar.addEventListener("click", () => {
-    const proximo = LOTE.desafios.findIndex((d) => (progresso.resultadoDe(d.id)?.estrelas || 0) < 3);
-    abrir(proximo === -1 ? 0 : proximo);
-  });
-
-  const sorteio = document.createElement("button");
-  sorteio.type = "button";
-  sorteio.className = "botao";
-  sorteio.innerHTML = `${ferramenta("desafios")}<span>Sortear um desafio</span>`;
-  sorteio.addEventListener("click", () => {
-    abrir(Math.floor(Math.random() * LOTE.desafios.length));
-  });
 
   const zerar = document.createElement("button");
   zerar.type = "button";
@@ -116,13 +132,14 @@ function mostrarLista() {
     voltarDaCasca();
   });
 
-  rodape.append(continuar, sorteio, zerar, voltar);
+  rodape.append(zerar, voltar);
   tela.append(rodape);
 }
 
-async function abrir(indice) {
-  const posicao = Math.max(0, Math.min(LOTE.desafios.length - 1, indice));
-  const dados = LOTE.desafios[posicao];
+async function abrir(indiceDoLote, indice) {
+  const lote = LOTES[Math.max(0, Math.min(LOTES.length - 1, indiceDoLote))];
+  const posicao = Math.max(0, Math.min(lote.desafios.length - 1, indice));
+  const dados = lote.desafios[posicao];
   tocar("clique");
   encerrarBancada();
 
@@ -132,7 +149,10 @@ async function abrir(indice) {
     desafio: {
       dados,
       indice: posicao,
-      total: LOTE.desafios.length,
+      total: lote.desafios.length,
+      lote: lote.numero,
+      // No lote 2 o enunciado não dá medida: a peça pronta é a referência.
+      mostrarGabarito: Boolean(lote.mostrarGabarito),
       estrelas: progresso.resultadoDe(dados.id)?.estrelas || 0,
       aoAvaliar: (resultado) => {
         const melhorou = progresso.guardarResultado(dados.id, resultado);
@@ -149,11 +169,14 @@ async function abrir(indice) {
         if (direcao === "pular") progresso.marcarPulado(dados.id);
         const passo = direcao === "anterior" ? -1 : 1;
         const destino = posicao + passo;
-        if (destino < 0 || destino >= LOTE.desafios.length) {
-          mostrarAviso(destino < 0 ? "Este é o primeiro." : "Fim do lote. Os próximos vêm em breve.", "alerta");
+        if (destino < 0 || destino >= lote.desafios.length) {
+          mostrarAviso(
+            destino < 0 ? "Este é o primeiro do lote." : "Fim do lote. Volte à lista para o próximo.",
+            "alerta",
+          );
           return;
         }
-        abrir(destino);
+        abrir(indiceDoLote, destino);
       },
     },
   });

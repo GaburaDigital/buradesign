@@ -8,6 +8,7 @@
 
 import * as THREE from "three";
 import { cena3d } from "../livre3d/cena.js";
+import { caixaDaPeca } from "../livre3d/pecas.js";
 import { volumeComSinal } from "../livre3d/solidos.js";
 
 export const ESTRELAS = [
@@ -61,11 +62,11 @@ export function medir() {
   };
   if (!positivas.length) return vazio;
 
+  // Mede a forma, não os enfeites: contorno e pontos da malha são filhos da
+  // peça e entrariam na conta se a medida viesse do objeto inteiro.
   const caixa = new THREE.Box3();
-  for (const peca of positivas) {
-    peca.updateMatrixWorld(true);
-    caixa.expandByObject(peca);
-  }
+  const daPeca = new THREE.Box3();
+  for (const peca of positivas) caixa.union(caixaDaPeca(peca, daPeca));
   const tamanho = caixa.getSize(new THREE.Vector3());
   const centro = caixa.getCenter(new THREE.Vector3());
   const meioDaBase = { x: cena3d.base.largura / 2, z: cena3d.base.profundidade / 2 };
@@ -118,6 +119,7 @@ export function conferir(metas, medidas = medir()) {
       real,
       unidade: unidade(meta.tipo),
       acertou: valor >= 0.999,
+      limite,
       porcentagem: Math.round(valor * 100),
       casas: meta.tipo === "pecas" ? 0 : 1,
     });

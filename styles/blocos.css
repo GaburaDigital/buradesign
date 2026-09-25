@@ -276,3 +276,14 @@
   .desafio__acoes .tem-curto .rotulo-curto { display: inline; }
   .trilha__lista { grid-template-columns: 1fr; }
 }
+
+/* Lotes na lista de desafios */
+.trilha__lote { margin-bottom: var(--e-5); }
+.trilha__titulo {
+  font-family: var(--fonte-mono);
+  font-size: var(--t-20);
+  color: var(--verde);
+  margin: 0 0 var(--e-1);
+}
+.trilha__descricao { margin: 0 0 var(--e-2); font-size: var(--t-14); color: var(--texto-2); }
+.desafio__folga { color: var(--texto-3); }

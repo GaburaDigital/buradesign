@@ -30,6 +30,7 @@ import * as projeto from "../livre3d/projeto.js";
 import { CAIXA, PROGRAMA_INICIAL, registrar } from "./blocos.js";
 import * as interprete from "./interprete.js";
 import * as avaliar from "./avaliar.js";
+import * as gizmo from "./gizmo.js";
 
 const ID_CACHE = "blocos:atual";
 // Só o bloco de começo: num desafio, o programa é o aluno que escreve.
@@ -58,6 +59,8 @@ let desligar = [];
 // de navegar. Fora do desafio fica nulo e a tela é a de programação livre.
 let missao = null;
 let painelDesafio = null;
+let botaoGabarito = null;
+let vendoGabarito = false;
 let nomeDoProjeto = "Programa 1";
 let blocoAceso = null;
 
@@ -222,6 +225,7 @@ function montarEsqueleto(area, aoVoltar) {
     botao("menos", "Afastar", () => aproximar(1 / 1.2)),
     botao("enquadrar", "Enquadrar base", () => cena.enquadrar()),
     botao("camera3d", "Enquadrar o modelo", () => interprete.enquadrarResultado()),
+    botao("ponteiro", "Mostrar o ponteiro", alternarPonteiro, { extra: "botao--destaque" }),
   );
 
   tela = raiz.querySelector("#tela-blocos");
@@ -245,11 +249,11 @@ function estrelasEmSvg(quantas) {
 }
 
 function montarPainelDesafio() {
-  const { dados, indice, total } = missao;
+  const { dados, indice, total, lote } = missao;
   painelDesafio.hidden = false;
   painelDesafio.innerHTML = `
     <div class="desafio__topo">
-      <span class="desafio__numero">Desafio ${indice + 1} de ${total}</span>
+      <span class="desafio__numero">Lote ${lote || 1} · desafio ${indice + 1} de ${total}</span>
       <h2 class="desafio__nome">${dados.nome}</h2>
       <span class="desafio__estrelas" data-estrelas>${estrelasEmSvg(missao.estrelas || 0)}</span>
       <div class="desafio__acoes"></div>
@@ -265,6 +269,14 @@ function montarPainelDesafio() {
     <div class="desafio__placar" data-placar hidden></div>`;
 
   const acoes = painelDesafio.querySelector(".desafio__acoes");
+  if (dados.gabarito && missao.mostrarGabarito) {
+    botaoGabarito = botao("cubo3d", "Ver a peça pronta", verPecaPronta, {
+      extra: "com-rotulo",
+      curto: "modelo",
+    });
+  } else {
+    botaoGabarito = null;
+  }
   const dicas = botao("desafios", "Dicas", () => {
     const caixa = painelDesafio.querySelector("[data-detalhes]");
     caixa.hidden = !caixa.hidden;
@@ -275,16 +287,69 @@ function montarPainelDesafio() {
       extra: "com-rotulo botao--destaque",
       curto: "conferir",
     }),
+    ...(botaoGabarito ? [botaoGabarito] : []),
     dicas,
-    botao("voltar", "Lista de desafios", () => missao.aoNavegar("lista"), {
-      usarIconeUI: true,
+    botao("listaDesafios", "Lista de desafios", () => missao.aoNavegar("lista"), {
       extra: "com-rotulo",
       curto: "lista",
     }),
-    botao("alternar2d", "Desafio anterior", () => missao.aoNavegar("anterior"), { curto: "antes" }),
-    botao("alternar3d", "Próximo desafio", () => missao.aoNavegar("proximo"), { curto: "depois" }),
-    botao("parar", "Pular este desafio", () => missao.aoNavegar("pular"), { curto: "pular" }),
+    botao("desafioAnterior", "Desafio anterior", () => missao.aoNavegar("anterior"), { curto: "antes" }),
+    botao("desafioProximo", "Próximo desafio", () => missao.aoNavegar("proximo"), { curto: "depois" }),
+    botao("pular", "Pular este desafio", () => missao.aoNavegar("pular"), { curto: "pular" }),
   );
+}
+
+// A peça pronta na bancada, pintada de outra cor: o aluno gira, conta, mede
+// com o olho e volta para o programa dele. O gabarito nunca é comparado com
+// o que ele escreveu — serve só de alvo.
+const COR_DO_ALVO = "#f2d06b";
+
+function atualizarBotaoGabarito() {
+  if (!botaoGabarito) return;
+  const rotulo = vendoGabarito ? "Voltar ao meu modelo" : "Ver a peça pronta";
+  botaoGabarito.title = rotulo;
+  botaoGabarito.setAttribute("aria-label", rotulo);
+  botaoGabarito.classList.toggle("botao--destaque", vendoGabarito);
+  botaoGabarito.innerHTML = `${iconeFerramenta(vendoGabarito ? "blocos" : "cubo3d")}<span class="rotulo-acao">${rotulo}</span><span class="rotulo-curto">${vendoGabarito ? "meu" : "modelo"}</span>`;
+}
+
+function verPecaPronta() {
+  if (!missao?.dados?.gabarito) return;
+  if (vendoGabarito) {
+    rodar({ lento: false });
+    return;
+  }
+  parar();
+  const rascunho = new Blockly.Workspace();
+  let deu = true;
+  try {
+    Blockly.serialization.workspaces.load(missao.dados.gabarito, rascunho);
+    interprete.executarPrograma(rascunho, {
+      lento: false,
+      aoErro: () => {
+        deu = false;
+      },
+    });
+  } catch {
+    deu = false;
+  } finally {
+    rascunho.dispose();
+  }
+  if (!deu) {
+    mostrarAviso("Não consegui montar a peça pronta deste desafio.", "erro");
+    return;
+  }
+  for (const peca of cena3d.grupoPecas.children) {
+    peca.userData.cor = COR_DO_ALVO;
+    pecas.vestir(peca);
+  }
+  vendoGabarito = true;
+  gizmo.mostrar(false);
+  interprete.enquadrarResultado();
+  atualizarBotaoGabarito();
+  if (estreito()) mostrarLado(true);
+  tocar("clique");
+  dizer("Esta é a peça pronta. Gire, conte e volte para o seu programa.");
 }
 
 // Roda o programa e confere as medidas. A nota é da peça montada, nunca do
@@ -297,12 +362,14 @@ function avaliarAgora() {
   placar.innerHTML = `
     <p class="desafio__nota"><strong>${resultado.porcentagem}%</strong> — ${avaliar.recado(resultado)}</p>
     <table class="desafio__tabela">
-      <thead><tr><th>Medida</th><th>Pedido</th><th>Seu</th></tr></thead>
+      <thead><tr><th>Medida</th><th>Pedido</th><th>O seu</th></tr></thead>
       <tbody>${resultado.linhas
         .map(
           (linha) => `<tr class="${linha.acertou ? "acertou" : "errou"}">
             <td>${linha.rotulo}</td>
-            <td>${linha.alvo}${linha.unidade}</td>
+            <td>${linha.alvo}${linha.unidade}${
+              linha.limite > 1.5 ? ` <span class="desafio__folga">± ${Math.round(linha.limite)}</span>` : ""
+            }</td>
             <td>${linha.real.toFixed(linha.casas)}${linha.unidade}</td></tr>`,
         )
         .join("")}</tbody>
@@ -362,6 +429,14 @@ function alternarTelaCheia() {
   else document.documentElement.requestFullscreen?.().catch(() => {});
 }
 
+function alternarPonteiro(evento) {
+  const mostrar = !gizmo.visivel();
+  gizmo.mostrar(mostrar);
+  const alvo = evento?.currentTarget;
+  alvo?.classList.toggle("botao--destaque", mostrar);
+  dizer(mostrar ? "Ponteiro à vista." : "Ponteiro escondido.");
+}
+
 function aproximar(fator) {
   const alvo = cena3d.orbita.target;
   const posicao = cena3d.camera.position;
@@ -412,6 +487,11 @@ function rodar({ lento }) {
   if (execucao) execucao.parar();
   execucao = null;
   acender(null);
+  if (vendoGabarito) {
+    vendoGabarito = false;
+    gizmo.mostrar(true);
+    atualizarBotaoGabarito();
+  }
   // No celular a montagem acontece do outro lado da tela. Sem virar para lá,
   // o aluno aperta iniciar e parece que nada aconteceu.
   if (estreito()) mostrarLado(true);
@@ -424,6 +504,7 @@ function rodar({ lento }) {
     lento,
     intervalo: 420,
     aoDestacar: (bloco) => acender(bloco),
+    aoPonteiro: (estado) => gizmo.atualizar(estado),
     aoFim: (estado) => {
       execucao = null;
       marcarRodando(false);
@@ -615,7 +696,8 @@ async function guardarNaBolsa() {
   const antes = cena3d.selecao;
   cena3d.selecao = tudo;
   try {
-    await projeto.enviarParaBolsa(nome);
+    // A seta do ponteiro não pode entrar na miniatura da peça.
+    await gizmo.esconderPara(() => projeto.enviarParaBolsa(nome));
     tocar("salvar");
     mostrarAviso("Modelo guardado na bolsa.");
   } finally {
@@ -630,6 +712,7 @@ async function limparPrograma() {
   workspace.clear();
   carregarPrograma(missao ? missao.dados.programaInicial || SO_O_COMECO : PROGRAMA_INICIAL);
   interprete.limparCena();
+  gizmo.atualizar({ posicao: { x: 0, y: 0, z: 0 }, pivo: { x: 0, y: 0, z: 0 } });
   dizer("Programa novo.");
 }
 
@@ -703,6 +786,8 @@ export async function montar(area, setor, aoVoltar, opcoes = {}) {
   cena3d.orbita.enabled = true;
   projeto.limparMesa();
   cena.enquadrar();
+  gizmo.criar();
+  gizmo.atualizar({ posicao: { x: 0, y: 0, z: 0 }, pivo: { x: 0, y: 0, z: 0 } });
   cena.comecarDesenho();
 
   const palco = raiz.querySelector(".blocos__lado--palco");
@@ -715,7 +800,10 @@ export async function montar(area, setor, aoVoltar, opcoes = {}) {
   desligar.push(
     ouvir("ajuste:mudou", ({ chave }) => {
       if (!cena3d.renderizador) return;
-      if (chave === "tema" || chave === "gridMilimetros" || chave === "*") aplicarTema();
+      if (chave === "tema" || chave === "gridMilimetros" || chave === "*") {
+        aplicarTema();
+        gizmo.refazerCores();
+      }
       if (chave === "opacidadeBase" || chave === "*") cena.atualizarOpacidadeDaBase();
     }),
   );
@@ -759,8 +847,11 @@ export function encerrar() {
   workspace = null;
   botaoLado = null;
   blocoAceso = null;
+  gizmo.remover();
   missao = null;
   painelDesafio = null;
+  botaoGabarito = null;
+  vendoGabarito = false;
   try {
     cena.encerrar();
   } catch (erro) {

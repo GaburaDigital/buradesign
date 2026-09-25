@@ -211,6 +211,22 @@ const FERRAMENTAS = {
   apagarPonto: `<path d="M3 18.5 C 7.5 11, 16.5 11, 21 18.5" ${D}/>
     <rect x="1.5" y="17" width="3" height="3" ${D}/><rect x="19.5" y="17" width="3" height="3" ${D}/>
     <path d="M8.5 8 L15.5 15 M15.5 8 L8.5 15" fill="none" stroke="var(--perigo, #e03131)" stroke-width="1.9" stroke-linecap="round"/>`,
+
+  // --- Navegação dos desafios ------------------------------------------
+  // Missão que já passou e missão que vem: a seta diz o lado, a estrelinha
+  // diz que é desafio, não navegação de tela.
+  desafioAnterior: `<path d="M13.5 4.5 L6.5 12 L13.5 19.5" ${D}/>
+    <path d="M18 8.5 L19.1 11 L21.8 11.2 L19.8 13 L20.4 15.7 L18 14.2 L15.6 15.7 L16.2 13 L14.2 11.2 L16.9 11 Z" ${V}/>`,
+  desafioProximo: `<path d="M10.5 4.5 L17.5 12 L10.5 19.5" ${D}/>
+    <path d="M6 8.5 L7.1 11 L9.8 11.2 L7.8 13 L8.4 15.7 L6 14.2 L3.6 15.7 L4.2 13 L2.2 11.2 L4.9 11 Z" ${V}/>`,
+  // Pular: o salto por cima do obstáculo.
+  pular: `<path d="M3 18 C 7 5, 17 5, 21 18" ${D}/>
+    <path d="M21 18 L21 13.5 M21 18 L16.5 18" ${D}/>
+    <rect x="10.5" y="15.5" width="3" height="5" ${V}/>`,
+  // Lista das missões, com as estrelas ao lado.
+  listaDesafios: `<path d="M3.5 6.5 H14 M3.5 12 H14 M3.5 17.5 H14" ${D}/>
+    <path d="M18 4.5 L18.9 6.6 L21.2 6.8 L19.5 8.3 L20 10.5 L18 9.3 L16 10.5 L16.5 8.3 L14.8 6.8 L17.1 6.6 Z" ${V}/>
+    <path d="M18 14 L18.9 16.1 L21.2 16.3 L19.5 17.8 L20 20 L18 18.8 L16 20 L16.5 17.8 L14.8 16.3 L17.1 16.1 Z" ${D}/>`,
 };
 
 export function ferramenta(nome, titulo) {

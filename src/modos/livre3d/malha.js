@@ -28,9 +28,15 @@ const estado = {
   unicos: [],
   porVertice: [],
   marcados: new Set(),
+  // Faces e arestas marcadas. São listas próprias porque o aluno pode marcar
+  // várias de uma vez: antes só cabia uma, e editar uma malha inteira
+  // exigia repetir o mesmo ajuste face a face.
+  faces: new Set(),
+  arestas: [],
+  // Para cada triângulo, o vizinho que fecha o quadrado com ele.
+  parceiro: [],
   pontos: null,
   destaque: null,
-  trianguloMarcado: null,
 };
 
 function casa(valor) {
@@ -57,6 +63,50 @@ function mapear(peca) {
     estado.unicos[indice].copias.push(i);
     estado.porVertice[i] = indice;
   }
+}
+
+// Dois triângulos que dividem uma aresta e estão no mesmo plano formam, na
+// cabeça de quem edita, uma face só — o quadrado. É assim que a malha é
+// mostrada, e agora é assim que ela é selecionada e extrudada.
+function parearEmQuadrados(peca) {
+  const posicoes = peca.geometry.attributes.position;
+  const total = Math.floor(posicoes.count / 3);
+  const normais = [];
+  const porAresta = new Map();
+  for (let f = 0; f < total; f += 1) {
+    const i = f * 3;
+    const p = [0, 1, 2].map((k) => new THREE.Vector3().fromBufferAttribute(posicoes, i + k));
+    normais.push(
+      new THREE.Vector3()
+        .crossVectors(
+          new THREE.Vector3().subVectors(p[1], p[0]),
+          new THREE.Vector3().subVectors(p[2], p[0]),
+        )
+        .normalize(),
+    );
+    const chaves = [0, 1, 2].map((k) => estado.porVertice[i + k]);
+    for (const [a, b] of [[0, 1], [1, 2], [2, 0]]) {
+      const id = [chaves[a], chaves[b]].sort((x, y) => x - y).join("|");
+      if (!porAresta.has(id)) porAresta.set(id, []);
+      porAresta.get(id).push(f);
+    }
+  }
+  estado.parceiro = new Array(total).fill(-1);
+  for (const usos of porAresta.values()) {
+    if (usos.length !== 2) continue;
+    const [a, b] = usos;
+    if (estado.parceiro[a] !== -1 || estado.parceiro[b] !== -1) continue;
+    if (normais[a].dot(normais[b]) > 0.999) {
+      estado.parceiro[a] = b;
+      estado.parceiro[b] = a;
+    }
+  }
+}
+
+// Os triângulos do quadrado a que este triângulo pertence.
+function quadradoDe(face) {
+  const par = estado.parceiro[face];
+  return par === -1 ? [face] : [face, par];
 }
 
 function desenharPontos() {
@@ -114,22 +164,22 @@ function desenharDestaque() {
   const grupo = new THREE.Group();
   grupo.name = "destaqueDaMalha";
 
-  if (estado.modo === "aresta" && estado.marcados.size === 2) {
-    const [a, b] = [...estado.marcados];
-    grupo.add(
-      linhaGrossa(
-        [...estado.unicos[a].posicao.toArray(), ...estado.unicos[b].posicao.toArray()],
-        cor,
-        6,
-      ),
-    );
+  if (estado.modo === "aresta" && estado.arestas.length) {
+    const riscos = [];
+    for (const [a, b] of estado.arestas) {
+      riscos.push(...estado.unicos[a].posicao.toArray(), ...estado.unicos[b].posicao.toArray());
+    }
+    grupo.add(linhaGrossa(riscos, cor, 6));
   }
 
-  if (estado.modo === "face" && estado.trianguloMarcado) {
+  if (estado.modo === "face" && estado.faces.size) {
     const geometria = new THREE.BufferGeometry();
     const pontos = [];
-    for (const indice of estado.trianguloMarcado) {
-      pontos.push(...estado.unicos[estado.porVertice[indice]].posicao.toArray());
+    for (const face of estado.faces) {
+      const inicio = face * 3;
+      for (const indice of [inicio, inicio + 1, inicio + 2]) {
+        pontos.push(...estado.unicos[estado.porVertice[indice]].posicao.toArray());
+      }
     }
     geometria.setAttribute("position", new THREE.Float32BufferAttribute(pontos, 3));
     geometria.computeVertexNormals();
@@ -171,8 +221,9 @@ export function entrar(peca) {
     peca.geometry = plana;
   }
   estado.peca = peca;
-  estado.marcados = new Set();
+  limparMarcas();
   mapear(peca);
+  parearEmQuadrados(peca);
   desenharPontos();
   return true;
 }
@@ -182,7 +233,14 @@ export function sair() {
   estado.peca = null;
   estado.unicos = [];
   estado.porVertice = [];
+  estado.parceiro = [];
+  limparMarcas();
+}
+
+function limparMarcas() {
   estado.marcados = new Set();
+  estado.faces = new Set();
+  estado.arestas = [];
 }
 
 export function ativo() {
@@ -195,8 +253,7 @@ export function pecaAtual() {
 
 export function definirModo(modo) {
   estado.modo = MODOS.some((item) => item.id === modo) ? modo : "vertice";
-  estado.marcados = new Set();
-  estado.trianguloMarcado = null;
+  limparMarcas();
   pintarPontos();
 }
 
@@ -208,34 +265,44 @@ export function quantosMarcados() {
   return estado.marcados.size;
 }
 
-// Triângulos que pertencem à seleção atual. É o que a extrusão de face usa.
+// Triângulos das faces marcadas. É o que a extrusão usa — e como a marcação
+// é por quadrado, vêm os dois triângulos de cada face.
 export function trianguloInicial() {
-  if (!estado.peca || !estado.marcados.size) return [];
-  const posicoes = estado.peca.geometry.attributes.position;
-  const inicios = [];
-  for (let i = 0; i < posicoes.count; i += 3) {
-    const trio = [i, i + 1, i + 2].map((k) => estado.porVertice[k]);
-    if (trio.every((indice) => estado.marcados.has(indice))) inicios.push(i);
+  if (!estado.peca || !estado.faces.size) return [];
+  return [...estado.faces].map((face) => face * 3);
+}
+
+// Quantas faces (quadrados), não quantos triângulos: era isso que o painel
+// mostrava, e uma face só aparecia como "2".
+export function quantasFaces() {
+  const vistos = new Set();
+  let total = 0;
+  for (const face of estado.faces) {
+    if (vistos.has(face)) continue;
+    for (const irmao of quadradoDe(face)) vistos.add(irmao);
+    total += 1;
   }
-  return inicios;
+  return total;
 }
 
 // Refaz o mapa depois de uma mudança na geometria feita de fora.
 export function remapear() {
   if (!estado.peca) return;
   mapear(estado.peca);
-  estado.marcados = new Set();
-  estado.trianguloMarcado = null;
+  parearEmQuadrados(estado.peca);
+  limparMarcas();
   desenharPontos();
 }
 
-// Marca o que foi clicado, de acordo com o modo.
+// Marca o que foi clicado, de acordo com o modo. Com "somando" ligado (Shift,
+// ou o modo somar no celular) a marca se junta às anteriores em vez de
+// substituí-las, e clicar de novo no mesmo lugar desmarca.
 export function marcarPeloRaio(raio, somando = false) {
   if (!estado.peca) return false;
   const acertos = raio.intersectObject(estado.peca, false);
   if (!acertos.length) {
     if (!somando) {
-      estado.marcados = new Set();
+      limparMarcas();
       pintarPontos();
     }
     return false;
@@ -243,13 +310,21 @@ export function marcarPeloRaio(raio, somando = false) {
   const acerto = acertos[0];
   const cara = acerto.face;
   const trio = [cara.a, cara.b, cara.c].map((i) => estado.porVertice[i]);
-  let alvos = [];
+  const ponto = estado.peca.worldToLocal(acerto.point.clone());
+
+  if (!somando) limparMarcas();
 
   if (estado.modo === "face") {
-    alvos = trio;
-    estado.trianguloMarcado = [cara.a, cara.b, cara.c];
+    // A face é o quadrado inteiro: os dois triângulos que o formam.
+    const face = Math.floor(cara.a / 3);
+    const dupla = quadradoDe(face);
+    const jaTinha = dupla.every((f) => estado.faces.has(f));
+    for (const f of dupla) {
+      if (jaTinha) estado.faces.delete(f);
+      else estado.faces.add(f);
+    }
+    refazerVerticesDasFaces();
   } else if (estado.modo === "aresta") {
-    const ponto = acerto.point;
     const pares = [
       [trio[0], trio[1]],
       [trio[1], trio[2]],
@@ -262,15 +337,20 @@ export function marcarPeloRaio(raio, somando = false) {
         .clone()
         .add(estado.unicos[par[1]].posicao)
         .multiplyScalar(0.5);
-      const distancia = meio.distanceTo(estado.peca.worldToLocal(ponto.clone()));
+      const distancia = meio.distanceTo(ponto);
       if (distancia < menor) {
         menor = distancia;
         melhor = par;
       }
     }
-    alvos = melhor;
+    const id = [...melhor].sort((a, b) => a - b).join("|");
+    const onde = estado.arestas.findIndex(
+      (par) => [...par].sort((a, b) => a - b).join("|") === id,
+    );
+    if (onde >= 0) estado.arestas.splice(onde, 1);
+    else estado.arestas.push(melhor);
+    refazerVerticesDasArestas();
   } else {
-    const ponto = estado.peca.worldToLocal(acerto.point.clone());
     let melhor = trio[0];
     let menor = Infinity;
     for (const indice of trio) {
@@ -280,14 +360,29 @@ export function marcarPeloRaio(raio, somando = false) {
         melhor = indice;
       }
     }
-    alvos = [melhor];
+    if (estado.marcados.has(melhor)) estado.marcados.delete(melhor);
+    else estado.marcados.add(melhor);
   }
 
-  if (estado.modo !== "face") estado.trianguloMarcado = null;
-  if (!somando) estado.marcados = new Set();
-  for (const indice of alvos) estado.marcados.add(indice);
   pintarPontos();
   return true;
+}
+
+// Os vértices que a seta move saem do que está marcado em cada modo.
+function refazerVerticesDasFaces() {
+  estado.marcados = new Set();
+  for (const face of estado.faces) {
+    const inicio = face * 3;
+    for (const k of [0, 1, 2]) estado.marcados.add(estado.porVertice[inicio + k]);
+  }
+}
+
+function refazerVerticesDasArestas() {
+  estado.marcados = new Set();
+  for (const [a, b] of estado.arestas) {
+    estado.marcados.add(a);
+    estado.marcados.add(b);
+  }
 }
 
 export function centroDosMarcados() {

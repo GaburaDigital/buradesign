@@ -40,6 +40,8 @@ function novoEstado(workspace) {
     workspace,
     posicao: { x: 0, y: 0, z: 0 },
     giro: { x: 0, y: 0, z: 0 },
+    // O pivô é a direção do "avançar". Começa apontando para a direita.
+    pivo: { x: 0, y: 0, z: 0 },
     criadas: [],
     ultima: null,
     contadores: [],
@@ -166,6 +168,8 @@ function avaliar(bloco, estado) {
       return estado.posicao[bloco.getFieldValue("EIXO")] || 0;
     case "bura_rotacao":
       return estado.giro[bloco.getFieldValue("EIXO")] || 0;
+    case "bura_pivo":
+      return estado.pivo[bloco.getFieldValue("EIXO")] || 0;
     case "bura_contador":
       return estado.contadores.length ? estado.contadores[estado.contadores.length - 1] : 0;
     case "bura_quantas":
@@ -357,6 +361,15 @@ function nascerForma(bloco, estado) {
   return peca;
 }
 
+// Para onde o pivô aponta. Ele nasce virado para a direita (+X) e os giros
+// do aluno o levam de lá.
+const FRENTE = new THREE.Vector3(1, 0, 0);
+export function direcaoDoPivo(estado) {
+  const p = estado.pivo || { x: 0, y: 0, z: 0 };
+  const euler = new THREE.Euler(grau(p.x), grau(p.y), grau(p.z), "XYZ");
+  return FRENTE.clone().applyEuler(euler);
+}
+
 // O ponteiro conta a partir do centro da base: (0,0,0) é o meio do chão.
 function posicionar(peca, estado) {
   const centro = centroDaBase();
@@ -401,8 +414,41 @@ function* executar(bloco, estado) {
       break;
 
     case "bura_centro":
+      // Volta o ponteiro e o giro das peças. O pivô fica como está: quem
+      // espalha peças em roda precisa voltar ao meio sem perder a direção,
+      // e existe um bloco só para endireitar o pivô.
       estado.posicao = { x: 0, y: 0, z: 0 };
       estado.giro = { x: 0, y: 0, z: 0 };
+      break;
+
+    // --- pivô -------------------------------------------------------
+    // Com o pivô o aluno anda em diagonal sem precisar de seno e cosseno:
+    // gira a direção, avança, e a peça cai no lugar certo.
+    case "bura_pivo_girar":
+      estado.pivo[bloco.getFieldValue("EIXO") || "y"] += numeroDe(bloco, "ANGULO", estado, 0);
+      break;
+
+    case "bura_pivo_apontar":
+      estado.pivo[bloco.getFieldValue("EIXO") || "y"] = numeroDe(bloco, "ANGULO", estado, 0);
+      break;
+
+    case "bura_pivo_zerar":
+      estado.pivo = { x: 0, y: 0, z: 0 };
+      break;
+
+    case "bura_avancar": {
+      const passos = numeroDe(bloco, "PASSOS", estado, 0);
+      const rumo = direcaoDoPivo(estado);
+      estado.posicao = {
+        x: estado.posicao.x + rumo.x * passos,
+        y: estado.posicao.y + rumo.y * passos,
+        z: estado.posicao.z + rumo.z * passos,
+      };
+      break;
+    }
+
+    case "bura_virar_como_pivo":
+      estado.giro = { ...estado.pivo };
       break;
 
     // --- combinar ---
@@ -572,6 +618,7 @@ export function executarPrograma(workspace, opcoes = {}) {
     intervalo = 420,
     aoDestacar = () => {},
     aoContar = () => {},
+    aoPonteiro = () => {},
     aoFim = () => {},
     aoErro = () => {},
   } = opcoes;
@@ -614,6 +661,8 @@ export function executarPrograma(workspace, opcoes = {}) {
       for (;;) {
         if (avancar() === false) break;
       }
+      // No modo rápido o ponteiro só interessa no fim: é onde ele parou.
+      aoPonteiro(estado);
       encerrar(null);
     } catch (erro) {
       encerrar(erro instanceof Retorno ? null : erro);
@@ -630,6 +679,7 @@ export function executarPrograma(workspace, opcoes = {}) {
         return;
       }
       aoDestacar(bloco);
+      aoPonteiro(estado);
       relogio = setTimeout(tique, intervalo);
     } catch (erro) {
       encerrar(erro instanceof Retorno ? null : erro);

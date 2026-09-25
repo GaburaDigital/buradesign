@@ -112,12 +112,58 @@ export const DEFINICOES = [
     tooltip: "Giro absoluto: esquece o giro anterior e vai direto para esse ângulo.",
   },
   {
+    type: "bura_pivo_girar",
+    message0: "girar o pivô %1 em %2 graus",
+    args0: [{ type: "field_dropdown", name: "EIXO", options: EIXOS }, encaixe("ANGULO")],
+    previousStatement: null,
+    nextStatement: null,
+    colour: CORES.ponteiro,
+    inputsInline: true,
+    tooltip: "O pivô é a direção do 'avançar'. Girar o pivô não mexe na peça, muda o caminho.",
+  },
+  {
+    type: "bura_pivo_apontar",
+    message0: "apontar o pivô %1 para %2 graus",
+    args0: [{ type: "field_dropdown", name: "EIXO", options: EIXOS }, encaixe("ANGULO")],
+    previousStatement: null,
+    nextStatement: null,
+    colour: CORES.ponteiro,
+    inputsInline: true,
+    tooltip: "Direção exata para o pivô, sem somar com o giro anterior.",
+  },
+  {
+    type: "bura_pivo_zerar",
+    message0: "endireitar o pivô",
+    previousStatement: null,
+    nextStatement: null,
+    colour: CORES.ponteiro,
+    tooltip: "Devolve o pivô para a direita, que é onde ele começa.",
+  },
+  {
+    type: "bura_avancar",
+    message0: "avançar %1",
+    args0: [encaixe("PASSOS")],
+    previousStatement: null,
+    nextStatement: null,
+    colour: CORES.ponteiro,
+    inputsInline: true,
+    tooltip: "Anda esse tanto de milímetros na direção em que o pivô está apontando.",
+  },
+  {
+    type: "bura_virar_como_pivo",
+    message0: "deitar a peça no rumo do pivô",
+    previousStatement: null,
+    nextStatement: null,
+    colour: CORES.ponteiro,
+    tooltip: "As próximas peças nascem viradas para o mesmo lado do pivô.",
+  },
+  {
     type: "bura_centro",
     message0: "voltar ao centro da base",
     previousStatement: null,
     nextStatement: null,
     colour: CORES.ponteiro,
-    tooltip: "Devolve o ponteiro ao meio da base e zera o giro.",
+    tooltip: "Devolve o ponteiro ao meio da base e zera o giro das peças. O pivô continua como está.",
   },
   {
     type: "bura_posicao",
@@ -136,6 +182,24 @@ export const DEFINICOES = [
     output: "Number",
     colour: CORES.ponteiro,
     tooltip: "Diz onde o ponteiro está nesse eixo, em milímetros.",
+  },
+  {
+    type: "bura_pivo",
+    message0: "pivô %1",
+    args0: [
+      {
+        type: "field_dropdown",
+        name: "EIXO",
+        options: [
+          ["x", "x"],
+          ["y", "y"],
+          ["z", "z"],
+        ],
+      },
+    ],
+    output: "Number",
+    colour: CORES.ponteiro,
+    tooltip: "Diz quantos graus o pivô está girado nesse eixo.",
   },
   {
     type: "bura_rotacao",
@@ -436,8 +500,14 @@ export const CAIXA = {
         { kind: "block", type: "bura_girar", inputs: { ANGULO: sombra(45) } },
         { kind: "block", type: "bura_apontar", inputs: { ANGULO: sombra(90) } },
         { kind: "block", type: "bura_centro" },
+        { kind: "block", type: "bura_pivo_girar", inputs: { ANGULO: sombra(30) } },
+        { kind: "block", type: "bura_pivo_apontar", inputs: { ANGULO: sombra(90) } },
+        { kind: "block", type: "bura_pivo_zerar" },
+        { kind: "block", type: "bura_avancar", inputs: { PASSOS: sombra(40) } },
+        { kind: "block", type: "bura_virar_como_pivo" },
         { kind: "block", type: "bura_posicao" },
         { kind: "block", type: "bura_rotacao" },
+        { kind: "block", type: "bura_pivo" },
       ],
     },
     {
@@ -558,6 +628,35 @@ export const PROGRAMA_INICIAL = {
   },
 };
 
+// Os blocos que vêm no Blockly chegam com a cor da categoria dele: o "contar"
+// e o "repetir enquanto" verdes (laços), o "se" e o "e/ou/não" azuis (lógica).
+// Na nossa caixa eles moram em Controle e Operadores, então precisam da cor
+// daqui — senão o aluno não acha o bloco pela cor da gaveta.
+const RECOLORIR = [
+  ["controls_if", CORES.controle],
+  ["controls_for", CORES.controle],
+  ["controls_whileUntil", CORES.controle],
+  ["controls_repeat_ext", CORES.controle],
+  ["logic_compare", CORES.operadores],
+  ["logic_operation", CORES.operadores],
+  ["logic_negate", CORES.operadores],
+  ["logic_boolean", CORES.operadores],
+  ["math_number", CORES.operadores],
+  ["math_arithmetic", CORES.operadores],
+  ["math_random_int", CORES.operadores],
+];
+
 export function registrar(Blockly) {
   Blockly.defineBlocksWithJsonArray(DEFINICOES);
+
+  for (const [tipo, cor] of RECOLORIR) {
+    const definicao = Blockly.Blocks[tipo];
+    if (!definicao || definicao.buraRecolorido) continue;
+    const antigo = definicao.init;
+    definicao.init = function iniciar() {
+      antigo.call(this);
+      this.setColour(cor);
+    };
+    definicao.buraRecolorido = true;
+  }
 }
