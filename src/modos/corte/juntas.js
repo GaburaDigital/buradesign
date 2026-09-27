@@ -9,18 +9,32 @@
 //   canto  — as duas bordas se encontram na quina da montagem;
 //   T      — uma chapa entra no meio da outra, que ganha um rasgo passante.
 
-import { PLANOS, extensao, paraLocal } from "./chapas.js";
+import { quadro, alinhada, extensao, paraLocal } from "./chapas.js";
 
 const TOLERANCIA = 0.02; // mm
 const EIXOS = ["x", "y", "z"];
 
+// A chapa pode estar girada em 90 graus sobre si mesma, e aí o "u" dela aponta
+// para outro eixo do mundo — ou para o sentido contrário. Estas duas funções
+// traduzem: dado um lado no mundo, qual borda da chapa é aquela.
+function ladosDaChapa(chapa, eixo) {
+  const q = quadro(chapa);
+  if (!q) return null;
+  const letra = q.porEixo[eixo];
+  if (letra !== "u" && letra !== "v") return null;
+  const { sinal } = q.porLocal[letra];
+  return {
+    mais: sinal > 0 ? `${letra}1` : `${letra}0`,
+    menos: sinal > 0 ? `${letra}0` : `${letra}1`,
+  };
+}
+
 // Qual borda da chapa encosta no plano do outro lado, olhando um eixo só.
 function bordaQueEncosta(chapa, caixa, eixo, alvo) {
-  const plano = PLANOS[chapa.plano];
-  const letra = eixo === plano.u ? "u" : eixo === plano.v ? "v" : null;
-  if (!letra) return null;
-  if (Math.abs(caixa.max[eixo] - alvo.min[eixo]) < TOLERANCIA) return `${letra}1`;
-  if (Math.abs(caixa.min[eixo] - alvo.max[eixo]) < TOLERANCIA) return `${letra}0`;
+  const lados = ladosDaChapa(chapa, eixo);
+  if (!lados) return null;
+  if (Math.abs(caixa.max[eixo] - alvo.min[eixo]) < TOLERANCIA) return lados.mais;
+  if (Math.abs(caixa.min[eixo] - alvo.max[eixo]) < TOLERANCIA) return lados.menos;
   return null;
 }
 
@@ -28,11 +42,10 @@ function bordaQueEncosta(chapa, caixa, eixo, alvo) {
 // Aqui as pontas coincidem: é o canto da montagem, e as duas vão ter recorte
 // na borda. Quando não coincidem, a que chega atravessa — junta em T.
 function bordaNaQuina(chapa, caixa, eixo, alvo) {
-  const plano = PLANOS[chapa.plano];
-  const letra = eixo === plano.u ? "u" : eixo === plano.v ? "v" : null;
-  if (!letra) return null;
-  if (Math.abs(caixa.max[eixo] - alvo.max[eixo]) < TOLERANCIA) return `${letra}1`;
-  if (Math.abs(caixa.min[eixo] - alvo.min[eixo]) < TOLERANCIA) return `${letra}0`;
+  const lados = ladosDaChapa(chapa, eixo);
+  if (!lados) return null;
+  if (Math.abs(caixa.max[eixo] - alvo.max[eixo]) < TOLERANCIA) return lados.mais;
+  if (Math.abs(caixa.min[eixo] - alvo.min[eixo]) < TOLERANCIA) return lados.menos;
   return null;
 }
 
@@ -77,12 +90,27 @@ export function detectarJuntas(chapas, espessura, opcoes = {}) {
 
   const caixas = new Map(chapas.map((chapa) => [chapa.id, extensao(chapa, espessura)]));
 
+  // Chapa em ângulo ainda não tem encaixe automático. Avisar é melhor do que
+  // desenhar um dente que não vai encaixar em lugar nenhum.
+  const tortas = chapas.filter((chapa) => !alinhada(chapa));
+  if (tortas.length) {
+    avisos.push(
+      `${tortas.length} chapa(s) em ângulo ficaram sem encaixe automático: ${tortas
+        .map((chapa) => chapa.nome)
+        .slice(0, 3)
+        .join(", ")}.`,
+    );
+  }
+
   for (let i = 0; i < chapas.length; i += 1) {
     for (let j = i + 1; j < chapas.length; j += 1) {
       const um = chapas[i];
       const outro = chapas[j];
-      const nUm = PLANOS[um.plano].n;
-      const nOutro = PLANOS[outro.plano].n;
+      const quadroUm = quadro(um);
+      const quadroOutro = quadro(outro);
+      if (!quadroUm || !quadroOutro) continue;
+      const nUm = quadroUm.porLocal.n.eixo;
+      const nOutro = quadroOutro.porLocal.n.eixo;
       if (nUm === nOutro) continue;
 
       const corrida = EIXOS.find((eixo) => eixo !== nUm && eixo !== nOutro);
@@ -114,7 +142,7 @@ export function detectarJuntas(chapas, espessura, opcoes = {}) {
 
       const caixaChega = caixas.get(chega.id);
       const caixaRecebe = caixas.get(recebe.id);
-      const nChega = PLANOS[chega.plano].n;
+      const nChega = quadro(chega).porLocal.n.eixo;
 
       // A chapa que recebe cobre a espessura da que chega? Sem isso não há
       // material para entalhar.
@@ -132,8 +160,9 @@ export function detectarJuntas(chapas, espessura, opcoes = {}) {
 
       // Da corrida no mundo para a régua de cada chapa.
       const paraBorda = (chapa, borda, valor) => {
-        const plano = PLANOS[chapa.plano];
-        const eixoDaCorrida = borda.startsWith("u") ? plano.v : plano.u;
+        const q = quadro(chapa);
+        // Borda "u" é uma borda vertical da régua: quem corre nela é o v.
+        const eixoDaCorrida = borda.startsWith("u") ? q.porLocal.v.eixo : q.porLocal.u.eixo;
         return paraLocal(chapa, eixoDaCorrida, valor);
       };
 
@@ -160,9 +189,8 @@ export function detectarJuntas(chapas, espessura, opcoes = {}) {
         juntas.push({ a: chega.id, b: recebe.id, tipo: "canto", dedos: dedos.length });
       } else {
         // Junta em T: a chapa que recebe ganha rasgos passantes no meio.
-        const plano = PLANOS[recebe.plano];
         const eixoDaEspessura = nChega;
-        const letraEspessura = eixoDaEspessura === plano.u ? "u" : "v";
+        const letraEspessura = quadro(recebe).porEixo[eixoDaEspessura];
         const a1 = paraLocal(recebe, eixoDaEspessura, caixaChega.min[eixoDaEspessura]);
         const a2 = paraLocal(recebe, eixoDaEspessura, caixaChega.max[eixoDaEspessura]);
         for (const pedaco of dedos) {

@@ -1,9 +1,11 @@
 // Porta de entrada do setor Montagem com Peças Cortadas.
 //
-// Duas bancadas na mesma oficina, como o Criação Livre tem 2D e 3D: montar a
-// peça com chapas encaixadas, ou fatiar um modelo 3D em camadas. As duas
-// terminam no mesmo lugar — um plano de corte em SVG, em milímetros de
-// verdade — então o botão de trocar de bancada fica dentro das duas.
+// Duas bancadas na mesma oficina: montar a peça com chapas encaixadas, ou
+// fatiar um modelo 3D em camadas. As duas terminam no mesmo lugar — um plano
+// de corte em SVG, em milímetros de verdade — mas servem a propósitos
+// diferentes, então não existe atalho de uma para a outra: quem quer trocar
+// volta a esta porta e escolhe de novo, sem risco de levar junto o que
+// estava na bancada anterior.
 
 import { carregarEstilo } from "../../core/carregar-script.js";
 import { t } from "../../core/idioma.js";
@@ -102,23 +104,11 @@ async function abrir(opcao, area, aoVoltarDaCasca) {
   tocar("clique");
   const modulo = await opcao.carregar();
   moduloAberto = modulo;
-  // Cada bancada recebe duas saídas: voltar para esta escolha e pular direto
-  // para a outra bancada, sem passar por aqui.
-  await modulo.montar(
-    area,
-    opcao,
-    () => {
-      encerrarFilho();
-      montar(area, opcao, aoVoltarDaCasca);
-    },
-    {
-      aoTrocar: async () => {
-        const outra = OPCOES.find((item) => item.id !== opcao.id);
-        encerrarFilho();
-        await abrir(outra, area, aoVoltarDaCasca);
-      },
-    },
-  );
+  // A bancada tem uma saída só: voltar para esta escolha.
+  await modulo.montar(area, opcao, () => {
+    encerrarFilho();
+    montar(area, opcao, aoVoltarDaCasca);
+  });
 }
 
 function encerrarFilho() {

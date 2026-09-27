@@ -353,7 +353,7 @@ function atualizarStatus() {
 
 // --- Tela --------------------------------------------------------------
 
-function montarEsqueleto(area, aoVoltar, aoTrocar) {
+function montarEsqueleto(area, aoVoltar) {
   area.innerHTML = "";
   areaAtual = area;
   area.classList.add("conteudo--cheio");
@@ -398,7 +398,6 @@ function montarEsqueleto(area, aoVoltar, aoTrocar) {
     botaoBarra("fatiar", "Fatiar de novo", () => desenharCamadas(), "com-rotulo"),
     botaoBarra("planoCorte", "Plano de corte", abrirPlano, "com-rotulo botao--destaque"),
     risco(),
-    botaoBarra("chapaFrente", "Ir para a montagem", aoTrocar, "com-rotulo"),
     botaoBarra("lixo", "Limpar bancada", limparModelo, "botao--perigo com-rotulo"),
   );
 
@@ -447,11 +446,11 @@ function aproximar(fator) {
   cena3d.orbita.update();
 }
 
-export async function montar(area, setor, aoVoltar, opcoes = {}) {
+export async function montar(area, setor, aoVoltar) {
   carregarEstilo("styles/livre.css");
   carregarEstilo("styles/corte.css");
   materiais.carregar();
-  montarEsqueleto(area, aoVoltar, opcoes.aoTrocar || (() => {}));
+  montarEsqueleto(area, aoVoltar);
 
   cena.iniciar(tela);
   cena3d.orbita.mouseButtons = {

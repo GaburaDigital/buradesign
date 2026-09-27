@@ -449,6 +449,29 @@ e de folga, e quando uma chapa encosta no meio de outra em vez de no canto, o
 programa abre um **rasgo passante** da espessura da chapa, que é como as
 prateleiras entram na estante.
 
+A bancada se mexe igual à do Criação Livre 3D, de propósito: os mesmos quatro
+modos de toque (selecionar, somar à seleção, arrastar a vista, girar a câmera)
+no canto da tela, e os mesmos modos de garra (mover na base, mover livre,
+girar) na coluna de ferramentas. No computador, Shift ou Ctrl soma chapas à
+escolha e tocar de novo tira; `Ctrl+A` pega tudo. No celular e no tablet é o
+mesmo, pelo dedo.
+
+**Grupos.** Escolha algumas chapas e toque em **Agrupar**: dali em diante elas
+andam e giram como uma peça só, e ganham uma cor própria para o grupo se
+enxergar de longe. **Desagrupar** solta de novo para mexer numa chapa
+isolada. A caixa pronta já chega agrupada, porque na cabeça do aluno ela é uma
+caixa, não cinco chapas soltas. Grupo sobe para a Bolsa e desce da Bolsa
+inteiro, com a montagem do jeito que estava.
+
+**Girar.** Com a seleção na mão, escolha o eixo (X, Y ou Z) e toque em −90°,
+−45°, +45°, +90° ou +180°; para um ângulo qualquer, digite no **ajuste fino**.
+O giro acontece em volta do centro do que está escolhido, então o grupo gira
+inteiro sem se desmontar. Girar em 90° mantém todos os encaixes — dá para
+deitar a caixa e o plano de corte sai igualzinho. Girar num ângulo que não é
+múltiplo de 90° deixa a chapa **em ângulo**: ela aparece na tela e entra no
+plano de corte, mas o encaixe automático dela chega no lote seguinte, e o
+programa avisa em vez de desenhar um dente que não encaixaria.
+
 **Fatiar um modelo.** Para as formas que não se montam com paredes — um morro,
 um peixe, um rosto. O modelo entra pelo Design 3D, pela Bolsa ou por um
 arquivo STL, OBJ ou GLB, e sai como uma pilha de camadas da espessura da
@@ -564,13 +587,13 @@ buradesign/
 | `src/modos/blocos/desafios.js` | lista do lote e navegação entre as missões |
 | `src/modos/blocos/progresso.js` | as estrelas de cada desafio, no localStorage |
 | `src/modos/corte/materiais.js` | lista de chapas da escola, kerf e folha; guarda a escolha |
-| `src/modos/corte/chapas.js` | a chapa no espaço, seus planos e a caixa pronta por medida |
+| `src/modos/corte/chapas.js` | a chapa no espaço com giro livre, grupos e a caixa pronta |
 | `src/modos/corte/juntas.js` | acha os encontros entre chapas e desenha os dedos de encaixe |
 | `src/modos/corte/planificar.js` | abre cada chapa em contorno 2D, com abas e entalhes |
 | `src/modos/corte/fatias.js` | corta o modelo 3D em camadas, sem booleana |
 | `src/modos/corte/arranjo.js` | arruma as peças dentro do tamanho da folha |
 | `src/modos/corte/planosvg.js` | escreve o SVG em milímetros e a lista de peças |
-| `src/modos/corte/montagem.js` | bancada de montagem com chapas |
+| `src/modos/corte/montagem.js` | bancada de montagem: seleção, grupos, giro e bolsa |
 | `src/modos/corte/fatiador.js` | bancada do fatiador |
 | `src/modos/corte/menu.js` | porta de entrada do setor, entre as duas bancadas |
 
@@ -619,10 +642,14 @@ instalação como aplicativo, funcionamento com a rede desligada, e o ciclo
 completo de baixar e importar a Bolsa.
 
 No setor de corte, vale conferir também: a caixa pronta aparece no meio da
-mesa; mexer no tamanho do dedo ou na folga muda os riscos verdes na hora; o
-plano de corte abre com todas as peças numeradas e a lista bate com o desenho;
-o fatiador aceita modelo do Design 3D, da Bolsa e de arquivo; e o SVG baixado
-abre no Inkscape com as medidas certas em milímetros.
+mesa e já agrupada; mexer no tamanho do dedo ou na folga muda os riscos verdes
+na hora; um dedo só gira e arrasta a câmera depois de escolher o modo no canto
+da tela; agrupar, guardar na Bolsa, limpar e trazer de volta devolve a mesma
+montagem; girar 90° não muda o plano de corte e girar 45° avisa que a chapa
+ficou em ângulo; o plano de corte abre com todas as peças numeradas e a lista
+bate com o desenho; o fatiador aceita modelo do Design 3D, da Bolsa e de
+arquivo; e o SVG baixado abre no Inkscape com as medidas certas em
+milímetros.
 
 ### Publicar no GitHub Pages
 

@@ -52,6 +52,23 @@
   padding-left: var(--e-2);
 }
 
+/* Botão curto: os graus do giro e a escolha do eixo. Cabem cinco numa linha
+   mesmo na coluna estreita do celular. */
+.botao--curto {
+  min-width: 2.75rem;
+  padding: var(--e-1) var(--e-2);
+  font-family: var(--fonte-mono);
+  font-size: var(--t-12);
+  justify-content: center;
+  flex: 1 1 auto;
+}
+
+.corte .linha-botoes {
+  flex-wrap: wrap;
+  gap: var(--e-1);
+  margin-bottom: var(--e-2);
+}
+
 /* O plano de corte aberto no painel. */
 .corte__plano {
   display: grid;

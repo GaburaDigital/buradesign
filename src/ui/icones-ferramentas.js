@@ -244,6 +244,15 @@ const FERRAMENTAS = {
   encaixe: `<path d="M3 9 H7 V6 H11 V9 H15 V6 H19 V12 H3 Z" ${D}/>
     <path d="M3 13 H7 V16 H11 V13 H15 V16 H19 V19.5 H3 Z" ${V}/>`,
 
+  // Agrupar: peças soltas entrando numa moldura só.
+  agrupar: `<rect x="2.5" y="2.5" width="19" height="19" rx="1" stroke-dasharray="3 2" ${V}/>
+    <rect x="6" y="6" width="6" height="5" ${D}/><rect x="13.5" y="9" width="5" height="4" ${D}/>
+    <rect x="8" y="14" width="7" height="4" ${D}/>`,
+  // Desagrupar: a moldura aberta e uma peça já saindo dela.
+  desagrupar: `<path d="M2.5 8 V2.5 H8 M16 21.5 H21.5 V16" stroke-dasharray="3 2" ${D}/>
+    <rect x="4.5" y="10.5" width="8" height="7" ${D}/>
+    <rect x="13.5" y="3.5" width="7" height="6" ${V}/>`,
+
   // Lista das missões, com as estrelas ao lado.
   listaDesafios: `<path d="M3.5 6.5 H14 M3.5 12 H14 M3.5 17.5 H14" ${D}/>
     <path d="M18 4.5 L18.9 6.6 L21.2 6.8 L19.5 8.3 L20 10.5 L18 9.3 L16 10.5 L16.5 8.3 L14.8 6.8 L17.1 6.6 Z" ${V}/>

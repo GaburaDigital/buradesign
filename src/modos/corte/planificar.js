@@ -4,7 +4,7 @@
 // abas para fora e os entalhes para dentro, mais os rasgos passantes das
 // juntas em T. É este contorno que o arranjo encaixa na folha e o SVG desenha.
 
-import { PLANOS } from "./chapas.js";
+import { rotulosDaChapa } from "./chapas.js";
 
 // A volta é sempre a mesma: v0 da esquerda para a direita, u1 subindo, v1
 // voltando, u0 descendo. Cada borda sabe para que lado fica o "fora".
@@ -91,12 +91,14 @@ export function planificar(chapa, espessura, encaixes = {}, furos = []) {
     ]);
 
   const limites = medirContorno(contorno);
+  const rotulos = rotulosDaChapa(chapa);
   return {
     id: chapa.id,
     nome: chapa.nome,
     plano: chapa.plano,
-    rotuloU: PLANOS[chapa.plano].rotuloU,
-    rotuloV: PLANOS[chapa.plano].rotuloV,
+    grupo: chapa.grupo || null,
+    rotuloU: rotulos.rotuloU,
+    rotuloV: rotulos.rotuloV,
     largura: chapa.largura,
     altura: chapa.altura,
     contorno,

@@ -4,6 +4,11 @@
 // descobre os encaixes é o programa: toda vez que a montagem muda, as juntas
 // são recalculadas e aparecem no 3D. O plano de corte é o fim da linha — e só
 // sai certo se a montagem estiver certa, o que é exatamente a lição.
+//
+// A navegação é a mesma do Criação Livre 3D de propósito: quem aprendeu a
+// girar a câmera lá não pode ter que aprender de novo aqui. Os modos do
+// ponteiro e os modos da garra têm os mesmos nomes, os mesmos ícones e os
+// mesmos atalhos.
 
 import * as THREE from "three";
 import { TransformControls } from "three/addons/controls/TransformControls.js";
@@ -14,10 +19,17 @@ import { tocar } from "../../core/som.js";
 import { valor as ajuste } from "../../core/ajustes.js";
 import { t } from "../../core/idioma.js";
 import { baixarTexto, carimboDeData } from "../../core/arquivos.js";
+import * as bolsa from "../../core/bolsa.js";
 import { icone } from "../../ui/icones.js";
 import { ferramenta as iconeFerramenta } from "../../ui/icones-ferramentas.js";
-import { mostrarAviso, confirmar, perguntarTexto, abrirPainel, fecharPainel } from "../../ui/painel.js";
-import { fala } from "../../ui/aliens.js";
+import {
+  mostrarAviso,
+  confirmar,
+  perguntarTexto,
+  abrirPainel,
+  fecharPainel,
+} from "../../ui/painel.js";
+import { definirDestino, limparDestino } from "../../ui/painel-bolsa.js";
 import { campoArrastavel } from "../../ui/campo-numero.js";
 import { grupoDeFerramentas, fecharMenusFlutuantes } from "../../ui/menu-flutuante.js";
 
@@ -41,20 +53,48 @@ const VISTAS = [
   ["tras", "Trás"],
 ];
 
+// Os mesmos quatro modos do Criação Livre 3D, com os mesmos atalhos.
+const MODOS_DE_PONTEIRO = [
+  { id: "selecionar", icone: "seta", rotulo: "Selecionar" },
+  { id: "somar", icone: "somar", rotulo: "Somar à seleção" },
+  { id: "mao", icone: "mao", rotulo: "Arrastar a vista" },
+  { id: "camera", icone: "camera", rotulo: "Girar a câmera" },
+];
+
+const MODOS_DE_GARRA = [
+  { id: "base", icone: "naBase", rotulo: "Mover na base", garra: "translate", semY: true },
+  { id: "translate", icone: "mover3d", rotulo: "Mover livre", garra: "translate" },
+  { id: "rotate", icone: "girar", rotulo: "Girar", garra: "rotate" },
+];
+
+const EIXOS_DO_GIRO = [
+  { id: "x", rotulo: "X" },
+  { id: "y", rotulo: "Y" },
+  { id: "z", rotulo: "Z" },
+];
+
 let raiz = null;
 let areaAtual = null;
 let tela = null;
 let painelArea = null;
 let statusArea = null;
 let garra = null;
+let punho = null;
 let raio = null;
 let desligar = [];
 
 let chapas = [];
-let selecionada = null;
+let selecao = [];
+let grupoContador = 0;
 let grupo = null;
 let grupoJuntas = null;
 let ultimoResultado = null;
+let modoDoPonteiro = "selecionar";
+let modoDaGarra = "base";
+let eixoDoGiro = "y";
+let giroFino = 15;
+let arrastando = false;
+let punhoAnterior = null;
 
 function config() {
   return materiais.valores();
@@ -77,38 +117,138 @@ function pousarNoMeioDaMesa(lista) {
   return lista;
 }
 
-// --- Desenho -----------------------------------------------------------
+// --- Seleção e grupos ---------------------------------------------------
+
+function chapaPorId(id) {
+  return chapas.find((item) => item.id === id) || null;
+}
+
+function selecionadas() {
+  return selecao.map(chapaPorId).filter(Boolean);
+}
+
+// Tocar numa chapa agrupada pega o grupo inteiro: é o que faz o grupo
+// parecer uma peça só na mão do aluno.
+function comOGrupo(ids) {
+  const alvo = new Set();
+  for (const id of ids) {
+    const chapa = chapaPorId(id);
+    if (!chapa) continue;
+    if (chapa.grupo) {
+      for (const outra of chapas) if (outra.grupo === chapa.grupo) alvo.add(outra.id);
+    } else {
+      alvo.add(id);
+    }
+  }
+  return [...alvo];
+}
+
+function selecionar(ids, { somando = false } = {}) {
+  const pedido = comOGrupo(Array.isArray(ids) ? ids : [ids].filter(Boolean));
+  if (somando) {
+    const atual = new Set(selecao);
+    // Tocar de novo numa peça já escolhida tira ela da seleção.
+    const jaEstava = pedido.length && pedido.every((id) => atual.has(id));
+    for (const id of pedido) {
+      if (jaEstava) atual.delete(id);
+      else atual.add(id);
+    }
+    selecao = [...atual];
+  } else {
+    selecao = pedido;
+  }
+  redesenhar();
+  atualizarPainel();
+}
+
+function agrupar() {
+  const lista = selecionadas();
+  if (lista.length < 2) {
+    tocar("erro");
+    mostrarAviso("Escolha pelo menos duas chapas para agrupar.", "alerta");
+    return;
+  }
+  grupoContador += 1;
+  const nome = `grupo${grupoContador}`;
+  for (const chapa of lista) chapa.grupo = nome;
+  tocar("pronto");
+  mostrarAviso(`${lista.length} chapas agrupadas. Agora elas andam juntas.`);
+  selecionar(lista.map((chapa) => chapa.id));
+}
+
+function desagrupar() {
+  const lista = selecionadas().filter((chapa) => chapa.grupo);
+  if (!lista.length) {
+    tocar("erro");
+    mostrarAviso("Nenhuma das chapas escolhidas está num grupo.", "alerta");
+    return;
+  }
+  for (const chapa of lista) chapa.grupo = null;
+  tocar("clique");
+  mostrarAviso(`${lista.length} chapas soltas do grupo.`);
+  selecionar(lista.map((chapa) => chapa.id));
+}
+
+function quantosGrupos() {
+  return new Set(chapas.map((chapa) => chapa.grupo).filter(Boolean)).size;
+}
+
+// --- Desenho ------------------------------------------------------------
 
 function corDaChapa(chapa) {
-  const plano = chapa.plano;
-  if (plano === "XZ") return 0x8fd19e;
-  if (plano === "XY") return 0x7fb3d5;
+  // Chapa agrupada ganha um tom próprio, para o grupo se enxergar de longe.
+  if (chapa.grupo) {
+    const numero = Number(String(chapa.grupo).replace(/\D/g, "")) || 1;
+    const tons = [0xe0b26a, 0x8fd19e, 0x7fb3d5, 0xc5a6e0, 0xd58f8f];
+    return tons[(numero - 1) % tons.length];
+  }
+  const q = chapasMod.quadro(chapa);
+  if (!q) return 0xb0b7bd;
+  const eixo = q.porLocal.n.eixo;
+  if (eixo === "y") return 0x8fd19e;
+  if (eixo === "z") return 0x7fb3d5;
   return 0xc5a6e0;
+}
+
+function malhaDe(id) {
+  return grupo ? grupo.children.find((filho) => filho.userData.chapa === id) || null : null;
+}
+
+function posicionarMalha(malha, chapa) {
+  malha.position.set(chapa.centro.x, chapa.centro.y, chapa.centro.z);
+  malha.rotation.set(
+    (chapa.giro.x * Math.PI) / 180,
+    (chapa.giro.y * Math.PI) / 180,
+    (chapa.giro.z * Math.PI) / 180,
+    "XYZ",
+  );
 }
 
 function redesenhar() {
   if (!grupo) return;
   for (const filho of grupo.children.slice()) {
-    filho.geometry?.dispose?.();
-    filho.material?.dispose?.();
+    filho.traverse?.((neto) => {
+      neto.geometry?.dispose?.();
+      neto.material?.dispose?.();
+    });
     grupo.remove(filho);
   }
   const { espessura } = config();
+  const escolhidas = new Set(selecao);
   for (const chapa of chapas) {
-    const caixa = chapasMod.extensao(chapa, espessura);
     const malha = new THREE.Mesh(
-      new THREE.BoxGeometry(caixa.tamanho.x, caixa.tamanho.y, caixa.tamanho.z),
+      new THREE.BoxGeometry(chapa.largura, chapa.altura, espessura),
       new THREE.MeshStandardMaterial({
         color: corDaChapa(chapa),
         roughness: 0.75,
         metalness: 0.02,
         transparent: true,
-        opacity: selecionada && selecionada !== chapa.id ? 0.55 : 1,
-        emissive: new THREE.Color(selecionada === chapa.id ? cena.paleta3d().guia : 0x000000),
-        emissiveIntensity: selecionada === chapa.id ? 0.35 : 0,
+        opacity: escolhidas.size && !escolhidas.has(chapa.id) ? 0.5 : 1,
+        emissive: new THREE.Color(escolhidas.has(chapa.id) ? cena.paleta3d().guia : 0x000000),
+        emissiveIntensity: escolhidas.has(chapa.id) ? 0.35 : 0,
       }),
     );
-    malha.position.set(chapa.centro.x, chapa.centro.y, chapa.centro.z);
+    posicionarMalha(malha, chapa);
     malha.userData.chapa = chapa.id;
     const contorno = new THREE.LineSegments(
       new THREE.EdgesGeometry(malha.geometry, 20),
@@ -119,6 +259,15 @@ function redesenhar() {
   }
   recalcularJuntas();
   prenderGarra();
+}
+
+// Só mexe no que já está desenhado. Serve para o arrasto, onde refazer a
+// geometria a cada quadro deixava o celular engasgado.
+function reposicionarMalhas() {
+  for (const chapa of chapas) {
+    const malha = malhaDe(chapa.id);
+    if (malha) posicionarMalha(malha, chapa);
+  }
 }
 
 // As juntas viram riscos verdes na montagem: o aluno vê onde vai ter dedo
@@ -140,16 +289,24 @@ function recalcularJuntas() {
     if (!a || !b) continue;
     const ca = chapasMod.extensao(a, espessura);
     const cb = chapasMod.extensao(b, espessura);
-    const de = { x: Math.max(ca.min.x, cb.min.x), y: Math.max(ca.min.y, cb.min.y), z: Math.max(ca.min.z, cb.min.z) };
-    const ate = { x: Math.min(ca.max.x, cb.max.x), y: Math.min(ca.max.y, cb.max.y), z: Math.min(ca.max.z, cb.max.z) };
+    const de = {
+      x: Math.max(ca.min.x, cb.min.x),
+      y: Math.max(ca.min.y, cb.min.y),
+      z: Math.max(ca.min.z, cb.min.z),
+    };
+    const ate = {
+      x: Math.min(ca.max.x, cb.max.x),
+      y: Math.min(ca.max.y, cb.max.y),
+      z: Math.min(ca.max.z, cb.max.z),
+    };
     pontos.push(de.x, de.y, de.z, ate.x, ate.y, ate.z);
   }
   if (pontos.length) {
-    const geometria = new THREE.BufferGeometry();
-    geometria.setAttribute("position", new THREE.Float32BufferAttribute(pontos, 3));
     // A junta mora dentro do encontro das duas chapas, então ficava escondida
     // pelas próprias chapas. Sem teste de profundidade ela aparece por cima,
     // que é o que interessa: o aluno vê onde vai nascer dedo antes de cortar.
+    const geometria = new THREE.BufferGeometry();
+    geometria.setAttribute("position", new THREE.Float32BufferAttribute(pontos, 3));
     const linhas = new THREE.LineSegments(
       geometria,
       new THREE.LineBasicMaterial({
@@ -165,28 +322,125 @@ function recalcularJuntas() {
   atualizarStatus();
 }
 
-function chapaSelecionada() {
-  return chapas.find((chapa) => chapa.id === selecionada) || null;
-}
-
-function malhaDe(id) {
-  return grupo.children.find((filho) => filho.userData.chapa === id) || null;
-}
+// --- Garra --------------------------------------------------------------
 
 function prenderGarra() {
-  if (!garra) return;
-  const alvo = selecionada ? malhaDe(selecionada) : null;
-  if (alvo) garra.attach(alvo);
-  else garra.detach();
+  if (!garra || !punho) return;
+  const lista = selecionadas();
+  if (!lista.length) {
+    garra.detach();
+    punho.visible = false;
+    return;
+  }
+  const { espessura } = config();
+  const centro = chapasMod.centroDasChapas(lista, espessura);
+  punho.position.set(centro.x, centro.y, centro.z);
+  punho.rotation.set(0, 0, 0);
+  punho.updateMatrixWorld(true);
+  punho.visible = true;
+  guardarPunho();
+  garra.attach(punho);
 }
 
-function selecionar(id) {
-  selecionada = id;
+function guardarPunho() {
+  punhoAnterior = {
+    posicao: punho.position.clone(),
+    giro: punho.quaternion.clone(),
+  };
+}
+
+// Do quaternion da garra para a matriz que as chapas entendem.
+function matrizDoQuaternion(quaternion) {
+  const m = new THREE.Matrix4().makeRotationFromQuaternion(quaternion);
+  const te = m.elements;
+  return [
+    [te[0], te[4], te[8]],
+    [te[1], te[5], te[9]],
+    [te[2], te[6], te[10]],
+  ];
+}
+
+function seguirGarra() {
+  if (!punhoAnterior) return;
+  const lista = selecionadas();
+  if (!lista.length) return;
+
+  const giroDelta = punho.quaternion.clone().multiply(punhoAnterior.giro.clone().invert());
+  const mexeuOGiro = Math.abs(giroDelta.w) < 0.9999999;
+  if (mexeuOGiro) {
+    const pivo = punhoAnterior.posicao;
+    chapasMod.aplicarGiroDoMundo(lista, matrizDoQuaternion(giroDelta), {
+      x: pivo.x,
+      y: pivo.y,
+      z: pivo.z,
+    });
+  }
+
+  const delta = punho.position.clone().sub(punhoAnterior.posicao);
+  if (delta.lengthSq() > 0) chapasMod.moverChapas(lista, delta);
+
+  guardarPunho();
+  reposicionarMalhas();
+}
+
+function trocarGarra(id) {
+  modoDaGarra = id;
+  const ficha = MODOS_DE_GARRA.find((modo) => modo.id === id) || MODOS_DE_GARRA[0];
+  if (!garra) return;
+  garra.setMode(ficha.garra);
+  garra.showX = true;
+  garra.showZ = true;
+  garra.showY = !ficha.semY;
+  const selo = raiz?.querySelector("[data-selo-garra]");
+  if (selo) selo.innerHTML = `${iconeFerramenta(ficha.icone)}<span>${ficha.rotulo}</span>`;
+}
+
+// Ação do dedo ou do botão esquerdo. Igualzinho ao Criação Livre 3D: sem
+// isto, no celular não sobrava jeito nenhum de girar a câmera.
+function trocarPonteiro(id) {
+  modoDoPonteiro = id;
+  const ficha = MODOS_DE_PONTEIRO.find((modo) => modo.id === id) || MODOS_DE_PONTEIRO[0];
+  const orbita = cena3d.orbita;
+  if (!orbita) return;
+  if (id === "mao") {
+    orbita.mouseButtons.LEFT = THREE.MOUSE.PAN;
+    orbita.touches.ONE = THREE.TOUCH.PAN;
+  } else if (id === "camera") {
+    orbita.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+    orbita.touches.ONE = THREE.TOUCH.ROTATE;
+  } else {
+    orbita.mouseButtons.LEFT = null;
+    orbita.touches.ONE = null;
+  }
+  orbita.mouseButtons.MIDDLE = THREE.MOUSE.PAN;
+  orbita.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
+  orbita.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+  const selo = raiz?.querySelector("[data-selo]");
+  if (selo) {
+    selo.innerHTML = `${iconeFerramenta(ficha.icone)}<span>${ficha.rotulo}</span>`;
+    selo.classList.add("selo-ponteiro--visivel");
+  }
+  mostrarAviso(`Toque na tela: ${ficha.rotulo.toLowerCase()}.`);
+}
+
+// --- Girar pelo botão ---------------------------------------------------
+
+function girarSelecao(graus) {
+  const lista = selecionadas();
+  if (!lista.length) {
+    tocar("erro");
+    mostrarAviso("Escolha uma chapa ou um grupo antes de girar.", "alerta");
+    return;
+  }
+  const { espessura } = config();
+  const pivo = chapasMod.centroDasChapas(lista, espessura);
+  chapasMod.girarChapas(lista, eixoDoGiro, graus, pivo);
+  tocar("clique");
   redesenhar();
   atualizarPainel();
 }
 
-// --- Ações -------------------------------------------------------------
+// --- Ações --------------------------------------------------------------
 
 function inserirChapa(plano) {
   const { espessura } = config();
@@ -204,7 +458,7 @@ function inserirChapa(plano) {
   });
   chapas.push(chapa);
   tocar("clique");
-  selecionar(chapa.id);
+  selecionar([chapa.id]);
 }
 
 async function gerarCaixa() {
@@ -270,41 +524,61 @@ async function gerarCaixa() {
 
   const { espessura } = config();
   chapasMod.reiniciarContagem(0);
-  chapas = pousarNoMeioDaMesa(chapasMod.montarCaixa({ ...valores, espessura }));
-  selecionada = null;
+  const novas = pousarNoMeioDaMesa(chapasMod.montarCaixa({ ...valores, espessura }));
+  // A caixa pronta chega como um grupo só: ela é uma peça na cabeça do aluno,
+  // não cinco chapas soltas que ele precisa juntar na mão.
+  grupoContador += 1;
+  for (const chapa of novas) chapa.grupo = `grupo${grupoContador}`;
+  chapas = novas;
   tocar("pronto");
-  redesenhar();
-  atualizarPainel();
+  selecionar([]);
   cena.enquadrar();
-  mostrarAviso(`Caixa de ${valores.largura} × ${valores.altura} × ${valores.profundidade} mm montada.`);
+  mostrarAviso(
+    `Caixa de ${valores.largura} × ${valores.altura} × ${valores.profundidade} mm montada, já agrupada.`,
+  );
 }
 
-async function apagarChapa() {
-  const chapa = chapaSelecionada();
-  if (!chapa) {
+async function apagarSelecao() {
+  const lista = selecionadas();
+  if (!lista.length) {
     mostrarAviso("Escolha uma chapa antes.", "alerta");
     return;
   }
-  chapas = chapas.filter((item) => item.id !== chapa.id);
-  selecionada = null;
-  redesenhar();
-  atualizarPainel();
+  const alvo = new Set(lista.map((chapa) => chapa.id));
+  chapas = chapas.filter((chapa) => !alvo.has(chapa.id));
+  selecionar([]);
 }
 
-function duplicarChapa() {
-  const chapa = chapaSelecionada();
-  if (!chapa) {
+function duplicarSelecao() {
+  const lista = selecionadas();
+  if (!lista.length) {
     mostrarAviso("Escolha uma chapa antes.", "alerta");
     return;
   }
-  const copia = chapasMod.novaChapa({
-    plano: chapa.plano,
-    largura: chapa.largura,
-    altura: chapa.altura,
-    centro: { ...chapa.centro, x: chapa.centro.x + 10, z: chapa.centro.z + 10 },
+  // Duplicar um grupo dá outro grupo, não cinco chapas soltas.
+  const mapaDeGrupos = new Map();
+  const copias = lista.map((chapa) => {
+    let novoGrupo = null;
+    if (chapa.grupo) {
+      if (!mapaDeGrupos.has(chapa.grupo)) {
+        grupoContador += 1;
+        mapaDeGrupos.set(chapa.grupo, `grupo${grupoContador}`);
+      }
+      novoGrupo = mapaDeGrupos.get(chapa.grupo);
+    }
+    return chapasMod.novaChapa({
+      plano: chapa.plano,
+      largura: chapa.largura,
+      altura: chapa.altura,
+      centro: { ...chapa.centro, x: chapa.centro.x + 10, z: chapa.centro.z + 10 },
+      giro: { ...chapa.giro },
+      grupo: novoGrupo,
+      nome: `${chapa.nome} (cópia)`,
+    });
   });
-  chapas.push(copia);
-  selecionar(copia.id);
+  chapas.push(...copias);
+  tocar("clique");
+  selecionar(copias.map((chapa) => chapa.id));
 }
 
 async function limparTudo() {
@@ -312,10 +586,91 @@ async function limparTudo() {
   const certeza = await confirmar("Isso apaga todas as chapas da montagem. Continuar?");
   if (!certeza) return;
   chapas = [];
-  selecionada = null;
   chapasMod.reiniciarContagem(0);
-  redesenhar();
-  atualizarPainel();
+  grupoContador = 0;
+  selecionar([]);
+}
+
+// --- Bolsa --------------------------------------------------------------
+
+function fotografar() {
+  try {
+    cena3d.renderizador.render(cena3d.cena, cena3d.camera);
+    return cena3d.renderizador.domElement.toDataURL("image/png");
+  } catch {
+    return "";
+  }
+}
+
+async function guardarNaBolsa() {
+  const lista = selecionadas().length ? selecionadas() : chapas;
+  if (!lista.length) {
+    tocar("erro");
+    mostrarAviso("Não há chapa nenhuma para guardar.", "alerta");
+    return;
+  }
+  const nome = await perguntarTexto("Guardar na bolsa", "Nome da montagem:", "Montagem");
+  if (nome === null) return;
+  const { espessura } = config();
+  const medidas = chapasMod.medidasDaCaixa(lista, espessura);
+  await bolsa.adicionar({
+    nome,
+    tipo: "montagem",
+    origem: "corte",
+    dados: {
+      // O grupo viaja junto: quem sobe agrupado, desce agrupado.
+      chapas: lista.map((chapa) => ({
+        nome: chapa.nome,
+        plano: chapa.plano,
+        largura: chapa.largura,
+        altura: chapa.altura,
+        centro: { ...chapa.centro },
+        giro: { ...chapa.giro },
+        grupo: chapa.grupo || null,
+      })),
+      espessura,
+      larguraMm: Number(medidas.largura.toFixed(2)),
+      alturaMm: Number(medidas.altura.toFixed(2)),
+      profundidadeMm: Number(medidas.profundidade.toFixed(2)),
+      previa: fotografar(),
+    },
+  });
+  tocar("salvar");
+  mostrarAviso(`"${nome}" guardada na bolsa com ${lista.length} chapa(s).`);
+}
+
+// Recebe da bolsa. Tudo que desce vira um grupo só, e desce no meio da mesa.
+function colocarDaBolsa(item) {
+  const guardadas = item?.dados?.chapas;
+  if (!Array.isArray(guardadas) || !guardadas.length) {
+    mostrarAviso("Esta peça não é uma montagem de chapas. Use o fatiador ou o Design 3D.", "alerta");
+    return false;
+  }
+  const antigo = new Map();
+  const criadas = guardadas.map((guardada) => {
+    let novoGrupo = null;
+    if (guardada.grupo) {
+      if (!antigo.has(guardada.grupo)) {
+        grupoContador += 1;
+        antigo.set(guardada.grupo, `grupo${grupoContador}`);
+      }
+      novoGrupo = antigo.get(guardada.grupo);
+    }
+    return chapasMod.novaChapa({ ...guardada, grupo: novoGrupo });
+  });
+  // Se veio tudo solto, ainda assim junta num grupo: quem traz da bolsa quer
+  // a peça inteira, não um monte de chapa para reunir de novo.
+  if (criadas.every((chapa) => !chapa.grupo) && criadas.length > 1) {
+    grupoContador += 1;
+    for (const chapa of criadas) chapa.grupo = `grupo${grupoContador}`;
+  }
+  const centro = chapasMod.centroDasChapas(criadas, item?.dados?.espessura || config().espessura);
+  const meio = meioDaMesa();
+  chapasMod.moverChapas(criadas, { x: meio.x - centro.x, y: 0, z: meio.z - centro.z });
+  chapas.push(...criadas);
+  selecionar(criadas.map((chapa) => chapa.id));
+  cena.enquadrar();
+  return true;
 }
 
 // --- Plano de corte ----------------------------------------------------
@@ -389,7 +744,11 @@ function abrirPlano() {
         rotulo: "Baixar SVG",
         variante: "destaque",
         aoClicar: async () => {
-          const nome = await perguntarTexto("Baixar plano de corte", "Nome do arquivo:", "plano_de_corte");
+          const nome = await perguntarTexto(
+            "Baixar plano de corte",
+            "Nome do arquivo:",
+            "plano_de_corte",
+          );
           if (nome === null) return;
           baixarTexto(`${nomeDeArquivo(nome)}_${carimboDeData()}.svg`, svg, "image/svg+xml");
           tocar("salvar");
@@ -451,11 +810,120 @@ function botao(nomeIcone, rotulo, aoClicar, extra = "") {
   return alvo;
 }
 
+function botaoCurto(rotulo, aoClicar, ativo = false) {
+  const alvo = document.createElement("button");
+  alvo.type = "button";
+  alvo.className = `botao botao--curto${ativo ? " botao--destaque" : ""}`;
+  alvo.textContent = rotulo;
+  alvo.addEventListener("click", aoClicar);
+  return alvo;
+}
+
 function linhaBotoes(...botoes) {
   const linha = document.createElement("div");
   linha.className = "linha-botoes";
   linha.append(...botoes.filter(Boolean));
   return linha;
+}
+
+function secaoDaSelecao() {
+  const lista = selecionadas();
+  const secao = grupoPainel(
+    lista.length === 1 ? lista[0].nome : `${lista.length} chapas escolhidas`,
+  );
+
+  const emGrupo = lista.filter((chapa) => chapa.grupo).length;
+  if (emGrupo) {
+    const nota = document.createElement("p");
+    nota.className = "dica";
+    nota.textContent =
+      emGrupo === lista.length
+        ? "Estas chapas estão agrupadas: andam e giram juntas."
+        : `${emGrupo} das ${lista.length} estão agrupadas.`;
+    secao.append(nota);
+  }
+
+  secao.append(
+    linhaBotoes(
+      botao("agrupar", "Agrupar", agrupar),
+      botao("desagrupar", "Desagrupar", desagrupar),
+    ),
+  );
+
+  // Girar: eixo, depois o tanto.
+  const tituloGiro = document.createElement("p");
+  tituloGiro.className = "campo__rotulo";
+  tituloGiro.textContent = "Girar em volta do eixo";
+  const eixos = document.createElement("div");
+  eixos.className = "linha-botoes";
+  for (const item of EIXOS_DO_GIRO) {
+    eixos.append(
+      botaoCurto(
+        item.rotulo,
+        () => {
+          eixoDoGiro = item.id;
+          atualizarPainel();
+        },
+        eixoDoGiro === item.id,
+      ),
+    );
+  }
+  const passos = document.createElement("div");
+  passos.className = "linha-botoes";
+  for (const graus of [-90, -45, 45, 90, 180]) {
+    passos.append(
+      botaoCurto(`${graus > 0 ? "+" : ""}${graus}°`, () => girarSelecao(graus)),
+    );
+  }
+  secao.append(tituloGiro, eixos, passos);
+  secao.append(
+    campoNumero("Ajuste fino (graus)", giroFino, (n) => {
+      giroFino = n;
+    }, { min: -180, max: 180, passo: 1 }),
+    linhaBotoes(botao("girar", "Girar o ajuste fino", () => girarSelecao(giroFino))),
+  );
+
+  if (lista.length === 1) {
+    const chapa = lista[0];
+    const rotulos = chapasMod.rotulosDaChapa(chapa);
+    secao.append(
+      campoNumero(`${rotulos.rotuloU} (mm)`, chapa.largura, (n) => {
+        chapa.largura = n;
+        redesenhar();
+      }, { min: 5, max: 2000, passo: 1 }),
+      campoNumero(`${rotulos.rotuloV} (mm)`, chapa.altura, (n) => {
+        chapa.altura = n;
+        redesenhar();
+      }, { min: 5, max: 2000, passo: 1 }),
+      campoNumero("Posição X (mm)", chapa.centro.x, (n) => {
+        chapa.centro.x = n;
+        redesenhar();
+      }, { min: -2000, max: 2000, passo: 1 }),
+      campoNumero("Posição Y (mm)", chapa.centro.y, (n) => {
+        chapa.centro.y = n;
+        redesenhar();
+      }, { min: -2000, max: 2000, passo: 1 }),
+      campoNumero("Posição Z (mm)", chapa.centro.z, (n) => {
+        chapa.centro.z = n;
+        redesenhar();
+      }, { min: -2000, max: 2000, passo: 1 }),
+    );
+    if (!chapasMod.alinhada(chapa)) {
+      const alerta = document.createElement("p");
+      alerta.className = "dica dica--alerta";
+      alerta.textContent =
+        "Esta chapa está em ângulo. O encaixe automático dela chega no próximo lote.";
+      secao.append(alerta);
+    }
+  }
+
+  secao.append(
+    linhaBotoes(
+      botao("duplicar", "Duplicar", duplicarSelecao),
+      botao("lixo", "Apagar", apagarSelecao, "botao--perigo"),
+    ),
+  );
+  return secao;
 }
 
 function atualizarPainel() {
@@ -512,51 +980,13 @@ function atualizarPainel() {
 
   painelArea.append(material, folha);
 
-  const chapa = chapaSelecionada();
-  if (chapa) {
-    const plano = chapasMod.PLANOS[chapa.plano];
-    const secao = grupoPainel(chapa.nome);
-    secao.append(
-      campoLista(
-        "Como está plantada",
-        chapa.plano,
-        Object.entries(chapasMod.PLANOS).map(([id, item]) => ({ id, nome: item.nome })),
-        (id) => {
-          chapa.plano = id;
-          redesenhar();
-          atualizarPainel();
-        },
-      ),
-      campoNumero(`${plano.rotuloU} (mm)`, chapa.largura, (n) => {
-        chapa.largura = n;
-        redesenhar();
-      }, { min: 5, max: 2000, passo: 1 }),
-      campoNumero(`${plano.rotuloV} (mm)`, chapa.altura, (n) => {
-        chapa.altura = n;
-        redesenhar();
-      }, { min: 5, max: 2000, passo: 1 }),
-      campoNumero("Posição X (mm)", chapa.centro.x, (n) => {
-        chapa.centro.x = n;
-        redesenhar();
-      }, { min: -1000, max: 1000, passo: 1 }),
-      campoNumero("Posição Y (mm)", chapa.centro.y, (n) => {
-        chapa.centro.y = n;
-        redesenhar();
-      }, { min: -1000, max: 1000, passo: 1 }),
-      campoNumero("Posição Z (mm)", chapa.centro.z, (n) => {
-        chapa.centro.z = n;
-        redesenhar();
-      }, { min: -1000, max: 1000, passo: 1 }),
-      linhaBotoes(
-        botao("duplicar", "Duplicar", duplicarChapa),
-        botao("lixo", "Apagar", apagarChapa, "botao--perigo"),
-      ),
-    );
-    painelArea.append(secao);
+  if (selecionadas().length) {
+    painelArea.append(secaoDaSelecao());
   } else {
     const dica = document.createElement("p");
     dica.className = "dica";
-    dica.textContent = "Toque numa chapa para ajustar o tamanho e a posição dela.";
+    dica.textContent =
+      "Toque numa chapa para ajustar. Segure Shift (ou use o modo Somar) para escolher várias.";
     painelArea.append(dica);
   }
 }
@@ -567,14 +997,15 @@ function atualizarStatus() {
   const medidas = chapasMod.medidasDaCaixa(chapas, cfg.espessura);
   const juntas = ultimoResultado ? ultimoResultado.juntas.length : 0;
   const emT = ultimoResultado ? ultimoResultado.juntas.filter((j) => j.tipo === "te").length : 0;
+  const grupos = quantosGrupos();
   statusArea.textContent = chapas.length
-    ? `${chapas.length} chapa(s) · ${materiais.nomeDoMaterial()} · montagem ${Math.round(medidas.largura)} × ${Math.round(medidas.altura)} × ${Math.round(medidas.profundidade)} mm · ${juntas} junta(s)${emT ? ` (${emT} em T)` : ""}`
+    ? `${chapas.length} chapa(s)${grupos ? ` em ${grupos} grupo(s)` : ""} · ${materiais.nomeDoMaterial()} · montagem ${Math.round(medidas.largura)} × ${Math.round(medidas.altura)} × ${Math.round(medidas.profundidade)} mm · ${juntas} junta(s)${emT ? ` (${emT} em T)` : ""}${selecao.length ? ` · ${selecao.length} escolhida(s)` : ""}`
     : "Comece por uma caixa pronta ou plante uma chapa.";
 }
 
 // --- Montagem da tela --------------------------------------------------
 
-function montarEsqueleto(area, aoVoltar, aoTrocar) {
+function montarEsqueleto(area, aoVoltar) {
   area.innerHTML = "";
   areaAtual = area;
   area.classList.add("conteudo--cheio");
@@ -586,6 +1017,7 @@ function montarEsqueleto(area, aoVoltar, aoTrocar) {
       <nav class="livre__ferramentas" aria-label="Chapas"></nav>
       <div class="livre__palco">
         <canvas id="tela-corte" aria-label="Montagem com chapas"></canvas>
+        <div class="palco__canto palco__canto--topo-esquerda"></div>
         <div class="palco__canto palco__canto--topo-direita"></div>
         <div class="palco__canto palco__canto--zoom"></div>
       </div>
@@ -618,13 +1050,34 @@ function montarEsqueleto(area, aoVoltar, aoTrocar) {
     botaoBarra("voltar", t("acoes.voltarSetor"), aoVoltar, "com-rotulo botao--destaque", true),
     risco(),
     botaoBarra("caixas", "Caixa pronta", gerarCaixa, "com-rotulo"),
+    botaoBarra("agrupar", "Agrupar", agrupar, "com-rotulo"),
+    botaoBarra("desagrupar", "Desagrupar", desagrupar, "com-rotulo"),
+    risco(),
+    botaoBarra("guardarBolsa", "Guardar na bolsa", guardarNaBolsa, "com-rotulo"),
     botaoBarra("planoCorte", "Plano de corte", abrirPlano, "com-rotulo botao--destaque"),
     risco(),
-    botaoBarra("fatiar", "Ir para o fatiador", aoTrocar, "com-rotulo"),
     botaoBarra("lixo", "Limpar montagem", limparTudo, "botao--perigo com-rotulo"),
   );
 
   const caixa = raiz.querySelector(".livre__ferramentas");
+  caixa.append(
+    grupoDeFerramentas({
+      id: "movimento",
+      icone: "naBase",
+      rotulo: "Modo de movimento",
+      opcoes: MODOS_DE_GARRA.map((modo, indice) => ({
+        id: modo.id,
+        icone: modo.icone,
+        rotulo: `${modo.rotulo}  (${indice + 1})`,
+      })),
+      aoEscolher: (opcao) => trocarGarra(opcao.id),
+    }),
+  );
+  const seloGarra = document.createElement("span");
+  seloGarra.className = "selo-ponteiro selo-ponteiro--visivel";
+  seloGarra.dataset.seloGarra = "";
+  caixa.append(seloGarra);
+
   for (const [id, plano] of Object.entries(chapasMod.PLANOS)) {
     const alvo = document.createElement("button");
     alvo.type = "button";
@@ -634,6 +1087,24 @@ function montarEsqueleto(area, aoVoltar, aoTrocar) {
     alvo.addEventListener("click", () => inserirChapa(id));
     caixa.append(alvo);
   }
+
+  // Modos do ponteiro por cima da cena, igual ao Criação Livre 3D: é daqui
+  // que sai o girar e o arrastar a câmera no celular.
+  const cantoEsquerdo = raiz.querySelector(".palco__canto--topo-esquerda");
+  cantoEsquerdo.append(
+    grupoDeFerramentas({
+      id: "ponteiro",
+      icone: "ponteiro",
+      rotulo: t("acoes.ponteiro"),
+      modo: "barra",
+      opcoes: MODOS_DE_PONTEIRO.map((modo) => ({ ...modo })),
+      aoEscolher: (opcao) => trocarPonteiro(opcao.id),
+    }),
+  );
+  const selo = document.createElement("span");
+  selo.className = "selo-ponteiro";
+  selo.dataset.selo = "";
+  cantoEsquerdo.append(selo);
 
   const cantoDireito = raiz.querySelector(".palco__canto--topo-direita");
   cantoDireito.append(
@@ -665,59 +1136,77 @@ function aproximar(fator) {
   cena3d.orbita.update();
 }
 
-export async function montar(area, setor, aoVoltar, opcoes = {}) {
+function chapaSobOPonteiro(evento) {
+  const retangulo = tela.getBoundingClientRect();
+  const ponteiro = new THREE.Vector2(
+    ((evento.clientX - retangulo.left) / retangulo.width) * 2 - 1,
+    -((evento.clientY - retangulo.top) / retangulo.height) * 2 + 1,
+  );
+  raio.setFromCamera(ponteiro, cena3d.camera);
+  const acertos = raio.intersectObjects(grupo.children, false);
+  return acertos.length ? acertos[0].object.userData.chapa : null;
+}
+
+export async function montar(area, setor, aoVoltar) {
   carregarEstilo("styles/livre.css");
   carregarEstilo("styles/corte.css");
   materiais.carregar();
-  montarEsqueleto(area, aoVoltar, opcoes.aoTrocar || (() => {}));
+  montarEsqueleto(area, aoVoltar);
 
   cena.iniciar(tela);
-  cena3d.orbita.mouseButtons = {
-    LEFT: null,
-    MIDDLE: THREE.MOUSE.PAN,
-    RIGHT: THREE.MOUSE.ROTATE,
-  };
-  cena3d.orbita.touches = { ONE: null, TWO: THREE.TOUCH.DOLLY_PAN };
-
   grupo = new THREE.Group();
   grupoJuntas = new THREE.Group();
   cena3d.cena.add(grupo, grupoJuntas);
   raio = new THREE.Raycaster();
 
+  // O punho é um objeto invisível no meio da seleção. A garra segura ele, e
+  // o que ele anda ou gira é repassado para todas as chapas escolhidas —
+  // é assim que um grupo inteiro se move sem sair do lugar um do outro.
+  punho = new THREE.Object3D();
+  punho.visible = false;
+  cena3d.cena.add(punho);
+
   garra = new TransformControls(cena3d.camera, tela);
-  garra.setMode("translate");
   garra.setTranslationSnap(1);
+  garra.setRotationSnap((5 * Math.PI) / 180);
   garra.setSize(0.8 * Number(ajuste("alcas") || 1));
   garra.addEventListener("dragging-changed", (evento) => {
     cena3d.orbita.enabled = !evento.value;
-    if (!evento.value) {
-      const chapa = chapaSelecionada();
-      const malha = chapa ? malhaDe(chapa.id) : null;
-      if (chapa && malha) {
-        chapa.centro = {
-          x: Math.round(malha.position.x * 10) / 10,
-          y: Math.round(malha.position.y * 10) / 10,
-          z: Math.round(malha.position.z * 10) / 10,
-        };
-        redesenhar();
-        atualizarPainel();
+    arrastando = evento.value;
+    if (evento.value) {
+      guardarPunho();
+    } else {
+      // Arredonda depois do arrasto: número redondo é o que o aluno consegue
+      // repetir na régua de verdade.
+      for (const chapa of selecionadas()) {
+        chapa.centro.x = Math.round(chapa.centro.x * 10) / 10;
+        chapa.centro.y = Math.round(chapa.centro.y * 10) / 10;
+        chapa.centro.z = Math.round(chapa.centro.z * 10) / 10;
       }
+      redesenhar();
+      atualizarPainel();
     }
   });
-  garra.addEventListener("objectChange", () => recalcularJuntas());
+  garra.addEventListener("objectChange", () => {
+    seguirGarra();
+    if (!arrastando) return;
+  });
   const ajudante = garra.getHelper ? garra.getHelper() : garra;
   cena3d.cena.add(ajudante);
+  trocarGarra("base");
+  trocarPonteiro("selecionar");
 
   const aoClicar = (evento) => {
     if (evento.button !== 0 || garra.dragging) return;
-    const retangulo = tela.getBoundingClientRect();
-    const ponteiro = new THREE.Vector2(
-      ((evento.clientX - retangulo.left) / retangulo.width) * 2 - 1,
-      -((evento.clientY - retangulo.top) / retangulo.height) * 2 + 1,
-    );
-    raio.setFromCamera(ponteiro, cena3d.camera);
-    const acertos = raio.intersectObjects(grupo.children, false);
-    selecionar(acertos.length ? acertos[0].object.userData.chapa : null);
+    if (modoDoPonteiro === "mao" || modoDoPonteiro === "camera") return;
+    const alvo = chapaSobOPonteiro(evento);
+    const somando =
+      evento.shiftKey || evento.ctrlKey || evento.metaKey || modoDoPonteiro === "somar";
+    if (!alvo) {
+      if (!somando) selecionar([]);
+      return;
+    }
+    selecionar([alvo], { somando });
   };
   tela.addEventListener("pointerdown", aoClicar);
   desligar.push(() => tela.removeEventListener("pointerdown", aoClicar));
@@ -725,23 +1214,46 @@ export async function montar(area, setor, aoVoltar, opcoes = {}) {
   const aoTeclar = (evento) => {
     if (!raiz || !raiz.isConnected) return;
     if (["INPUT", "SELECT", "TEXTAREA"].includes(evento.target?.tagName)) return;
+    const comando = evento.ctrlKey || evento.metaKey;
     if (evento.key === "Delete" || evento.key === "Backspace") {
-      if (!selecionada) return;
+      if (!selecao.length) return;
       evento.preventDefault();
-      apagarChapa();
+      apagarSelecao();
       return;
     }
-    if (evento.key === "Escape") selecionar(null);
-    if ((evento.ctrlKey || evento.metaKey) && evento.key.toLowerCase() === "d") {
+    if (evento.key === "Escape") selecionar([]);
+    if (comando && evento.key.toLowerCase() === "a") {
       evento.preventDefault();
-      duplicarChapa();
+      selecionar(chapas.map((chapa) => chapa.id));
+      return;
+    }
+    if (comando && evento.key.toLowerCase() === "d") {
+      evento.preventDefault();
+      duplicarSelecao();
+      return;
+    }
+    if (comando && evento.key.toLowerCase() === "g") {
+      evento.preventDefault();
+      if (evento.shiftKey) desagrupar();
+      else agrupar();
+      return;
+    }
+    const numero = Number(evento.key);
+    if (numero >= 1 && numero <= MODOS_DE_GARRA.length) {
+      trocarGarra(MODOS_DE_GARRA[numero - 1].id);
+      return;
+    }
+    if (numero >= 6 && numero <= 5 + MODOS_DE_PONTEIRO.length) {
+      trocarPonteiro(MODOS_DE_PONTEIRO[numero - 6].id);
     }
   };
   window.addEventListener("keydown", aoTeclar);
   desligar.push(() => window.removeEventListener("keydown", aoTeclar));
 
   const palco = raiz.querySelector(".livre__palco");
-  const observador = new ResizeObserver(() => cena.redimensionar(palco.clientWidth, palco.clientHeight));
+  const observador = new ResizeObserver(() =>
+    cena.redimensionar(palco.clientWidth, palco.clientHeight),
+  );
   observador.observe(palco);
   desligar.push(() => observador.disconnect());
   cena.redimensionar(palco.clientWidth, palco.clientHeight);
@@ -754,11 +1266,19 @@ export async function montar(area, setor, aoVoltar, opcoes = {}) {
         redesenhar();
       }
       if (chave === "opacidadeBase" || chave === "*") cena.atualizarOpacidadeDaBase();
+      if (chave === "alcas" || chave === "*") garra?.setSize(0.8 * Number(ajuste("alcas") || 1));
     }),
   );
 
+  definirDestino((item) => {
+    if (!cena3d.renderizador) return false;
+    return colocarDaBolsa(item);
+  });
+  desligar.push(() => limparDestino());
+
   chapas = [];
-  selecionada = null;
+  selecao = [];
+  grupoContador = 0;
   chapasMod.reiniciarContagem(0);
   redesenhar();
   atualizarPainel();
@@ -784,11 +1304,12 @@ export function encerrar() {
     // ignora
   }
   garra = null;
+  punho = null;
+  punhoAnterior = null;
   grupo = null;
   grupoJuntas = null;
   chapas = [];
-  selecionada = null;
-  ultimoResultado = null;
+  selecao = [];
   try {
     cena.encerrar();
   } catch (erro) {
