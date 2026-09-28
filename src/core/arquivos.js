@@ -35,6 +35,12 @@ export function escolherArquivo(aceita = ".json,application/json") {
   });
 }
 
+// O texto cru do arquivo. Serve para SVG, que não é JSON e não pode passar
+// pelo lerJSON.
+export async function lerTexto(arquivo) {
+  return arquivo.text();
+}
+
 export async function lerJSON(arquivo) {
   const texto = await arquivo.text();
   return JSON.parse(texto);

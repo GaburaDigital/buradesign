@@ -2,7 +2,7 @@
 // Ao somar ou renomear arquivos, atualize a lista ARQUIVOS e suba o número da
 // VERSAO. O cache antigo é apagado sozinho na ativação.
 
-const VERSAO = "1.9.0";
+const VERSAO = "2.2.0";
 const CACHE = `buradesign-${VERSAO}`;
 
 const ARQUIVOS = [
@@ -73,12 +73,17 @@ const ARQUIVOS = [
   "src/modos/blocos/menu.js",
   "src/modos/blocos/progresso.js",
   "src/modos/blocos/receita.js",
+  "src/modos/corte/angulo.js",
   "src/modos/corte/arranjo.js",
+  "src/modos/corte/broca.js",
   "src/modos/corte/chapas.js",
+  "src/modos/corte/desvg.js",
   "src/modos/corte/fatiador.js",
   "src/modos/corte/fatias.js",
   "src/modos/corte/formas.js",
+  "src/modos/corte/gravar.js",
   "src/modos/corte/ima.js",
+  "src/modos/corte/marcas.js",
   "src/modos/corte/juntas.js",
   "src/modos/corte/materiais.js",
   "src/modos/corte/menu.js",

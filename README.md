@@ -488,7 +488,27 @@ da cortadora, com os dentes e os rasgos no lugar. Ao escolher uma chapa, as
 juntas dela acendem numa faixa grossa por cima da montagem, que diz qual borda
 casa com qual mesmo quando outra chapa está na frente.
 
+**Encaixe em ângulo.** O dedo de encaixe só fecha em quina reta. Numa parede
+de pirâmide, ou num hexágono, as chapas se encontram em ângulo e um dente reto
+entra torto. Para esses casos o programa usa **aba passante**: a chapa que
+chega estica uma aba pela borda, e a que recebe abre um rasgo por onde a aba
+atravessa e aparece do outro lado — aí é só um palito, uma cunha ou uma gota
+de cola. A conta é a mesma em qualquer ângulo:
+
+> aba = espessura ÷ seno do ângulo · rasgo = espessura ÷ seno do ângulo
+
+Em 90° o seno vale 1 e a conta vira a de sempre, o que é justamente a prova de
+que ela está certa. Numa parede deitada a 30°, a aba e o rasgo dobram de
+tamanho — e é por isso que uma aba do tamanho da espessura não prendia nada.
+Isso vale para as formas prontas e também para a chapa que o aluno girou na
+mão: basta encostar uma borda dela noutra chapa e o encaixe nasce sozinho, com
+o ângulo escrito no painel.
+
 **Formas prontas.** Além da caixa de quatro paredes, a mesma janela monta:
+
+As formas prontas **somam** à bancada em vez de substituir: dá para montar uma
+caixa, um prisma e uma pirâmide na mesma mesa e combinar os três. Cada uma
+chega ao lado da anterior, como um grupo seu.
 
 - **prisma** de 3, 5 ou 6 lados, com fundo, tampa opcional e a lateral de dois
   jeitos — *planificado com vinco*, em que a lateral inteira sai numa tira só
@@ -516,6 +536,33 @@ papelão de 2 e 4 mm, acrílico de 3 mm e EVA de 5 mm, cada um com a fresta de
 corte (o *kerf*) que a máquina come de verdade. Quem tem outro material usa
 **Espessura livre** e digita a medida. Esse detalhe é o que separa a peça que
 encaixa da peça que fica frouxa, e vale a conversa com a turma.
+
+**Furar.** Põe uma broca na mesa — redonda ou quadrada, do tamanho que você
+quiser — e mexe nela como numa peça qualquer, até atravessar o que precisa.
+Escolha as peças junto com a broca e toque em **Furar**: cada peça ganha o
+furo no lugar exato onde a broca passa por ela. Como a broca atravessa várias
+de uma vez, o caminho de um parafuso nasce em quatro paredes com um toque, já
+alinhado — em vez de o aluno medir furo por furo e torcer para bater. A broca
+fica na mesa depois, para furar de novo noutro lugar.
+
+**Gravação.** Com uma peça escolhida, a janela de gravação mostra ela **vista
+de cima, do jeito que vai sair da cortadora** — com os dentes, as abas e os
+rasgos. É de propósito: o aluno precisa ver que o nome dele não pode ficar em
+cima de um encaixe. Dá para **inserir texto**, em três fontes e com acento, e
+**inserir um caminho 2D** guardado na Bolsa. A marcação se arrasta em cima do
+desenho e também tem todos os números ao lado (posição, tamanho, giro,
+espelho), para quem quer colocar por medida. Cada marcação sai **só em
+contorno** ou **preenchida por riscos** — contorno é rápido e serve para
+caneta e faca de vinil; preenchido fica cheio e bonito no MDF, mas a máquina
+demora bem mais. Com várias peças escolhidas, a janela vai de uma em uma, e um
+botão copia a gravação da peça anterior. No plano de corte a gravação sai numa
+cor só dela, para a máquina riscar e não cortar.
+
+**Importar SVG.** Um desenho feito fora entra como peça de corte. Quando o
+arquivo tem mais de um caminho, o programa conta quantos achou e pergunta: um
+desenho de fora com buracos por dentro, ou uma peça por desenho. A unidade do
+arquivo é lida do próprio SVG; quando ele não diz, o programa avisa que tratou
+como pixel — que é onde mora quase todo erro de tamanho em desenho importado.
 
 **O plano de corte.** As peças são arrumadas sozinhas dentro do tamanho de
 chapa escolhido (A4, A3, quadrada de 300 ou 600 mm, ou medida livre), com o
@@ -623,6 +670,11 @@ buradesign/
 | `src/modos/corte/juntas.js` | acha os encontros entre chapas e desenha os dedos de encaixe |
 | `src/modos/corte/formas.js` | prisma, pirâmide e dodecaedro, com os encaixes já prontos |
 | `src/modos/corte/ima.js` | o grid relativo e o ímã que gruda a chapa na vizinha |
+| `src/modos/corte/angulo.js` | a aba passante: encaixe que fecha em qualquer ângulo |
+| `src/modos/corte/marcas.js` | gravação: contorno de texto, giro, espelho e riscado |
+| `src/modos/corte/gravar.js` | a janela de gravação e a importação de SVG |
+| `src/modos/corte/desvg.js` | lê SVG, acha a unidade e separa contorno de furo |
+| `src/modos/corte/broca.js` | o volume que atravessa as chapas e deixa o furo |
 | `src/modos/corte/planificar.js` | abre cada chapa em contorno 2D, com abas e entalhes |
 | `src/modos/corte/fatias.js` | corta o modelo 3D em camadas, sem booleana |
 | `src/modos/corte/arranjo.js` | arruma as peças dentro do tamanho da folha |

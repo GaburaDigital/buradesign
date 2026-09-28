@@ -9,7 +9,8 @@
 //   canto  — as duas bordas se encontram na quina da montagem;
 //   T      — uma chapa entra no meio da outra, que ganha um rasgo passante.
 
-import { quadro, alinhada, extensao, paraLocal } from "./chapas.js";
+import { quadro, alinhada, extensao, paraLocal, BORDAS } from "./chapas.js";
+import { abaPassante, anguloEntre, bordaDaChapa, paraOMundo, paraAChapa } from "./angulo.js";
 
 const TOLERANCIA = 0.02; // mm
 const EIXOS = ["x", "y", "z"];
@@ -73,6 +74,77 @@ function vazio() {
   return { u0: [], u1: [], v0: [], v1: [] };
 }
 
+// A chapa em ângulo encosta alguma borda dela na outra? Se encostar, sai a
+// aba passante: a única junta que fecha em qualquer ângulo.
+function encostaNaOutra(chapa, outra, espessura, { dedo, folga }) {
+  const angulo = anguloEntre(chapa, outra);
+  // Quase paralelas ou quase no mesmo plano: não há o que encaixar, e a aba
+  // sairia do tamanho de um braço.
+  if (angulo < 12) return null;
+
+  for (const borda of BORDAS) {
+    const ficha = bordaDaChapa(chapa, borda);
+    // Três pontos da borda: se os três estiverem na superfície da outra, a
+    // borda está encostada nela de verdade, e não só passando perto.
+    const pontos = [0.15, 0.5, 0.85].map((t) =>
+      paraOMundo(
+        chapa,
+        ficha.de[0] + (ficha.ate[0] - ficha.de[0]) * t,
+        ficha.de[1] + (ficha.ate[1] - ficha.de[1]) * t,
+      ),
+    );
+    const encostados = pontos.every((ponto) => {
+      const local = paraAChapa(outra, ponto);
+      return (
+        Math.abs(local.n) < espessura / 2 + TOLERANCIA * 20 &&
+        local.u > -TOLERANCIA &&
+        local.u < outra.largura + TOLERANCIA &&
+        local.v > -TOLERANCIA &&
+        local.v < outra.altura + TOLERANCIA
+      );
+    });
+    if (!encostados) continue;
+
+    const abas = repartirEmAbas(ficha.comprimento, dedo, espessura);
+    if (!abas.length) continue;
+    const encaixe = abaPassante(chapa, outra, borda, espessura, abas, { folga });
+    if (!encaixe) continue;
+    return {
+      borda,
+      angulo: encaixe.angulo,
+      abas: abas.map((aba) => ({
+        ...aba,
+        tipo: "aba",
+        profundidade: encaixe.profundidade,
+      })),
+      rasgos: encaixe.rasgos,
+    };
+  }
+  return null;
+}
+
+// Abas espaçadas ao longo da borda, com folga nas pontas para não rasgar a
+// quina. Não precisa ser ímpar como o dedo: aqui não é dente que alterna, é
+// aba que atravessa.
+function repartirEmAbas(comprimento, dedo = 12, espessura = 3) {
+  const margem = Math.max(espessura * 1.5, 3);
+  const util = comprimento - 2 * margem;
+  if (util <= dedo * 0.6) {
+    if (comprimento < espessura * 3) return [];
+    const largura = Math.max(2, Math.min(dedo, comprimento * 0.4));
+    return [{ de: comprimento / 2 - largura / 2, ate: comprimento / 2 + largura / 2 }];
+  }
+  const quantas = Math.max(2, Math.min(6, Math.round(util / (dedo * 2))));
+  const largura = Math.min(dedo, util / (quantas * 1.6));
+  const passo = util / quantas;
+  const abas = [];
+  for (let i = 0; i < quantas; i += 1) {
+    const meio = margem + passo * (i + 0.5);
+    abas.push({ de: meio - largura / 2, ate: meio + largura / 2 });
+  }
+  return abas;
+}
+
 export function detectarJuntas(chapas, espessura, opcoes = {}) {
   const { dedo = 12, kerf = 0.2, folga = 0.1 } = opcoes;
   // A aba cresce nas laterais para sobreviver ao que a máquina come. O
@@ -90,19 +162,25 @@ export function detectarJuntas(chapas, espessura, opcoes = {}) {
 
   const caixas = new Map(chapas.map((chapa) => [chapa.id, extensao(chapa, espessura)]));
 
-  // Chapa em ângulo ainda não tem encaixe automático. Avisar é melhor do que
-  // desenhar um dente que não vai encaixar em lugar nenhum.
-  // Parede em ângulo de forma pronta já trouxe o encaixe dela calculado pela
-  // própria forma, que sabe qual borda casa com qual. Avisar sobre ela seria
-  // assustar o aluno à toa.
-  const tortas = chapas.filter((chapa) => !alinhada(chapa) && !chapa.semJuntaAutomatica);
-  if (tortas.length) {
-    avisos.push(
-      `${tortas.length} chapa(s) em ângulo ficaram sem encaixe automático: ${tortas
-        .map((chapa) => chapa.nome)
-        .slice(0, 3)
-        .join(", ")}.`,
-    );
+  // Chapa em ângulo não ganha dente: dente reto não entra em quina torta.
+  // Ela ganha aba passante, calculada pelo ângulo de verdade entre as duas.
+  // Quem já veio com o encaixe pronto da forma fica de fora disso.
+  const emAngulo = chapas.filter((chapa) => !alinhada(chapa) && !chapa.semJuntaAutomatica);
+  for (const chapa of emAngulo) {
+    for (const outra of chapas) {
+      if (outra === chapa || outra.semJuntaAutomatica) continue;
+      const achado = encostaNaOutra(chapa, outra, espessura, { dedo, folga });
+      if (!achado) continue;
+      encaixes[chapa.id][achado.borda].push(...achado.abas);
+      furos[outra.id].push(...achado.rasgos);
+      juntas.push({
+        a: chapa.id,
+        b: outra.id,
+        tipo: "angulo",
+        dedos: achado.abas.length,
+        angulo: achado.angulo,
+      });
+    }
   }
 
   for (let i = 0; i < chapas.length; i += 1) {

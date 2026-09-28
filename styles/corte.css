@@ -129,3 +129,52 @@
 .corte__lista tbody tr:nth-child(even) td {
   background: var(--fundo-2);
 }
+
+/* A janela de gravação: o desenho da peça de um lado, os controles do outro.
+   No celular vira uma coluna, com o desenho em cima. */
+.gravar {
+  display: grid;
+  gap: var(--e-3);
+}
+
+@media (min-width: 46rem) {
+  .gravar {
+    grid-template-columns: minmax(0, 1.3fr) minmax(14rem, 1fr);
+    align-items: start;
+  }
+}
+
+/* Fundo claro sempre: o traço de corte é preto de propósito, e no modo
+   escuro ele sumiria. */
+.gravar__previa {
+  background: #ffffff;
+  border: var(--borda) solid var(--linha-forte);
+  padding: var(--e-2);
+  touch-action: none;
+  cursor: grab;
+  min-height: 12rem;
+  display: flex;
+}
+
+.gravar__previa:active {
+  cursor: grabbing;
+}
+
+.gravar__previa svg {
+  width: 100%;
+  height: auto;
+  max-height: 22rem;
+  display: block;
+  margin: auto;
+}
+
+.gravar__lado .campo,
+.gravar__lado .propriedade {
+  margin-bottom: var(--e-2);
+}
+
+.gravar__lado .linha-botoes {
+  flex-wrap: wrap;
+  gap: var(--e-1);
+  margin-bottom: var(--e-2);
+}

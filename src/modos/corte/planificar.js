@@ -5,6 +5,7 @@
 // juntas em T. É este contorno que o arranjo encaixa na folha e o SVG desenha.
 
 import { rotulosDaChapa } from "./chapas.js";
+import { tracosDasMarcas } from "./marcas.js";
 
 // A volta é sempre a mesma: v0 da esquerda para a direita, u1 subindo, v1
 // voltando, u0 descendo. Cada borda sabe para que lado fica o "fora".
@@ -20,7 +21,7 @@ function arrumar(lista, limite) {
   for (const item of lista || []) {
     const de = Math.max(0, Math.min(limite, Math.min(item.de, item.ate)));
     const ate = Math.max(0, Math.min(limite, Math.max(item.de, item.ate)));
-    if (ate - de > 0.05) limpos.push({ de, ate, tipo: item.tipo });
+    if (ate - de > 0.05) limpos.push({ de, ate, tipo: item.tipo, profundidade: item.profundidade });
   }
   limpos.sort((a, b) => a.de - b.de);
   // Dois recortes que se encavalam viram um só: dente em cima de dente faz o
@@ -28,7 +29,12 @@ function arrumar(lista, limite) {
   const juntos = [];
   for (const item of limpos) {
     const ultimo = juntos[juntos.length - 1];
-    if (ultimo && ultimo.tipo === item.tipo && item.de <= ultimo.ate + 0.01) {
+    if (
+      ultimo &&
+      ultimo.tipo === item.tipo &&
+      ultimo.profundidade === item.profundidade &&
+      item.de <= ultimo.ate + 0.01
+    ) {
       ultimo.ate = Math.max(ultimo.ate, item.ate);
     } else if (ultimo && item.de < ultimo.ate - 0.01) {
       // Tipos diferentes brigando pelo mesmo trecho: fica o primeiro.
@@ -95,7 +101,10 @@ export function planificar(chapa, espessura, encaixes = {}, furos = []) {
     for (const recorte of ordenados) {
       const entrada = passo.sentido === 1 ? recorte.de : recorte.ate;
       const saida = passo.sentido === 1 ? recorte.ate : recorte.de;
-      const altura = recorte.tipo === "aba" ? espessura : -espessura;
+      // A aba pode precisar esticar mais que a espessura: numa parede
+      // inclinada ela atravessa a chapa de viés, e o caminho é mais longo.
+      const salto = recorte.profundidade || espessura;
+      const altura = recorte.tipo === "aba" ? salto : -salto;
       ponto(entrada, 0);
       ponto(entrada, altura);
       ponto(saida, altura);
@@ -137,9 +146,13 @@ function montarPeca(chapa, contorno, furos, espessura) {
     espessura,
     contorno,
     furos: rasgos,
-    // Gravações saem no SVG numa cor só de gravar: vinco é para dobrar, não
-    // para cortar. Cortar um vinco é perder a peça.
-    gravacoes: (chapa.vincos || []).map((linha) => linha.map((ponto) => [...ponto])),
+    // Gravações saem no SVG numa cor só de gravar: vinco é para dobrar e marca
+    // é para enfeitar, nenhum dos dois é para cortar. Cortar um vinco é
+    // perder a peça.
+    gravacoes: [
+      ...(chapa.vincos || []).map((linha) => linha.map((ponto) => [...ponto])),
+      ...tracosDasMarcas(chapa.marcas),
+    ],
     limites,
     area: areaDe(contorno) - rasgos.reduce((soma, furo) => soma + Math.abs(areaDe(furo)), 0),
   };

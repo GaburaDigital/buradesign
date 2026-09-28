@@ -2,8 +2,14 @@
 //
 // Uma folha por vez, empilhadas no mesmo arquivo com um respiro entre elas —
 // assim quem tem uma chapa só corta a primeira e para, e quem tem várias
-// manda tudo de uma vez. O corte sai em preto, traço fino; o número da peça
-// sai em vermelho, que é a cor que as cortadoras costumam ler como gravação.
+// manda tudo de uma vez. O corte sai em preto, traço fino; a gravação sai em
+// vermelho, que é a cor que as cortadoras costumam ler como risco.
+//
+// Atenção ao eixo: o SVG conta o y para baixo e a chapa conta para cima. Todo
+// o desenho vai dentro de um grupo virado, de uma vez só. Sem isso cada peça
+// saía espelhada — com dente simétrico ninguém percebe, mas troca de lado
+// toda aba que só existe numa borda, e a peça não monta. Foi o texto gravado
+// que pôs isso à vista, saindo de trás para frente.
 
 const CORTE = "#000000";
 const GRAVACAO = "#e03131";
@@ -20,12 +26,14 @@ function caminhoDe(pontos, deslocaX, deslocaY) {
   return `${partes.join(" ")} Z`;
 }
 
+// O número da peça mora dentro do grupo virado, então precisa ser desvirado
+// na hora de desenhar, senão sai de cabeça para baixo.
 function rotulo(peca, x, y, indice) {
   const { largura, altura } = peca.limites;
   const tamanho = Math.max(3, Math.min(9, Math.min(largura, altura) * 0.28));
   const meioX = numero(x + largura / 2);
-  const meioY = numero(y + altura / 2 + tamanho * 0.35);
-  return `    <text x="${meioX}" y="${meioY}" fill="${GRAVACAO}" font-family="monospace" font-size="${numero(tamanho)}" text-anchor="middle">${indice}</text>`;
+  const meioY = numero(y + altura / 2 - tamanho * 0.35);
+  return `    <text transform="translate(${meioX} ${meioY}) scale(1,-1)" fill="${GRAVACAO}" font-family="monospace" font-size="${numero(tamanho)}" text-anchor="middle">${indice}</text>`;
 }
 
 export function montarPlanoSVG(arranjo, opcoes = {}) {
@@ -38,16 +46,18 @@ export function montarPlanoSVG(arranjo, opcoes = {}) {
   let numeroDaPeca = 0;
 
   folhas.forEach((folha, indiceDaFolha) => {
-    const topo = indiceDaFolha * (chapaAltura + RESPIRO_ENTRE_FOLHAS);
+    // Dentro do grupo virado o y cresce para cima, então a folha 1 fica em
+    // cima de tudo quando o arquivo é aberto.
+    const base = (folhas.length - 1 - indiceDaFolha) * (chapaAltura + RESPIRO_ENTRE_FOLHAS);
     linhas.push(`  <g id="folha${indiceDaFolha + 1}">`);
     // A moldura é só referência: fica fora da cor de corte de propósito.
     linhas.push(
-      `    <rect x="0" y="${numero(topo)}" width="${numero(chapaLargura)}" height="${numero(chapaAltura)}" fill="none" stroke="${MOLDURA}" stroke-width="0.2" stroke-dasharray="4 2"/>`,
+      `    <rect x="0" y="${numero(base)}" width="${numero(chapaLargura)}" height="${numero(chapaAltura)}" fill="none" stroke="${MOLDURA}" stroke-width="0.2" stroke-dasharray="4 2"/>`,
     );
     for (const posta of folha.pecas) {
       numeroDaPeca += 1;
       const x = posta.x;
-      const y = topo + posta.y;
+      const y = base + posta.y;
       const partes = [caminhoDe(posta.peca.contorno, x, y)];
       for (const furo of posta.peca.furos) partes.push(caminhoDe(furo, x, y));
       linhas.push(
@@ -75,7 +85,9 @@ export function montarPlanoSVG(arranjo, opcoes = {}) {
      width="${numero(chapaLargura)}mm" height="${numero(alturaTotal)}mm"
      viewBox="0 0 ${numero(chapaLargura)} ${numero(alturaTotal)}">
   <title>${titulo}${legenda ? ` — ${legenda}` : ""}</title>
+<g transform="translate(0 ${numero(alturaTotal)}) scale(1,-1)">
 ${linhas.join("\n")}
+</g>
 </svg>
 `;
 }

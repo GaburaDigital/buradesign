@@ -49,6 +49,8 @@ export function novaChapa({
   furosFixos = null,
   // Linhas de dobra, gravadas e não cortadas.
   vincos = null,
+  // Gravações que o aluno pôs na peça: texto e desenho.
+  marcas = null,
   // Pedaços de uma tira só: no 3D aparecem dobrados, no plano de corte saem
   // grudados num retângulo comprido com os vincos no meio.
   tira = null,
@@ -71,6 +73,7 @@ export function novaChapa({
     encaixesFixos: encaixesFixos ? JSON.parse(JSON.stringify(encaixesFixos)) : null,
     furosFixos: furosFixos ? JSON.parse(JSON.stringify(furosFixos)) : null,
     vincos: vincos ? vincos.map((linha) => linha.map((ponto) => [...ponto])) : null,
+    marcas: marcas ? JSON.parse(JSON.stringify(marcas)) : [],
     tira,
     ordemNaTira,
     semJuntaAutomatica,

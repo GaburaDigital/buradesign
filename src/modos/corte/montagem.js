@@ -41,6 +41,9 @@ import * as materiais from "./materiais.js";
 import * as chapasMod from "./chapas.js";
 import * as imaMod from "./ima.js";
 import * as formas from "./formas.js";
+import { abrirGravacao, importarSVG } from "./gravar.js";
+import { separarEmPecas } from "./desvg.js";
+import * as brocaMod from "./broca.js";
 import { detectarJuntas } from "./juntas.js";
 import { planificarTudo, juntarTiras, seCruza } from "./planificar.js";
 import { arranjar } from "./arranjo.js";
@@ -102,6 +105,8 @@ let grupoIma = null;
 let imaLigado = true;
 let imaForca = 2;
 let imaAnterior = "";
+let broca = null;
+let malhaDaBroca = null;
 
 function config() {
   return materiais.valores();
@@ -139,6 +144,10 @@ function selecionadas() {
 function comOGrupo(ids) {
   const alvo = new Set();
   for (const id of ids) {
+    if (id === "broca") {
+      alvo.add(id);
+      continue;
+    }
     const chapa = chapaPorId(id);
     if (!chapa) continue;
     if (chapa.grupo) {
@@ -301,6 +310,7 @@ function redesenhar() {
     grupo.add(malha);
   }
   desenharFaixasDasJuntas();
+  desenharBroca();
   prenderGarra();
 }
 
@@ -385,18 +395,126 @@ function desenharFaixasDasJuntas() {
   }
 }
 
+// --- Broca --------------------------------------------------------------
+
+function desenharBroca() {
+  if (malhaDaBroca) {
+    malhaDaBroca.traverse?.((filho) => {
+      filho.geometry?.dispose?.();
+      filho.material?.dispose?.();
+    });
+    grupoIma.remove(malhaDaBroca);
+    malhaDaBroca = null;
+  }
+  if (!broca) return;
+  const geometria =
+    broca.tipo === "caixa"
+      ? new THREE.BoxGeometry(broca.largura, broca.profundidade, broca.altura)
+      : new THREE.CylinderGeometry(broca.diametro / 2, broca.diametro / 2, broca.altura, 32);
+  // O cilindro do Three nasce em pé no y; a broca conta o comprimento no
+  // próprio z, como a chapa conta a espessura. Deitar aqui alinha os dois.
+  if (broca.tipo !== "caixa") geometria.rotateX(Math.PI / 2);
+  malhaDaBroca = new THREE.Mesh(
+    geometria,
+    new THREE.MeshStandardMaterial({
+      color: cena.paleta3d().ima,
+      roughness: 0.4,
+      transparent: true,
+      opacity: selecao.includes("broca") ? 0.65 : 0.4,
+      emissive: new THREE.Color(selecao.includes("broca") ? cena.paleta3d().ima : 0x000000),
+      emissiveIntensity: selecao.includes("broca") ? 0.4 : 0,
+    }),
+  );
+  malhaDaBroca.position.set(broca.centro.x, broca.centro.y, broca.centro.z);
+  malhaDaBroca.rotation.set(
+    (broca.giro.x * Math.PI) / 180,
+    (broca.giro.y * Math.PI) / 180,
+    (broca.giro.z * Math.PI) / 180,
+    "XYZ",
+  );
+  malhaDaBroca.userData.chapa = "broca";
+  malhaDaBroca.renderOrder = 3;
+  grupoIma.add(malhaDaBroca);
+}
+
+function criarBroca() {
+  const meio = meioDaMesa();
+  broca = brocaMod.novaBroca({
+    tipo: "cilindro",
+    diametro: 6,
+    altura: 160,
+    centro: { x: meio.x, y: 40, z: meio.z },
+    giro: { x: 0, y: 0, z: 0 },
+  });
+  tocar("clique");
+  selecionar(["broca"]);
+  mostrarAviso(
+    "Broca na mesa. Mexa nela até atravessar as peças, escolha as peças junto com ela e toque em Furar.",
+  );
+}
+
+function tirarBroca() {
+  broca = null;
+  selecao = selecao.filter((id) => id !== "broca");
+  tocar("clique");
+  redesenhar();
+  atualizarPainel();
+}
+
+function furarComABroca() {
+  if (!broca) {
+    tocar("erro");
+    mostrarAviso("Não há broca na mesa. Toque em Furar para pôr uma.", "alerta");
+    return;
+  }
+  const alvo = selecionadas();
+  const lista = alvo.length ? alvo : chapas;
+  const { folga } = config();
+  const quantas = brocaMod.furar(broca, lista, { folga: folga / 2 });
+  if (!quantas) {
+    tocar("erro");
+    mostrarAviso("A broca não está atravessando nenhuma das peças escolhidas.", "alerta");
+    return;
+  }
+  tocar("pronto");
+  redesenhar();
+  atualizarPainel();
+  mostrarAviso(`${quantas} peça(s) furada(s). A broca continua na mesa para furar de novo.`);
+}
+
+function limparFuros() {
+  const lista = selecionadas().filter((chapa) => (chapa.furosFixos || []).length);
+  if (!lista.length) {
+    mostrarAviso("Nenhuma das peças escolhidas tem furo feito à broca.", "alerta");
+    return;
+  }
+  for (const chapa of lista) chapa.furosFixos = [];
+  tocar("clique");
+  redesenhar();
+  atualizarPainel();
+}
+
 // --- Garra --------------------------------------------------------------
+
+function brocaEscolhida() {
+  return broca && selecao.includes("broca") ? broca : null;
+}
 
 function prenderGarra() {
   if (!garra || !punho) return;
   const lista = selecionadas();
-  if (!lista.length) {
+  const comBroca = brocaEscolhida();
+  if (!lista.length && !comBroca) {
     garra.detach();
     punho.visible = false;
     return;
   }
   const { espessura } = config();
-  const centro = chapasMod.centroDasChapas(lista, espessura);
+  // A broca anda junto com o que estiver escolhido: é o que deixa posicionar
+  // o furo em relação à peça em vez de no escuro.
+  const centro = lista.length
+    ? chapasMod.centroDasChapas(lista, espessura)
+    : { ...comBroca.centro };
   punho.position.set(centro.x, centro.y, centro.z);
   punho.rotation.set(0, 0, 0);
   punho.updateMatrixWorld(true);
@@ -419,6 +537,9 @@ function guardarPunho() {
       centro: { ...chapa.centro },
       giro: { ...chapa.giro },
     })),
+    broca: brocaEscolhida()
+      ? { centro: { ...broca.centro }, giro: { ...broca.giro } }
+      : null,
   };
   imaAnterior = "";
 }
@@ -437,8 +558,16 @@ function matrizDoQuaternion(quaternion) {
 function seguirGarra() {
   if (!punhoAnterior) return;
   const lista = selecionadas();
-  if (!lista.length) return;
+  const comBroca = brocaEscolhida();
+  if (!lista.length && !comBroca) return;
   const { espessura } = config();
+
+  // A broca viaja pelo mesmo caminho das chapas, tratada como se fosse uma.
+  if (comBroca && punhoAnterior.broca) {
+    broca.centro = { ...punhoAnterior.broca.centro };
+    broca.giro = { ...punhoAnterior.broca.giro };
+  }
+  const paraMover = comBroca ? [...lista, broca] : lista;
 
   // 1. Volta para o estado do começo do arrasto.
   const porId = new Map(punhoAnterior.chapas.map((guardada) => [guardada.id, guardada]));
@@ -453,7 +582,7 @@ function seguirGarra() {
   const giroDelta = punho.quaternion.clone().multiply(punhoAnterior.giro.clone().invert());
   if (Math.abs(giroDelta.w) < 0.9999999) {
     const pivo = punhoAnterior.posicao;
-    chapasMod.aplicarGiroDoMundo(lista, matrizDoQuaternion(giroDelta), {
+    chapasMod.aplicarGiroDoMundo(paraMover, matrizDoQuaternion(giroDelta), {
       x: pivo.x,
       y: pivo.y,
       z: pivo.z,
@@ -466,7 +595,7 @@ function seguirGarra() {
   const bruto = punho.position.clone().sub(punhoAnterior.posicao);
   const passo = cena.passoDoEncaixe();
   const andado = imaMod.passoDoGrid({ x: bruto.x, y: bruto.y, z: bruto.z }, passo);
-  chapasMod.moverChapas(lista, andado);
+  chapasMod.moverChapas(paraMover, andado);
 
   // 4. O ímã puxa para a chapa vizinha mais perto.
   let marcas = [];
@@ -475,7 +604,7 @@ function seguirGarra() {
     const paradas = chapas.filter((chapa) => !escolhidas.has(chapa.id));
     const achado = imaMod.encaixar(lista, paradas, { espessura, forca: imaForca });
     if (achado.marcas.length) {
-      chapasMod.moverChapas(lista, achado.correcao);
+      chapasMod.moverChapas(paraMover, achado.correcao);
       marcas = achado.marcas;
     }
   }
@@ -752,15 +881,14 @@ async function gerarCaixa() {
   });
   if (!feito) return;
 
-  const { espessura, dedo } = config();
-  chapasMod.reiniciarContagem(0);
+  const { espessura, dedo, folga } = config();
   let novas;
   let recado;
   if (valores.forma === "prisma") {
-    novas = formas.montarPrisma({ ...valores, espessura, dedo });
+    novas = formas.montarPrisma({ ...valores, espessura, dedo, folga });
     recado = `Prisma de ${valores.lados} lados, ${valores.diametro} mm de diâmetro.`;
   } else if (valores.forma === "piramide") {
-    novas = formas.montarPiramide({ ...valores, espessura, dedo });
+    novas = formas.montarPiramide({ ...valores, espessura, dedo, folga });
     recado = `Pirâmide de ${valores.lados} lados, ${valores.altura} mm de altura.`;
   } else if (valores.forma === "dodecaedro") {
     novas = formas.montarDodecaedro({ ...valores, espessura });
@@ -771,15 +899,30 @@ async function gerarCaixa() {
   }
 
   pousarNoMeioDaMesa(novas);
+  // A forma nova entra ao lado do que já está na bancada, e não por cima:
+  // antes ela apagava o projeto inteiro, e quem quisesse duas caixas juntas
+  // não tinha como.
+  if (chapas.length) {
+    const jaTem = chapasMod.medidasDaCaixa(chapas, espessura);
+    const daNova = chapasMod.medidasDaCaixa(novas, espessura);
+    const respiro = 10;
+    const centroAntigo = chapasMod.centroDasChapas(chapas, espessura);
+    const centroNovo = chapasMod.centroDasChapas(novas, espessura);
+    chapasMod.moverChapas(novas, {
+      x: centroAntigo.x - centroNovo.x + jaTem.largura / 2 + daNova.largura / 2 + respiro,
+      y: 0,
+      z: centroAntigo.z - centroNovo.z,
+    });
+  }
   // A forma pronta chega como um grupo só: ela é uma peça na cabeça do aluno,
   // não um monte de chapa solta que ele precisa juntar na mão.
   grupoContador += 1;
   for (const chapa of novas) chapa.grupo = `grupo${grupoContador}`;
-  chapas = novas;
+  chapas.push(...novas);
   tocar("pronto");
-  selecionar([]);
+  selecionar(novas.map((chapa) => chapa.id));
   cena.enquadrar();
-  mostrarAviso(`${recado} Montada e já agrupada.`);
+  mostrarAviso(`${recado} Montada ao lado do que já estava, e já agrupada.`);
 }
 
 async function apagarSelecao() {
@@ -833,6 +976,146 @@ async function limparTudo() {
   chapasMod.reiniciarContagem(0);
   grupoContador = 0;
   selecionar([]);
+}
+
+// --- Gravação -----------------------------------------------------------
+
+function gravarNaSelecao() {
+  const lista = selecionadas();
+  if (!lista.length) {
+    tocar("erro");
+    mostrarAviso("Escolha a peça que vai receber a gravação.", "alerta");
+    return;
+  }
+  const { espessura } = config();
+  // A janela mostra a peça planificada, com os dentes: é assim que o aluno vê
+  // que o nome dele não pode ficar em cima de um encaixe.
+  const planificadas = planificarTudo(chapas, espessura, ultimoResultado);
+  const escolhidas = new Set(lista.map((chapa) => chapa.id));
+  const pecas = planificadas.filter((peca) => escolhidas.has(peca.id));
+  if (!pecas.length) {
+    mostrarAviso("Não consegui planificar essa peça para gravar.", "alerta");
+    return;
+  }
+  abrirGravacao({
+    pecas,
+    aoGravar: (id, marcasDaPeca) => {
+      const chapa = chapaPorId(id);
+      if (chapa) chapa.marcas = marcasDaPeca;
+    },
+    aoFim: () => {
+      redesenhar();
+      atualizarPainel();
+    },
+  });
+}
+
+function limparGravacao() {
+  const lista = selecionadas().filter((chapa) => (chapa.marcas || []).length);
+  if (!lista.length) {
+    mostrarAviso("Nenhuma das peças escolhidas tem gravação.", "alerta");
+    return;
+  }
+  for (const chapa of lista) chapa.marcas = [];
+  tocar("clique");
+  redesenhar();
+  atualizarPainel();
+}
+
+// --- Importar SVG -------------------------------------------------------
+
+async function trazerSVG() {
+  let lido;
+  try {
+    lido = await importarSVG();
+  } catch (erro) {
+    tocar("erro");
+    mostrarAviso(erro.message || "Não consegui ler esse SVG.", "erro");
+    return;
+  }
+  if (!lido) return;
+  const pecas = separarEmPecas(lido.contornos);
+
+  // Um arquivo com vários desenhos pode ser uma peça com furos ou várias
+  // peças lado a lado. Só quem desenhou sabe, então quem decide é o aluno.
+  let comoUsar = "furos";
+  if (lido.contornos.length > 1) {
+    const corpo = document.createElement("div");
+    const texto = document.createElement("p");
+    texto.className = "dica";
+    texto.textContent = `O arquivo tem ${lido.contornos.length} desenhos, que dão ${pecas.length} peça(s) com furo. Como você quer usar?`;
+    corpo.append(texto);
+    comoUsar = await new Promise((resolver) => {
+      let respondido = false;
+      const responder = (resposta) => {
+        if (respondido) return;
+        respondido = true;
+        resolver(resposta);
+        fecharPainel({ silencioso: true });
+      };
+      abrirPainel({
+        titulo: "Importar SVG",
+        corpo,
+        botoes: [
+          { rotulo: "Uma peça, furos por dentro", variante: "destaque", aoClicar: () => responder("furos") },
+          { rotulo: "Uma peça por desenho", aoClicar: () => responder("separadas") },
+          { rotulo: t("acoes.cancelar"), aoClicar: () => responder(null) },
+        ],
+        aoFechar: () => responder(null),
+      });
+    });
+    if (!comoUsar) return;
+  }
+
+  const meio = meioDaMesa();
+  const { espessura } = config();
+  grupoContador += 1;
+  const nomeDoGrupo = `grupo${grupoContador}`;
+  const novas = [];
+
+  const criarDe = (contorno, furos, nome) => {
+    const minU = Math.min(...contorno.map((p) => p[0]));
+    const minV = Math.min(...contorno.map((p) => p[1]));
+    const forma = contorno.map(([u, v]) => [u - minU, v - minV]);
+    const medidaU = Math.max(...forma.map((p) => p[0]));
+    const medidaV = Math.max(...forma.map((p) => p[1]));
+    return chapasMod.novaChapa({
+      nome,
+      plano: "XZ",
+      largura: medidaU,
+      altura: medidaV,
+      forma,
+      furosFixos: furos.map((furo) => furo.map(([u, v]) => [u - minU, v - minV])),
+      centro: { x: meio.x, y: espessura / 2, z: meio.z },
+      grupo: nomeDoGrupo,
+      semJuntaAutomatica: true,
+    });
+  };
+
+  if (comoUsar === "separadas") {
+    lido.contornos.forEach((contorno, i) => {
+      novas.push(criarDe(contorno, [], `${lido.nome} ${i + 1}`));
+    });
+  } else {
+    pecas.forEach((peca, i) => {
+      novas.push(criarDe(peca.contorno, peca.furos, pecas.length > 1 ? `${lido.nome} ${i + 1}` : lido.nome));
+    });
+  }
+
+  // As peças chegam empilhadas no mesmo ponto; espalhar deixa dar para pegar
+  // uma por uma.
+  novas.forEach((chapa, i) => {
+    chapa.centro.x += i * 6;
+    chapa.centro.z += i * 6;
+  });
+  chapas.push(...novas);
+  tocar("pronto");
+  selecionar(novas.map((chapa) => chapa.id));
+  cena.enquadrar();
+  const recado = lido.motivo ? ` (${lido.motivo})` : "";
+  mostrarAviso(
+    `"${lido.nome}" entrou com ${novas.length} peça(s), ${Math.round(lido.medida.largura)} × ${Math.round(lido.medida.altura)} mm${recado}.`,
+  );
 }
 
 // --- Bolsa --------------------------------------------------------------
@@ -1080,6 +1363,46 @@ function secaoDaSelecao() {
     lista.length === 1 ? lista[0].nome : `${lista.length} chapas escolhidas`,
   );
 
+  // O tamanho vem primeiro, de propósito: é o que o aluno mais mexe, e antes
+  // ficava enterrado embaixo de grupo e giro.
+  if (lista.length === 1) {
+    const chapa = lista[0];
+    const rotulos = chapasMod.rotulosDaChapa(chapa);
+    secao.append(
+      campoNumero(`${rotulos.rotuloU} (mm)`, chapa.largura, (n) => {
+        chapa.largura = n;
+        redesenhar();
+      }, { min: 5, max: 2000, passo: 1 }),
+      campoNumero(`${rotulos.rotuloV} (mm)`, chapa.altura, (n) => {
+        chapa.altura = n;
+        redesenhar();
+      }, { min: 5, max: 2000, passo: 1 }),
+    );
+    if (chapa.forma) {
+      const nota = document.createElement("p");
+      nota.className = "dica";
+      nota.textContent = "Esta chapa tem contorno próprio: mudar o tamanho estica o contorno junto.";
+      secao.append(nota);
+    }
+  } else {
+    // Com várias, o tamanho de uma só não faz sentido; o que faz é esticar
+    // todas pelo mesmo fator.
+    secao.append(
+      campoNumero("Esticar todas (%)", 100, (n) => {
+        const fator = Math.max(10, n) / 100;
+        for (const chapa of lista) {
+          chapa.largura = Math.round(chapa.largura * fator * 10) / 10;
+          chapa.altura = Math.round(chapa.altura * fator * 10) / 10;
+          if (chapa.forma) {
+            chapa.forma = chapa.forma.map(([u, v]) => [u * fator, v * fator]);
+          }
+        }
+        redesenhar();
+        atualizarPainel();
+      }, { min: 10, max: 400, passo: 5 }),
+    );
+  }
+
   const emGrupo = lista.filter((chapa) => chapa.grupo).length;
   if (emGrupo) {
     const nota = document.createElement("p");
@@ -1119,9 +1442,7 @@ function secaoDaSelecao() {
   const passos = document.createElement("div");
   passos.className = "linha-botoes";
   for (const graus of [-90, -45, 45, 90, 180]) {
-    passos.append(
-      botaoCurto(`${graus > 0 ? "+" : ""}${graus}°`, () => girarSelecao(graus)),
-    );
+    passos.append(botaoCurto(`${graus > 0 ? "+" : ""}${graus}°`, () => girarSelecao(graus)));
   }
   secao.append(tituloGiro, eixos, passos);
   secao.append(
@@ -1133,16 +1454,7 @@ function secaoDaSelecao() {
 
   if (lista.length === 1) {
     const chapa = lista[0];
-    const rotulos = chapasMod.rotulosDaChapa(chapa);
     secao.append(
-      campoNumero(`${rotulos.rotuloU} (mm)`, chapa.largura, (n) => {
-        chapa.largura = n;
-        redesenhar();
-      }, { min: 5, max: 2000, passo: 1 }),
-      campoNumero(`${rotulos.rotuloV} (mm)`, chapa.altura, (n) => {
-        chapa.altura = n;
-        redesenhar();
-      }, { min: 5, max: 2000, passo: 1 }),
       campoNumero("Posição X (mm)", chapa.centro.x, (n) => {
         chapa.centro.x = n;
         redesenhar();
@@ -1157,12 +1469,34 @@ function secaoDaSelecao() {
       }, { min: -2000, max: 2000, passo: 1 }),
     );
     if (!chapasMod.alinhada(chapa)) {
-      const alerta = document.createElement("p");
-      alerta.className = "dica dica--alerta";
-      alerta.textContent =
-        "Esta chapa está em ângulo. O encaixe automático dela chega no próximo lote.";
-      secao.append(alerta);
+      const nota = document.createElement("p");
+      nota.className = "dica";
+      const angulos = anguloDasVizinhas(chapa);
+      nota.textContent = angulos.length
+        ? `Chapa em ângulo: encaixa por aba passante a ${angulos.map((a) => `${Math.round(a)}°`).join(", ")}.`
+        : "Chapa em ângulo. Encoste uma borda dela noutra chapa para nascer o encaixe.";
+      secao.append(nota);
     }
+  }
+
+  const comFuro = lista.filter((chapa) => (chapa.furosFixos || []).length);
+  if (comFuro.length) {
+    secao.append(linhaBotoes(botao("lixo", "Limpar furos da broca", limparFuros)));
+  }
+
+  const comGravacao = lista.filter((chapa) => (chapa.marcas || []).length);
+  secao.append(
+    linhaBotoes(
+      botao("texto", comGravacao.length ? "Editar gravação" : "Gravar", gravarNaSelecao),
+      comGravacao.length ? botao("lixo", "Limpar gravação", limparGravacao) : null,
+    ),
+  );
+  if (comGravacao.length) {
+    const nota = document.createElement("p");
+    nota.className = "dica";
+    const quantas = comGravacao.reduce((n, chapa) => n + chapa.marcas.length, 0);
+    nota.textContent = `${quantas} gravação(ões) em ${comGravacao.length} peça(s). No plano de corte elas saem em vermelho, para gravar e não cortar.`;
+    secao.append(nota);
   }
 
   secao.append(
@@ -1172,6 +1506,16 @@ function secaoDaSelecao() {
     ),
   );
   return secao;
+}
+
+// Os ângulos em que esta chapa encontra as vizinhas, para o painel poder
+// dizer o que vai acontecer com ela.
+function anguloDasVizinhas(chapa) {
+  if (!ultimoResultado) return [];
+  return ultimoResultado.juntas
+    .filter((junta) => junta.tipo === "angulo" && (junta.a === chapa.id || junta.b === chapa.id))
+    .map((junta) => junta.angulo)
+    .filter((a) => Number.isFinite(a));
 }
 
 function atualizarPainel() {
@@ -1261,9 +1605,67 @@ function atualizarPainel() {
 
   painelArea.append(material, bancada, folha);
 
+  if (broca) {
+    const secao = grupoPainel("Broca");
+    const tipos = document.createElement("div");
+    tipos.className = "linha-botoes";
+    for (const ficha of brocaMod.TIPOS) {
+      tipos.append(
+        botaoCurto(
+          ficha.nome,
+          () => {
+            broca.tipo = ficha.id;
+            redesenhar();
+            atualizarPainel();
+          },
+          broca.tipo === ficha.id,
+        ),
+      );
+    }
+    secao.append(tipos);
+    if (broca.tipo === "caixa") {
+      secao.append(
+        campoNumero("Largura (mm)", broca.largura, (n) => {
+          broca.largura = n;
+          redesenhar();
+        }, { min: 1, max: 500, passo: 1 }),
+        campoNumero("Profundidade (mm)", broca.profundidade, (n) => {
+          broca.profundidade = n;
+          redesenhar();
+        }, { min: 1, max: 500, passo: 1 }),
+      );
+    } else {
+      secao.append(
+        campoNumero("Diâmetro (mm)", broca.diametro, (n) => {
+          broca.diametro = n;
+          redesenhar();
+        }, { min: 0.5, max: 300, passo: 0.5 }),
+      );
+    }
+    secao.append(
+      campoNumero("Comprimento (mm)", broca.altura, (n) => {
+        broca.altura = n;
+        redesenhar();
+      }, { min: 5, max: 2000, passo: 5 }),
+    );
+    const dica = document.createElement("p");
+    dica.className = "dica";
+    dica.textContent = selecao.includes("broca")
+      ? "A broca está escolhida: as setas movem ela. Segure Shift e toque nas peças para furar só elas."
+      : "Toque na broca para mexer nela.";
+    secao.append(dica);
+    secao.append(
+      linhaBotoes(
+        botao("encaixe", "Furar agora", furarComABroca),
+        botao("lixo", "Tirar a broca", tirarBroca, "botao--perigo"),
+      ),
+    );
+    painelArea.append(secao);
+  }
+
   if (selecionadas().length) {
     painelArea.append(secaoDaSelecao());
-  } else {
+  } else if (!broca) {
     const dica = document.createElement("p");
     dica.className = "dica";
     dica.textContent =
@@ -1347,6 +1749,9 @@ function montarEsqueleto(area, aoVoltar) {
     botaoBarra("agrupar", "Agrupar", agrupar, "com-rotulo"),
     botaoBarra("desagrupar", "Desagrupar", desagrupar, "com-rotulo"),
     risco(),
+    botaoBarra("encaixe", "Furar", () => (broca ? furarComABroca() : criarBroca()), "com-rotulo"),
+    botaoBarra("texto", "Gravação", gravarNaSelecao, "com-rotulo"),
+    risco(),
     botaoBarra("guardarBolsa", "Guardar na bolsa", guardarNaBolsa, "com-rotulo"),
     botaoBarra("planoCorte", "Plano de corte", abrirPlano, "com-rotulo botao--destaque"),
     risco(),
@@ -1381,6 +1786,12 @@ function montarEsqueleto(area, aoVoltar) {
     alvo.addEventListener("click", () => inserirChapa(id));
     caixa.append(alvo);
   }
+  const doSVG = document.createElement("button");
+  doSVG.type = "button";
+  doSVG.className = "ferramenta";
+  doSVG.innerHTML = `${iconeFerramenta("caminhoSvg")}<span>Importar SVG</span>`;
+  doSVG.addEventListener("click", trazerSVG);
+  caixa.append(doSVG);
 
   // Modos do ponteiro por cima da cena, igual ao Criação Livre 3D: é daqui
   // que sai o girar e o arrastar a câmera no celular.
@@ -1437,7 +1848,8 @@ function chapaSobOPonteiro(evento) {
     -((evento.clientY - retangulo.top) / retangulo.height) * 2 + 1,
   );
   raio.setFromCamera(ponteiro, cena3d.camera);
-  const acertos = raio.intersectObjects(grupo.children, false);
+  const alvos = malhaDaBroca ? [...grupo.children, malhaDaBroca] : grupo.children;
+  const acertos = raio.intersectObjects(alvos, false);
   return acertos.length ? acertos[0].object.userData.chapa : null;
 }
 

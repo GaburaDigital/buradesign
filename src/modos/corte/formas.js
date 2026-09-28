@@ -21,6 +21,7 @@
 // mesmo movimento que o aluno faz no papelão.
 
 import { novaChapa, medirForma, dobrarEmVoltaDaAresta, girarChapas } from "./chapas.js";
+import { abaPassante } from "./angulo.js";
 
 const GRAU = Math.PI / 180;
 let contadorDeTiras = 0;
@@ -69,67 +70,44 @@ export function abasNaBorda(comprimento, dedo = 12, espessura = 3) {
   return abas;
 }
 
-// O rasgo que recebe a aba. Ele acompanha o ângulo da parede, e não os eixos
-// da chapa — num hexágono nenhuma parede é paralela a nada.
-function rasgoDaAba(centro, direcao, comprimento, espessura) {
-  const nx = -direcao[1];
-  const nz = direcao[0];
-  const meioC = comprimento / 2;
-  const meioE = espessura / 2;
-  return [
-    [centro[0] - direcao[0] * meioC - nx * meioE, centro[1] - direcao[1] * meioC - nz * meioE],
-    [centro[0] + direcao[0] * meioC - nx * meioE, centro[1] + direcao[1] * meioC - nz * meioE],
-    [centro[0] + direcao[0] * meioC + nx * meioE, centro[1] + direcao[1] * meioC + nz * meioE],
-    [centro[0] - direcao[0] * meioC + nx * meioE, centro[1] - direcao[1] * meioC + nz * meioE],
-  ];
-}
-
-// O prato de fundo (ou de tampa): o polígono com os rasgos já abertos.
+// O prato de fundo (ou de tampa): o polígono liso. Os rasgos chegam depois,
+// quando as paredes forem presas nele.
 // O raio dos rasgos muda conforme a parede é reta (prisma) ou inclinada
 // (pirâmide), por isso ele chega de fora.
-function pratoPoligonal({
-  lados,
-  raio,
-  espessura,
-  dedo,
-  ladoDoPoligono,
-  raioDosRasgos,
-  nome,
-  y,
-  grupo,
-}) {
+function pratoPoligonal({ lados, raio, nome, y, grupo }) {
   const volta = poligono(lados, raio);
   const { pontos, largura, altura, minU, minV } = encostarNoZero(volta);
-  const paraLocal = ([x, z]) => [x - minU, z - minV];
-
-  const rasgos = [];
-  if (raioDosRasgos > 0) {
-    for (let i = 0; i < lados; i += 1) {
-      const anguloDaFace = (i * 2 * Math.PI) / lados;
-      const dir = [-Math.sin(anguloDaFace), Math.cos(anguloDaFace)];
-      const meioDaParede = [
-        raioDosRasgos * Math.cos(anguloDaFace),
-        raioDosRasgos * Math.sin(anguloDaFace),
-      ];
-      for (const aba of abasNaBorda(ladoDoPoligono, dedo, espessura)) {
-        const desvio = (aba.de + aba.ate) / 2 - ladoDoPoligono / 2;
-        const centro = [meioDaParede[0] + dir[0] * desvio, meioDaParede[1] + dir[1] * desvio];
-        rasgos.push(rasgoDaAba(centro, dir, aba.ate - aba.de, espessura).map(paraLocal));
-      }
-    }
-  }
-
   return novaChapa({
     nome,
     plano: "XZ",
     largura,
     altura,
     forma: pontos,
-    furosFixos: rasgos,
-    centro: { x: 0, y, z: 0 },
+    furosFixos: [],
+    // O centro da chapa é o meio da caixa que envolve a forma, e num polígono
+    // de lados ímpares esse meio não é o centro do polígono: num triângulo dá
+    // 12 mm de diferença. Sem descontar, o prato saía deslocado das paredes.
+    centro: { x: minU + largura / 2, y, z: minV + altura / 2 },
     grupo,
     semJuntaAutomatica: true,
   });
+}
+
+// Prende a parede no prato: a aba sai da borda dela e o rasgo nasce no prato,
+// no lugar exato onde a aba vai passar. Quem faz a conta é o módulo do
+// ângulo, então isto vale igual para a parede reta do prisma e para a face
+// deitada da pirâmide — é o mesmo encaixe, só muda o ângulo.
+function prenderNoPrato({ parede, prato, borda, comprimentoDaBorda, espessura, dedo, folga }) {
+  const abas = abasNaBorda(comprimentoDaBorda, dedo, espessura);
+  const encaixe = abaPassante(parede, prato, borda, espessura, abas, { folga });
+  if (!encaixe) return;
+  if (!parede.encaixesFixos) parede.encaixesFixos = { u0: [], u1: [], v0: [], v1: [] };
+  parede.encaixesFixos[borda] = abas.map((aba) => ({
+    ...aba,
+    tipo: "aba",
+    profundidade: encaixe.profundidade,
+  }));
+  prato.furosFixos.push(...encaixe.rasgos);
 }
 
 // Uma parede em pé na aresta i do polígono, com a espessura dela virada para
@@ -162,6 +140,7 @@ export function montarPrisma({
   lados = 6,
   espessura = 3,
   dedo = 12,
+  folga = 0.1,
   comTampa = false,
   modo = "vinco",
   grupo = null,
@@ -169,63 +148,69 @@ export function montarPrisma({
   const n = Math.max(3, Math.round(lados));
   const raio = Math.max(espessura * 4, diametro / 2);
   const alto = Math.max(espessura * 3, altura);
-  const lado = 2 * raio * Math.sin(Math.PI / n);
   const apotema = raio * Math.cos(Math.PI / n);
   // A parede fica com a face de fora rente à aresta do polígono, então o meio
   // dela recua meia espessura.
   const raioDoMeio = apotema - espessura / 2;
+  // O comprimento da parede é medido no plano do meio dela, e não na aresta
+  // do polígono. Com a medida da aresta, duas paredes vizinhas em ângulo
+  // entravam uma dentro da outra — que é o defeito que aparecia na tela,
+  // pior quanto menos lados a forma tem.
+  const lado = 2 * raioDoMeio * Math.tan(Math.PI / n);
   const chapas = [];
 
-  chapas.push(
-    pratoPoligonal({
+  const fundo = pratoPoligonal({ lados: n, raio, nome: "Fundo", y: espessura / 2, grupo });
+  chapas.push(fundo);
+  let tampa = null;
+  if (comTampa) {
+    tampa = pratoPoligonal({
       lados: n,
       raio,
-      espessura,
-      dedo,
-      ladoDoPoligono: lado,
-      raioDosRasgos: raioDoMeio,
-      nome: "Fundo",
-      y: espessura / 2,
+      nome: "Tampa",
+      y: espessura + alto + espessura / 2,
       grupo,
-    }),
-  );
-  if (comTampa) {
-    chapas.push(
-      pratoPoligonal({
-        lados: n,
-        raio,
-        espessura,
-        dedo,
-        ladoDoPoligono: lado,
-        raioDosRasgos: raioDoMeio,
-        nome: "Tampa",
-        y: espessura + alto + espessura / 2,
-        grupo,
-      }),
-    );
+    });
+    chapas.push(tampa);
   }
 
   const naTira = modo === "vinco";
   contadorDeTiras += 1;
   const nomeDaTira = naTira ? `tira${contadorDeTiras}` : null;
   for (let i = 0; i < n; i += 1) {
-    const encaixes = { u0: [], u1: [], v0: abasNaBorda(lado, dedo, espessura), v1: [] };
-    if (comTampa) encaixes.v1 = abasNaBorda(lado, dedo, espessura);
-    chapas.push(
-      paredeEmPe({
-        anguloDaFace: (i * 2 * Math.PI) / n,
-        raioDoMeio,
-        largura: lado,
-        altura: alto,
-        // A parede pousa em cima do prato: as abas descem pelos rasgos dele.
-        baseY: espessura,
-        nome: naTira ? `Lado ${i + 1} da tira` : `Parede ${i + 1}`,
-        encaixesFixos: encaixes,
-        grupo,
-        tira: nomeDaTira,
-        ordemNaTira: i,
-      }),
-    );
+    const parede = paredeEmPe({
+      anguloDaFace: (i * 2 * Math.PI) / n,
+      raioDoMeio,
+      largura: lado,
+      altura: alto,
+      // A parede pousa em cima do prato: as abas descem pelos rasgos dele.
+      baseY: espessura,
+      nome: naTira ? `Lado ${i + 1} da tira` : `Parede ${i + 1}`,
+      encaixesFixos: { u0: [], u1: [], v0: [], v1: [] },
+      grupo,
+      tira: nomeDaTira,
+      ordemNaTira: i,
+    });
+    prenderNoPrato({
+      parede,
+      prato: fundo,
+      borda: "v0",
+      comprimentoDaBorda: lado,
+      espessura,
+      dedo,
+      folga,
+    });
+    if (tampa) {
+      prenderNoPrato({
+        parede,
+        prato: tampa,
+        borda: "v1",
+        comprimentoDaBorda: lado,
+        espessura,
+        dedo,
+        folga,
+      });
+    }
+    chapas.push(parede);
   }
   return chapas;
 }
@@ -238,6 +223,7 @@ export function montarPiramide({
   lados = 4,
   espessura = 3,
   dedo = 12,
+  folga = 0.1,
   grupo = null,
 } = {}) {
   const n = Math.max(3, Math.round(lados));
@@ -251,19 +237,8 @@ export function montarPiramide({
   const alturaDaFace = Math.hypot(alto, apotema);
   const inclinacao = Math.atan2(alto, apotema) / GRAU;
 
-  const chapas = [
-    pratoPoligonal({
-      lados: n,
-      raio,
-      espessura,
-      dedo,
-      ladoDoPoligono: lado,
-      raioDosRasgos: apotema,
-      nome: "Base",
-      y: espessura / 2,
-      grupo,
-    }),
-  ];
+  const base = pratoPoligonal({ lados: n, raio, nome: "Base", y: espessura / 2, grupo });
+  const chapas = [base];
 
   for (let i = 0; i < n; i += 1) {
     const anguloDaFace = (i * 2 * Math.PI) / n;
@@ -280,21 +255,31 @@ export function montarPiramide({
         [lado / 2, alturaDaFace],
       ],
       nome: `Face ${i + 1}`,
-      encaixesFixos: { u0: [], u1: [], v0: abasNaBorda(lado, dedo, espessura), v1: [] },
+      encaixesFixos: { u0: [], u1: [], v0: [], v1: [] },
       grupo,
     });
-    // Agora a dobra: a face nasceu em pé e deita até a inclinação da pirâmide,
-    // girando em volta da própria aresta da base.
+    // A dobra: a face nasceu em pé e deita até a inclinação da pirâmide,
+    // girando em volta da própria aresta da base. O sinal importa — girar em
+    // volta da tangente pela regra da mão direita leva a face para dentro.
     const aresta = [-Math.sin(anguloDaFace), 0, Math.cos(anguloDaFace)];
     const ponto = {
       x: apotema * Math.cos(anguloDaFace),
       y: espessura,
       z: apotema * Math.sin(anguloDaFace),
     };
-    // O sinal importa: girar em volta da tangente pela regra da mão direita
-    // leva a face para dentro. Com o sinal trocado a pirâmide abria para fora
-    // e o bico ia parar longe do eixo.
     dobrarEmVoltaDaAresta([face], ponto, aresta, 90 - inclinacao);
+    // Só depois de deitada é que a aba pode ser calculada: é a inclinação
+    // dela que diz o quanto a aba estica e o quanto o rasgo abre. Antes, a
+    // aba saía do tamanho de uma parede reta e a pirâmide não prendia.
+    prenderNoPrato({
+      parede: face,
+      prato: base,
+      borda: "v0",
+      comprimentoDaBorda: lado,
+      espessura,
+      dedo,
+      folga,
+    });
     chapas.push(face);
   }
   return chapas;
@@ -341,7 +326,13 @@ export function montarDodecaedro({ diametro = 100, espessura = 3, grupo = null }
         altura: daFlor.altura,
         forma: daFlor.pontos,
         vincos,
-        centro: { x: 0, y: alturaDaFlor, z: 0 },
+        // Mesmo desconto do prato: o meio da caixa que envolve um pentágono
+        // não é o centro dele, e a flor saía fora do eixo.
+        centro: {
+          x: daFlor.minU + daFlor.largura / 2,
+          y: alturaDaFlor,
+          z: daFlor.minV + daFlor.altura / 2,
+        },
         grupo,
         semJuntaAutomatica: true,
       }),
