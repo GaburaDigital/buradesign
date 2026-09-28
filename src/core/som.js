@@ -96,6 +96,12 @@ const RECEITAS = {
     bipe({ de: 880, duracao: 0.07, atraso: 0.08 });
     bipe({ de: 1320, duracao: 0.14, atraso: 0.16 });
   },
+  // O ímã pegando: dois tiquinhos curtos e baixos. Precisa ser discreto,
+  // porque numa montagem o aluno vai ouvir isso dezenas de vezes.
+  encaixe: () => {
+    bipe({ de: 1100, duracao: 0.018, ganho: 0.06 });
+    bipe({ de: 1600, duracao: 0.022, ganho: 0.05, atraso: 0.02 });
+  },
   alienOi: () => voz({ base: 260, saltos: [1.4, 0.9, 1.7] }),
   alienResmungo: () => voz({ base: 120, saltos: [0.9, 0.7], duracao: 0.34 }),
   alienAnimado: () => voz({ base: 340, saltos: [1.3, 1.8, 2.2], duracao: 0.3 }),

@@ -472,6 +472,38 @@ múltiplo de 90° deixa a chapa **em ângulo**: ela aparece na tela e entra no
 plano de corte, mas o encaixe automático dela chega no lote seguinte, e o
 programa avisa em vez de desenhar um dente que não encaixaria.
 
+**Ajuda para encaixar.** Duas coisas decidem onde a chapa pode parar. O
+**passo do grid**, que vem dos Ajustes, faz a chapa andar de tantos em tantos
+milímetros — mas a partir de onde ela está, e não para números redondos: numa
+caixa de MDF de 3 mm as paredes moram em 43,5 mm, e arredondar para múltiplos
+de 5 tornava impossível encostar uma na outra. Por cima dele vem o **ímã**: a
+borda da chapa que está andando procura as bordas das chapas paradas e, quando
+passa perto, cola. Não é parede — continua dando para atravessar, é só uma
+travadinha, como no Tinkercad. Dá para desligar o ímã e mudar a força dele no
+painel da direita.
+
+**Ver os dentes.** A chapa no 3D é desenhada a partir da peça planificada, e
+não como um retângulo liso: o que aparece na tela é exatamente o que vai sair
+da cortadora, com os dentes e os rasgos no lugar. Ao escolher uma chapa, as
+juntas dela acendem numa faixa grossa por cima da montagem, que diz qual borda
+casa com qual mesmo quando outra chapa está na frente.
+
+**Formas prontas.** Além da caixa de quatro paredes, a mesma janela monta:
+
+- **prisma** de 3, 5 ou 6 lados, com fundo, tampa opcional e a lateral de dois
+  jeitos — *planificado com vinco*, em que a lateral inteira sai numa tira só
+  com as linhas de dobra gravadas (papelão, EVA), ou *paredes soltas com abas*,
+  uma peça por parede (MDF, acrílico);
+- **pirâmide** de 3 ou 4 lados, com as faces entrando na base por abas. Vale
+  mostrar para a turma que a face é tão alta quanto a inclinação, e não quanto
+  a pirâmide — é o erro clássico de quem desenha na mão;
+- **dodecaedro**, que sai como duas flores de seis pentágonos, cada uma numa
+  peça só com as dobras gravadas. Dobra uma, dobra a outra, encaixa.
+
+As formas em ângulo trazem os encaixes já calculados por quem as montou, que é
+quem sabe qual borda casa com qual — dente reto não encaixa em parede de 120
+graus. Toda forma pronta chega na mesa como um grupo só.
+
 **Fatiar um modelo.** Para as formas que não se montam com paredes — um morro,
 um peixe, um rosto. O modelo entra pelo Design 3D, pela Bolsa ou por um
 arquivo STL, OBJ ou GLB, e sai como uma pilha de camadas da espessura da
@@ -589,6 +621,8 @@ buradesign/
 | `src/modos/corte/materiais.js` | lista de chapas da escola, kerf e folha; guarda a escolha |
 | `src/modos/corte/chapas.js` | a chapa no espaço com giro livre, grupos e a caixa pronta |
 | `src/modos/corte/juntas.js` | acha os encontros entre chapas e desenha os dedos de encaixe |
+| `src/modos/corte/formas.js` | prisma, pirâmide e dodecaedro, com os encaixes já prontos |
+| `src/modos/corte/ima.js` | o grid relativo e o ímã que gruda a chapa na vizinha |
 | `src/modos/corte/planificar.js` | abre cada chapa em contorno 2D, com abas e entalhes |
 | `src/modos/corte/fatias.js` | corta o modelo 3D em camadas, sem booleana |
 | `src/modos/corte/arranjo.js` | arruma as peças dentro do tamanho da folha |
@@ -646,7 +680,10 @@ mesa e já agrupada; mexer no tamanho do dedo ou na folga muda os riscos verdes
 na hora; um dedo só gira e arrasta a câmera depois de escolher o modo no canto
 da tela; agrupar, guardar na Bolsa, limpar e trazer de volta devolve a mesma
 montagem; girar 90° não muda o plano de corte e girar 45° avisa que a chapa
-ficou em ângulo; o plano de corte abre com todas as peças numeradas e a lista
+ficou em ângulo; a chapa gruda na vizinha ao chegar perto e continua podendo
+atravessar; as cinco formas prontas montam, aparecem agrupadas e saem no plano
+(a tira do prisma com vinco sai numa peça só, com as dobras tracejadas em
+vermelho); o plano de corte abre com todas as peças numeradas e a lista
 bate com o desenho; o fatiador aceita modelo do Design 3D, da Bolsa e de
 arquivo; e o SVG baixado abre no Inkscape com as medidas certas em
 milímetros.

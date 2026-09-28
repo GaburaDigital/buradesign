@@ -226,7 +226,8 @@ function abrirPlano() {
           tocar("salvar");
         },
       },
-      { rotulo: "Fechar" },
+      // Botão sem "aoClicar" não faz nada: o Fechar do plano estava morto.
+      { rotulo: "Fechar", aoClicar: () => fecharPainel() },
     ],
   });
 }

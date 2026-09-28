@@ -53,6 +53,17 @@ export function montarPlanoSVG(arranjo, opcoes = {}) {
       linhas.push(
         `    <path d="${partes.join(" ")}" fill="none" stroke="${CORTE}" stroke-width="0.1" fill-rule="evenodd"><title>${posta.peca.nome}</title></path>`,
       );
+      // Gravação: linha de dobra e marcação. Sai na cor de gravar, e aberta,
+      // nunca fechada — a cortadora precisa ver que isto não é contorno.
+      for (const linha of posta.peca.gravacoes || []) {
+        if (!linha || linha.length < 2) continue;
+        const traco = linha
+          .map(([u, v], i) => `${i === 0 ? "M" : "L"} ${numero(u + x)} ${numero(v + y)}`)
+          .join(" ");
+        linhas.push(
+          `    <path d="${traco}" fill="none" stroke="${GRAVACAO}" stroke-width="0.1" stroke-dasharray="2 1.5"/>`,
+        );
+      }
       if (comRotulos) linhas.push(rotulo(posta.peca, x, y, numeroDaPeca));
     }
     linhas.push("  </g>");

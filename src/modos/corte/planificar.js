@@ -40,6 +40,28 @@ function arrumar(lista, limite) {
   return juntos;
 }
 
+// Junta o que o detector achou com o que a forma pronta já trazia.
+function mesclarEncaixes(fixos, achados) {
+  const saida = { u0: [], u1: [], v0: [], v1: [] };
+  for (const borda of Object.keys(saida)) {
+    saida[borda] = [...((fixos && fixos[borda]) || []), ...((achados && achados[borda]) || [])];
+  }
+  return saida;
+}
+
+// O rasgo pode vir como retângulo do detector ou como polígono da forma
+// pronta (um encaixe de parede torta não é paralelo a nada).
+function rasgoEmPontos(furo) {
+  if (Array.isArray(furo)) return furo.length >= 3 ? furo.map((ponto) => [...ponto]) : null;
+  if (furo.u1 - furo.u0 <= 0.05 || furo.v1 - furo.v0 <= 0.05) return null;
+  return [
+    [furo.u0, furo.v0],
+    [furo.u1, furo.v0],
+    [furo.u1, furo.v1],
+    [furo.u0, furo.v1],
+  ];
+}
+
 export function planificar(chapa, espessura, encaixes = {}, furos = []) {
   const contorno = [];
   const por = (u, v) => {
@@ -48,10 +70,20 @@ export function planificar(chapa, espessura, encaixes = {}, furos = []) {
     contorno.push([u, v]);
   };
 
+  const todosOsEncaixes = mesclarEncaixes(chapa.encaixesFixos, encaixes);
+
+  // Chapa com forma própria (pentágono, triângulo, o que for) não dá a volta
+  // do retângulo: o contorno dela já veio pronto da forma. Os encaixes dela
+  // vivem nos rasgos, não na borda.
+  if (chapa.forma && chapa.forma.length >= 3) {
+    for (const [u, v] of chapa.forma) por(u, v);
+    return montarPeca(chapa, contorno, furos, espessura);
+  }
+
   for (const passo of VOLTA) {
     const comprimento = passo.eixo === "u" ? chapa.largura : chapa.altura;
     const nivel = passo.base === "v" ? (passo.fora < 0 ? 0 : chapa.altura) : passo.fora < 0 ? 0 : chapa.largura;
-    const recortes = arrumar(encaixes[passo.borda], comprimento);
+    const recortes = arrumar(todosOsEncaixes[passo.borda], comprimento);
     const ordenados = passo.sentido === 1 ? recortes : [...recortes].reverse();
 
     const ponto = (andado, deslocado) => {
@@ -81,14 +113,13 @@ export function planificar(chapa, espessura, encaixes = {}, furos = []) {
     }
   }
 
-  const rasgos = (furos || [])
-    .filter((furo) => furo.u1 - furo.u0 > 0.05 && furo.v1 - furo.v0 > 0.05)
-    .map((furo) => [
-      [furo.u0, furo.v0],
-      [furo.u1, furo.v0],
-      [furo.u1, furo.v1],
-      [furo.u0, furo.v1],
-    ]);
+  return montarPeca(chapa, contorno, furos, espessura);
+}
+
+function montarPeca(chapa, contorno, furos, espessura) {
+  const rasgos = [...(chapa.furosFixos || []), ...(furos || [])]
+    .map(rasgoEmPontos)
+    .filter(Boolean);
 
   const limites = medirContorno(contorno);
   const rotulos = rotulosDaChapa(chapa);
@@ -97,12 +128,18 @@ export function planificar(chapa, espessura, encaixes = {}, furos = []) {
     nome: chapa.nome,
     plano: chapa.plano,
     grupo: chapa.grupo || null,
+    tira: chapa.tira || null,
+    ordemNaTira: chapa.ordemNaTira || 0,
     rotuloU: rotulos.rotuloU,
     rotuloV: rotulos.rotuloV,
     largura: chapa.largura,
     altura: chapa.altura,
+    espessura,
     contorno,
     furos: rasgos,
+    // Gravações saem no SVG numa cor só de gravar: vinco é para dobrar, não
+    // para cortar. Cortar um vinco é perder a peça.
+    gravacoes: (chapa.vincos || []).map((linha) => linha.map((ponto) => [...ponto])),
     limites,
     area: areaDe(contorno) - rasgos.reduce((soma, furo) => soma + Math.abs(areaDe(furo)), 0),
   };
@@ -151,6 +188,60 @@ export function seCruza(pontos) {
     }
   }
   return false;
+}
+
+// Uma tira é um retângulo comprido que o aluno dobra nos vincos. No 3D ela
+// aparece já dobrada, em pedaços, para a peça fazer sentido na tela; no plano
+// de corte os pedaços viram um só, porque cortar em pedaços e colar de volta
+// seria justamente o trabalho que o vinco evita.
+export function juntarTiras(chapas) {
+  const tiras = new Map();
+  const soltas = [];
+  for (const chapa of chapas) {
+    if (!chapa.tira) {
+      soltas.push(chapa);
+      continue;
+    }
+    if (!tiras.has(chapa.tira)) tiras.set(chapa.tira, []);
+    tiras.get(chapa.tira).push(chapa);
+  }
+
+  for (const [nome, pedacos] of tiras) {
+    pedacos.sort((a, b) => (a.ordemNaTira || 0) - (b.ordemNaTira || 0));
+    const altura = pedacos[0].altura;
+    const encaixes = { u0: [], u1: [], v0: [], v1: [] };
+    const vincos = [];
+    let andado = 0;
+    pedacos.forEach((pedaco, indice) => {
+      const fixos = pedaco.encaixesFixos || {};
+      for (const borda of ["v0", "v1"]) {
+        for (const item of fixos[borda] || []) {
+          encaixes[borda].push({ ...item, de: item.de + andado, ate: item.ate + andado });
+        }
+      }
+      // As bordas de fora da tira continuam sendo as bordas das pontas.
+      if (indice === 0) encaixes.u0.push(...(fixos.u0 || []));
+      if (indice === pedacos.length - 1) {
+        encaixes.u1.push(...(fixos.u1 || []));
+      }
+      andado += pedaco.largura;
+      if (indice < pedacos.length - 1) vincos.push([[andado, 0], [andado, altura]]);
+    });
+
+    soltas.push({
+      ...pedacos[0],
+      id: `${nome}`,
+      nome: pedacos[0].nomeDaTira || `Tira de ${pedacos.length} lados`,
+      largura: andado,
+      altura,
+      forma: null,
+      encaixesFixos: encaixes,
+      furosFixos: null,
+      vincos,
+      tira: null,
+    });
+  }
+  return soltas;
 }
 
 export function planificarTudo(chapas, espessura, resultado) {

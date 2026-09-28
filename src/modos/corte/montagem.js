@@ -39,8 +39,10 @@ import { nomeDeArquivo } from "../livre/projeto.js";
 
 import * as materiais from "./materiais.js";
 import * as chapasMod from "./chapas.js";
+import * as imaMod from "./ima.js";
+import * as formas from "./formas.js";
 import { detectarJuntas } from "./juntas.js";
-import { planificarTudo } from "./planificar.js";
+import { planificarTudo, juntarTiras, seCruza } from "./planificar.js";
 import { arranjar } from "./arranjo.js";
 import { montarPlanoSVG, listaDePecas } from "./planosvg.js";
 
@@ -89,12 +91,17 @@ let grupoContador = 0;
 let grupo = null;
 let grupoJuntas = null;
 let ultimoResultado = null;
+let trechosDasJuntas = [];
 let modoDoPonteiro = "selecionar";
 let modoDaGarra = "base";
 let eixoDoGiro = "y";
 let giroFino = 15;
 let arrastando = false;
 let punhoAnterior = null;
+let grupoIma = null;
+let imaLigado = true;
+let imaForca = 2;
+let imaAnterior = "";
 
 function config() {
   return materiais.valores();
@@ -224,6 +231,35 @@ function posicionarMalha(malha, chapa) {
   );
 }
 
+// A chapa na tela é a peça planificada, extrudada na espessura do material.
+// Ou seja: o que aparece no 3D é exatamente o que vai sair da cortadora, com
+// os dentes e os rasgos no lugar. Era isso que faltava para o aluno enxergar
+// onde a montagem vai ficar dentada antes de gastar chapa.
+function geometriaDaChapa(peca, espessura, chapa) {
+  if (!peca || peca.contorno.length < 3 || seCruza(peca.contorno)) {
+    // Contorno impossível (dente em cima de dente): cai no retângulo liso, que
+    // pelo menos não some da tela.
+    return new THREE.BoxGeometry(chapa.largura, chapa.altura, espessura);
+  }
+  const meioU = chapa.largura / 2;
+  const meioV = chapa.altura / 2;
+  const forma = new THREE.Shape(
+    peca.contorno.map(([u, v]) => new THREE.Vector2(u - meioU, v - meioV)),
+  );
+  for (const furo of peca.furos || []) {
+    forma.holes.push(new THREE.Path(furo.map(([u, v]) => new THREE.Vector2(u - meioU, v - meioV))));
+  }
+  let geometria;
+  try {
+    geometria = new THREE.ExtrudeGeometry(forma, { depth: espessura, bevelEnabled: false });
+  } catch {
+    return new THREE.BoxGeometry(chapa.largura, chapa.altura, espessura);
+  }
+  // O extrude nasce de z=0 para cima; a chapa mora centrada na espessura.
+  geometria.translate(0, 0, -espessura / 2);
+  return geometria;
+}
+
 function redesenhar() {
   if (!grupo) return;
   for (const filho of grupo.children.slice()) {
@@ -234,10 +270,17 @@ function redesenhar() {
     grupo.remove(filho);
   }
   const { espessura } = config();
+  // As juntas vêm antes do desenho agora: são elas que dizem onde ficam os
+  // dentes, e sem elas a chapa sairia lisa.
+  recalcularJuntas();
+  const planificadas = new Map(
+    planificarTudo(chapas, espessura, ultimoResultado).map((peca) => [peca.id, peca]),
+  );
+
   const escolhidas = new Set(selecao);
   for (const chapa of chapas) {
     const malha = new THREE.Mesh(
-      new THREE.BoxGeometry(chapa.largura, chapa.altura, espessura),
+      geometriaDaChapa(planificadas.get(chapa.id), espessura, chapa),
       new THREE.MeshStandardMaterial({
         color: corDaChapa(chapa),
         roughness: 0.75,
@@ -245,7 +288,7 @@ function redesenhar() {
         transparent: true,
         opacity: escolhidas.size && !escolhidas.has(chapa.id) ? 0.5 : 1,
         emissive: new THREE.Color(escolhidas.has(chapa.id) ? cena.paleta3d().guia : 0x000000),
-        emissiveIntensity: escolhidas.has(chapa.id) ? 0.35 : 0,
+        emissiveIntensity: escolhidas.has(chapa.id) ? 0.3 : 0,
       }),
     );
     posicionarMalha(malha, chapa);
@@ -257,7 +300,7 @@ function redesenhar() {
     malha.add(contorno);
     grupo.add(malha);
   }
-  recalcularJuntas();
+  desenharFaixasDasJuntas();
   prenderGarra();
 }
 
@@ -270,56 +313,76 @@ function reposicionarMalhas() {
   }
 }
 
-// As juntas viram riscos verdes na montagem: o aluno vê onde vai ter dedo
-// antes de gastar chapa.
+// Onde duas chapas se encontram. Guarda o trecho de encontro de cada junta
+// para a faixa poder ser desenhada por cima da montagem.
 function recalcularJuntas() {
   const { espessura, dedo, kerf, folga } = config();
   ultimoResultado = detectarJuntas(chapas, espessura, { dedo, kerf, folga });
 
-  for (const filho of grupoJuntas.children.slice()) {
-    filho.geometry?.dispose?.();
-    filho.material?.dispose?.();
-    grupoJuntas.remove(filho);
-  }
-  const pontos = [];
   const porId = new Map(chapas.map((chapa) => [chapa.id, chapa]));
+  trechosDasJuntas = [];
   for (const junta of ultimoResultado.juntas) {
     const a = porId.get(junta.a);
     const b = porId.get(junta.b);
     if (!a || !b) continue;
     const ca = chapasMod.extensao(a, espessura);
     const cb = chapasMod.extensao(b, espessura);
-    const de = {
-      x: Math.max(ca.min.x, cb.min.x),
-      y: Math.max(ca.min.y, cb.min.y),
-      z: Math.max(ca.min.z, cb.min.z),
-    };
-    const ate = {
-      x: Math.min(ca.max.x, cb.max.x),
-      y: Math.min(ca.max.y, cb.max.y),
-      z: Math.min(ca.max.z, cb.max.z),
-    };
-    pontos.push(de.x, de.y, de.z, ate.x, ate.y, ate.z);
-  }
-  if (pontos.length) {
-    // A junta mora dentro do encontro das duas chapas, então ficava escondida
-    // pelas próprias chapas. Sem teste de profundidade ela aparece por cima,
-    // que é o que interessa: o aluno vê onde vai nascer dedo antes de cortar.
-    const geometria = new THREE.BufferGeometry();
-    geometria.setAttribute("position", new THREE.Float32BufferAttribute(pontos, 3));
-    const linhas = new THREE.LineSegments(
-      geometria,
-      new THREE.LineBasicMaterial({
-        color: cena.paleta3d().guia,
-        transparent: true,
-        opacity: 0.85,
-        depthTest: false,
-      }),
-    );
-    linhas.renderOrder = 5;
-    grupoJuntas.add(linhas);
+    trechosDasJuntas.push({
+      junta,
+      de: {
+        x: Math.max(ca.min.x, cb.min.x),
+        y: Math.max(ca.min.y, cb.min.y),
+        z: Math.max(ca.min.z, cb.min.z),
+      },
+      ate: {
+        x: Math.min(ca.max.x, cb.max.x),
+        y: Math.min(ca.max.y, cb.max.y),
+        z: Math.min(ca.max.z, cb.max.z),
+      },
+    });
   }
   atualizarStatus();
+}
+
+// A faixa da junta: uma barra grossa e acesa em cima do encontro das duas
+// chapas. Os dentes já aparecem recortados na própria chapa; a faixa é o que
+// diz qual borda casa com qual, inclusive quando uma tampa a outra.
+function desenharFaixasDasJuntas() {
+  if (!grupoJuntas) return;
+  for (const filho of grupoJuntas.children.slice()) {
+    filho.geometry?.dispose?.();
+    filho.material?.dispose?.();
+    grupoJuntas.remove(filho);
+  }
+  const { espessura } = config();
+  const escolhidas = new Set(selecao);
+  const tons = cena.paleta3d();
+
+  for (const trecho of trechosDasJuntas) {
+    const de = new THREE.Vector3(trecho.de.x, trecho.de.y, trecho.de.z);
+    const ate = new THREE.Vector3(trecho.ate.x, trecho.ate.y, trecho.ate.z);
+    const comprimento = de.distanceTo(ate);
+    if (comprimento < 0.5) continue;
+    // Com nada escolhido, a faixa é discreta: os dentes já estão desenhados na
+    // chapa e a faixa não pode tapar eles. Ela só engrossa e passa por cima de
+    // tudo quando o aluno escolhe uma das duas chapas da junta, que é quando
+    // ele está perguntando "esta borda casa com qual?".
+    const acesa = escolhidas.has(trecho.junta.a) || escolhidas.has(trecho.junta.b);
+    const grossura = espessura * (acesa ? 0.9 : 0.3);
+    const barra = new THREE.Mesh(
+      new THREE.BoxGeometry(grossura, grossura, comprimento),
+      new THREE.MeshBasicMaterial({
+        color: trecho.junta.tipo === "te" ? tons.ima : tons.guia,
+        transparent: true,
+        opacity: acesa ? 0.7 : 0.35,
+        depthTest: !acesa,
+      }),
+    );
+    barra.position.copy(de.clone().add(ate).multiplyScalar(0.5));
+    barra.lookAt(ate);
+    barra.renderOrder = acesa ? 6 : 4;
+    grupoJuntas.add(barra);
+  }
 }
 
 // --- Garra --------------------------------------------------------------
@@ -342,11 +405,22 @@ function prenderGarra() {
   garra.attach(punho);
 }
 
+// No começo do arrasto guardo onde cada chapa escolhida estava. Todo quadro
+// do arrasto recalcula a posição a partir daí, e não a partir do quadro
+// anterior: assim o ímã pode puxar e soltar quantas vezes quiser sem que o
+// erro vá se acumulando, e a peça volta exatamente para onde estava se o
+// aluno arrastar de volta.
 function guardarPunho() {
   punhoAnterior = {
     posicao: punho.position.clone(),
     giro: punho.quaternion.clone(),
+    chapas: selecionadas().map((chapa) => ({
+      id: chapa.id,
+      centro: { ...chapa.centro },
+      giro: { ...chapa.giro },
+    })),
   };
+  imaAnterior = "";
 }
 
 // Do quaternion da garra para a matriz que as chapas entendem.
@@ -364,10 +438,20 @@ function seguirGarra() {
   if (!punhoAnterior) return;
   const lista = selecionadas();
   if (!lista.length) return;
+  const { espessura } = config();
 
+  // 1. Volta para o estado do começo do arrasto.
+  const porId = new Map(punhoAnterior.chapas.map((guardada) => [guardada.id, guardada]));
+  for (const chapa of lista) {
+    const guardada = porId.get(chapa.id);
+    if (!guardada) continue;
+    chapa.centro = { ...guardada.centro };
+    chapa.giro = { ...guardada.giro };
+  }
+
+  // 2. Aplica o giro que a garra acumulou até agora.
   const giroDelta = punho.quaternion.clone().multiply(punhoAnterior.giro.clone().invert());
-  const mexeuOGiro = Math.abs(giroDelta.w) < 0.9999999;
-  if (mexeuOGiro) {
+  if (Math.abs(giroDelta.w) < 0.9999999) {
     const pivo = punhoAnterior.posicao;
     chapasMod.aplicarGiroDoMundo(lista, matrizDoQuaternion(giroDelta), {
       x: pivo.x,
@@ -376,11 +460,80 @@ function seguirGarra() {
     });
   }
 
-  const delta = punho.position.clone().sub(punhoAnterior.posicao);
-  if (delta.lengthSq() > 0) chapasMod.moverChapas(lista, delta);
+  // 3. Anda o tanto que a garra andou, pisando no grid. O grid conta a partir
+  // de onde a chapa estava, e não de múltiplos redondos do mundo — senão uma
+  // parede de 43,5 mm nunca conseguiria encostar na vizinha.
+  const bruto = punho.position.clone().sub(punhoAnterior.posicao);
+  const passo = cena.passoDoEncaixe();
+  const andado = imaMod.passoDoGrid({ x: bruto.x, y: bruto.y, z: bruto.z }, passo);
+  chapasMod.moverChapas(lista, andado);
 
-  guardarPunho();
+  // 4. O ímã puxa para a chapa vizinha mais perto.
+  let marcas = [];
+  if (imaLigado) {
+    const escolhidas = new Set(lista.map((chapa) => chapa.id));
+    const paradas = chapas.filter((chapa) => !escolhidas.has(chapa.id));
+    const achado = imaMod.encaixar(lista, paradas, { espessura, forca: imaForca });
+    if (achado.marcas.length) {
+      chapasMod.moverChapas(lista, achado.correcao);
+      marcas = achado.marcas;
+    }
+  }
+
+  // O clique só sai quando o ímã acabou de pegar num lugar novo: é o aviso
+  // sonoro da "travadinha", e repetido a cada quadro viraria barulho.
+  const agora = imaMod.assinatura(marcas);
+  if (agora !== imaAnterior) {
+    if (agora) tocar("encaixe");
+    imaAnterior = agora;
+  }
+  desenharMarcasDoIma(marcas);
   reposicionarMalhas();
+}
+
+// Um risco na cor do ímã em cima da borda que grudou, para o aluno ver por
+// que a peça parou ali.
+function desenharMarcasDoIma(marcas) {
+  if (!grupoIma) return;
+  for (const filho of grupoIma.children.slice()) {
+    filho.geometry?.dispose?.();
+    filho.material?.dispose?.();
+    grupoIma.remove(filho);
+  }
+  if (!marcas.length) return;
+  const { espessura } = config();
+  const minha = imaMod.caixaDoConjunto(selecionadas(), espessura);
+  if (!minha) return;
+  const folga = 4;
+  const pontos = [];
+  for (const marca of marcas) {
+    const outros = ["x", "y", "z"].filter((eixo) => eixo !== marca.eixo);
+    const canto = (a, b) => {
+      const ponto = { [marca.eixo]: marca.valor };
+      ponto[outros[0]] = a ? minha.max[outros[0]] + folga : minha.min[outros[0]] - folga;
+      ponto[outros[1]] = b ? minha.max[outros[1]] + folga : minha.min[outros[1]] - folga;
+      return ponto;
+    };
+    const volta = [canto(false, false), canto(true, false), canto(true, true), canto(false, true)];
+    for (let i = 0; i < 4; i += 1) {
+      const um = volta[i];
+      const outro = volta[(i + 1) % 4];
+      pontos.push(um.x, um.y, um.z, outro.x, outro.y, outro.z);
+    }
+  }
+  const geometria = new THREE.BufferGeometry();
+  geometria.setAttribute("position", new THREE.Float32BufferAttribute(pontos, 3));
+  const linhas = new THREE.LineSegments(
+    geometria,
+    new THREE.LineBasicMaterial({
+      color: cena.paleta3d().ima,
+      transparent: true,
+      opacity: 0.9,
+      depthTest: false,
+    }),
+  );
+  linhas.renderOrder = 7;
+  grupoIma.add(linhas);
 }
 
 function trocarGarra(id) {
@@ -464,10 +617,17 @@ function inserirChapa(plano) {
 async function gerarCaixa() {
   const corpo = document.createElement("div");
   corpo.className = "corte__formulario";
-  const valores = { largura: 120, altura: 80, profundidade: 90, comTampa: false };
-  // O campoArrastavel já traz o próprio rótulo. Envolver ele num outro rótulo
-  // deixava a caixa sem valor nenhum na tela, porque as chaves do objeto
-  // ("valor" em vez de "valorInicial") não eram as que ele lê.
+  const valores = {
+    forma: "caixa",
+    largura: 120,
+    altura: 80,
+    profundidade: 90,
+    diametro: 100,
+    lados: 6,
+    comTampa: false,
+    modo: "vinco",
+  };
+
   const campo = (rotulo, chave, minimo, maximo) =>
     campoArrastavel({
       rotulo,
@@ -481,24 +641,94 @@ async function gerarCaixa() {
         valores[chave] = numero;
       },
     });
-  const tampa = document.createElement("label");
-  tampa.className = "campo campo--linha";
-  const caixinha = document.createElement("input");
-  caixinha.type = "checkbox";
-  caixinha.addEventListener("change", () => {
-    valores.comTampa = caixinha.checked;
-  });
-  const rotuloTampa = document.createElement("span");
-  rotuloTampa.className = "campo__rotulo";
-  rotuloTampa.textContent = "Com tampa";
-  tampa.append(caixinha, rotuloTampa);
+
+  const interruptor = (rotulo, chave) => {
+    const linha = document.createElement("label");
+    linha.className = "campo campo--linha";
+    const caixinha = document.createElement("input");
+    caixinha.type = "checkbox";
+    caixinha.checked = Boolean(valores[chave]);
+    caixinha.addEventListener("change", () => {
+      valores[chave] = caixinha.checked;
+    });
+    const nome = document.createElement("span");
+    nome.className = "campo__rotulo";
+    nome.textContent = rotulo;
+    linha.append(caixinha, nome);
+    return linha;
+  };
+
+  const medidas = document.createElement("div");
+  medidas.className = "corte__formulario";
+
+  // O formulário troca de cara conforme a forma: pedir profundidade de um
+  // dodecaedro não faz sentido nenhum, e campo que não serve confunde.
+  function redesenharMedidas() {
+    medidas.innerHTML = "";
+    if (valores.forma === "caixa") {
+      medidas.append(
+        campo("Largura (mm)", "largura", 20, 1200),
+        campo("Altura (mm)", "altura", 20, 1200),
+        campo("Profundidade (mm)", "profundidade", 20, 1200),
+        interruptor("Com tampa", "comTampa"),
+      );
+      return;
+    }
+    if (valores.forma === "dodecaedro") {
+      const nota = document.createElement("p");
+      nota.className = "dica";
+      nota.textContent =
+        "Sai em duas flores de seis pentágonos, com as dobras gravadas. Dobre as duas e encaixe uma na outra.";
+      medidas.append(campo("Diâmetro (mm)", "diametro", 40, 600), nota);
+      return;
+    }
+
+    const lados = valores.forma === "prisma" ? formas.LADOS_DO_PRISMA : formas.LADOS_DA_PIRAMIDE;
+    if (!lados.includes(valores.lados)) valores.lados = lados[lados.length - 1];
+    medidas.append(
+      campoLista(
+        "Lados",
+        String(valores.lados),
+        lados.map((n) => ({ id: String(n), nome: `${n} lados` })),
+        (id) => {
+          valores.lados = Number(id);
+        },
+      ),
+      campo("Diâmetro (mm)", "diametro", 30, 800),
+      campo("Altura (mm)", "altura", 20, 1200),
+    );
+    if (valores.forma === "prisma") {
+      medidas.append(
+        interruptor("Com tampa", "comTampa"),
+        campoLista(
+          "Como montar a lateral",
+          valores.modo,
+          [
+            { id: "vinco", nome: "Planificado com vinco (papelão, EVA)" },
+            { id: "soltas", nome: "Paredes soltas com abas (MDF, acrílico)" },
+          ],
+          (id) => {
+            valores.modo = id;
+          },
+        ),
+      );
+    } else {
+      const nota = document.createElement("p");
+      nota.className = "dica";
+      nota.textContent =
+        "As faces entram na base por abas. Lembre: a face é tão alta quanto a inclinação, não quanto a pirâmide.";
+      medidas.append(nota);
+    }
+  }
 
   corpo.append(
-    campo("Largura (mm)", "largura", 20, 1200),
-    campo("Altura (mm)", "altura", 20, 1200),
-    campo("Profundidade (mm)", "profundidade", 20, 1200),
-    tampa,
+    campoLista("Forma", valores.forma, formas.FORMAS, (id) => {
+      valores.forma = id;
+      redesenharMedidas();
+    }),
+    medidas,
   );
+  redesenharMedidas();
 
   const feito = await new Promise((resolver) => {
     // Fechar o painel dispara o "aoFechar" mesmo no modo silencioso. Sem esta
@@ -522,20 +752,34 @@ async function gerarCaixa() {
   });
   if (!feito) return;
 
-  const { espessura } = config();
+  const { espessura, dedo } = config();
   chapasMod.reiniciarContagem(0);
-  const novas = pousarNoMeioDaMesa(chapasMod.montarCaixa({ ...valores, espessura }));
-  // A caixa pronta chega como um grupo só: ela é uma peça na cabeça do aluno,
-  // não cinco chapas soltas que ele precisa juntar na mão.
+  let novas;
+  let recado;
+  if (valores.forma === "prisma") {
+    novas = formas.montarPrisma({ ...valores, espessura, dedo });
+    recado = `Prisma de ${valores.lados} lados, ${valores.diametro} mm de diâmetro.`;
+  } else if (valores.forma === "piramide") {
+    novas = formas.montarPiramide({ ...valores, espessura, dedo });
+    recado = `Pirâmide de ${valores.lados} lados, ${valores.altura} mm de altura.`;
+  } else if (valores.forma === "dodecaedro") {
+    novas = formas.montarDodecaedro({ ...valores, espessura });
+    recado = `Dodecaedro de ${valores.diametro} mm. Duas flores para dobrar.`;
+  } else {
+    novas = chapasMod.montarCaixa({ ...valores, espessura });
+    recado = `Caixa de ${valores.largura} × ${valores.altura} × ${valores.profundidade} mm.`;
+  }
+
+  pousarNoMeioDaMesa(novas);
+  // A forma pronta chega como um grupo só: ela é uma peça na cabeça do aluno,
+  // não um monte de chapa solta que ele precisa juntar na mão.
   grupoContador += 1;
   for (const chapa of novas) chapa.grupo = `grupo${grupoContador}`;
   chapas = novas;
   tocar("pronto");
   selecionar([]);
   cena.enquadrar();
-  mostrarAviso(
-    `Caixa de ${valores.largura} × ${valores.altura} × ${valores.profundidade} mm montada, já agrupada.`,
-  );
+  mostrarAviso(`${recado} Montada e já agrupada.`);
 }
 
 async function apagarSelecao() {
@@ -678,8 +922,11 @@ function colocarDaBolsa(item) {
 function calcularPlano() {
   const cfg = config();
   if (!chapas.length) return null;
-  const resultado = detectarJuntas(chapas, cfg.espessura, cfg);
-  const planos = planificarTudo(chapas, cfg.espessura, resultado);
+  // A tira dobrada aparece em pedaços no 3D, mas sai inteira na chapa: é o
+  // vinco que faz o canto, e cortar em pedaços seria desfazer isso.
+  const paraCorte = juntarTiras(chapas);
+  const resultado = detectarJuntas(paraCorte, cfg.espessura, cfg);
+  const planos = planificarTudo(paraCorte, cfg.espessura, resultado);
   const arranjo = arranjar(planos, {
     chapaLargura: cfg.chapaLargura,
     chapaAltura: cfg.chapaAltura,
@@ -754,7 +1001,8 @@ function abrirPlano() {
           tocar("salvar");
         },
       },
-      { rotulo: "Fechar" },
+      // Botão sem "aoClicar" não faz nada: o Fechar do plano estava morto.
+      { rotulo: "Fechar", aoClicar: () => fecharPainel() },
     ],
   });
 }
@@ -957,6 +1205,39 @@ function atualizarPainel() {
     }, { min: 3, max: 80, passo: 1 }),
   );
 
+  // O ímã e o grid moram juntos: são as duas coisas que decidem onde a chapa
+  // pode parar, e o aluno precisa ver as duas lado a lado para entender por
+  // que a peça grudou (ou por que não grudou).
+  const bancada = grupoPainel("Ajuda para encaixar");
+  const passoAtual = cena.passoDoEncaixe();
+  const ligaIma = document.createElement("label");
+  ligaIma.className = "campo campo--linha";
+  const caixaIma = document.createElement("input");
+  caixaIma.type = "checkbox";
+  caixaIma.checked = imaLigado;
+  caixaIma.addEventListener("change", () => {
+    imaLigado = caixaIma.checked;
+    atualizarPainel();
+  });
+  const rotuloIma = document.createElement("span");
+  rotuloIma.className = "campo__rotulo";
+  rotuloIma.textContent = "Ímã de encaixe";
+  ligaIma.append(caixaIma, rotuloIma);
+  bancada.append(ligaIma);
+  if (imaLigado) {
+    bancada.append(
+      campoNumero("Força do ímã (mm)", imaForca, (n) => {
+        imaForca = n;
+      }, { min: 0.5, max: 10, passo: 0.5 }),
+    );
+  }
+  const notaGrid = document.createElement("p");
+  notaGrid.className = "dica";
+  notaGrid.textContent = passoAtual
+    ? `A chapa anda de ${passoAtual} em ${passoAtual} mm a partir de onde está. Troque o passo nos Ajustes, em Bancada.`
+    : "O passo do grid está desligado nos Ajustes: a chapa anda livre.";
+  bancada.append(notaGrid);
+
   const folha = grupoPainel("Folha de corte");
   folha.append(
     campoLista("Tamanho", cfg.chapa, materiais.CHAPAS, (id) => {
@@ -978,7 +1259,7 @@ function atualizarPainel() {
     }),
   );
 
-  painelArea.append(material, folha);
+  painelArea.append(material, bancada, folha);
 
   if (selecionadas().length) {
     painelArea.append(secaoDaSelecao());
@@ -998,8 +1279,21 @@ function atualizarStatus() {
   const juntas = ultimoResultado ? ultimoResultado.juntas.length : 0;
   const emT = ultimoResultado ? ultimoResultado.juntas.filter((j) => j.tipo === "te").length : 0;
   const grupos = quantosGrupos();
+  // A forma pronta traz os encaixes dela calculados, então eles não passam
+  // pelo detector. Dizer "0 juntas" numa pirâmide inteirinha encaixada seria
+  // mentira; aqui eles entram na conta pelo que são.
+  const prontos = chapas.reduce((soma, chapa) => {
+    const abas = Object.values(chapa.encaixesFixos || {}).reduce((n, lista) => n + lista.length, 0);
+    return soma + abas + (chapa.furosFixos || []).length;
+  }, 0);
+  const contagem = [
+    juntas ? `${juntas} junta(s)${emT ? ` (${emT} em T)` : ""}` : "",
+    prontos ? `${prontos} encaixe(s) da forma` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
   statusArea.textContent = chapas.length
-    ? `${chapas.length} chapa(s)${grupos ? ` em ${grupos} grupo(s)` : ""} · ${materiais.nomeDoMaterial()} · montagem ${Math.round(medidas.largura)} × ${Math.round(medidas.altura)} × ${Math.round(medidas.profundidade)} mm · ${juntas} junta(s)${emT ? ` (${emT} em T)` : ""}${selecao.length ? ` · ${selecao.length} escolhida(s)` : ""}`
+    ? `${chapas.length} chapa(s)${grupos ? ` em ${grupos} grupo(s)` : ""} · ${materiais.nomeDoMaterial()} · montagem ${Math.round(medidas.largura)} × ${Math.round(medidas.altura)} × ${Math.round(medidas.profundidade)} mm${contagem ? ` · ${contagem}` : ""}${selecao.length ? ` · ${selecao.length} escolhida(s)` : ""}`
     : "Comece por uma caixa pronta ou plante uma chapa.";
 }
 
@@ -1156,7 +1450,8 @@ export async function montar(area, setor, aoVoltar) {
   cena.iniciar(tela);
   grupo = new THREE.Group();
   grupoJuntas = new THREE.Group();
-  cena3d.cena.add(grupo, grupoJuntas);
+  grupoIma = new THREE.Group();
+  cena3d.cena.add(grupo, grupoJuntas, grupoIma);
   raio = new THREE.Raycaster();
 
   // O punho é um objeto invisível no meio da seleção. A garra segura ele, e
@@ -1167,7 +1462,12 @@ export async function montar(area, setor, aoVoltar) {
   cena3d.cena.add(punho);
 
   garra = new TransformControls(cena3d.camera, tela);
-  garra.setTranslationSnap(1);
+  // Sem snap na garra de propósito. O snap dela arredonda a posição absoluta
+  // para múltiplos do passo, e numa caixa de 3 mm as paredes moram em 43,5:
+  // com passo de 5 mm não existia posição alcançável que encostasse. Quem
+  // pisa no grid agora é o seguirGarra, contando a partir de onde a chapa
+  // estava, e o ímã por cima.
+  garra.setTranslationSnap(null);
   garra.setRotationSnap((5 * Math.PI) / 180);
   garra.setSize(0.8 * Number(ajuste("alcas") || 1));
   garra.addEventListener("dragging-changed", (evento) => {
@@ -1177,12 +1477,14 @@ export async function montar(area, setor, aoVoltar) {
       guardarPunho();
     } else {
       // Arredonda depois do arrasto: número redondo é o que o aluno consegue
-      // repetir na régua de verdade.
+      // repetir na régua de verdade. Um décimo de milímetro chega, e é fino o
+      // bastante para não estragar o que o ímã acabou de encaixar.
       for (const chapa of selecionadas()) {
         chapa.centro.x = Math.round(chapa.centro.x * 10) / 10;
         chapa.centro.y = Math.round(chapa.centro.y * 10) / 10;
         chapa.centro.z = Math.round(chapa.centro.z * 10) / 10;
       }
+      desenharMarcasDoIma([]);
       redesenhar();
       atualizarPainel();
     }
@@ -1308,6 +1610,7 @@ export function encerrar() {
   punhoAnterior = null;
   grupo = null;
   grupoJuntas = null;
+  grupoIma = null;
   chapas = [];
   selecao = [];
   try {

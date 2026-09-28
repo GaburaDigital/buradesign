@@ -38,6 +38,23 @@ export function novaChapa({
   giro,
   grupo = null,
   nome,
+  // Contorno próprio, em coordenadas da chapa (0..largura, 0..altura). Sem
+  // ele a chapa é o retângulo de sempre; com ele vira pentágono, triângulo,
+  // o que a forma pronta precisar.
+  forma = null,
+  // Encaixes que a forma pronta já sabe de cor, porque ela mesma montou a
+  // peça e sabe qual borda casa com qual. O detector automático não precisa
+  // adivinhar — e em parede torta ele nem conseguiria.
+  encaixesFixos = null,
+  furosFixos = null,
+  // Linhas de dobra, gravadas e não cortadas.
+  vincos = null,
+  // Pedaços de uma tira só: no 3D aparecem dobrados, no plano de corte saem
+  // grudados num retângulo comprido com os vincos no meio.
+  tira = null,
+  ordemNaTira = 0,
+  // Parede em ângulo cujo encaixe já veio pronto: não é caso de aviso.
+  semJuntaAutomatica = false,
 } = {}) {
   contador += 1;
   const escolhido = PLANOS[plano] ? plano : "XY";
@@ -50,7 +67,26 @@ export function novaChapa({
     centro: { x: 0, y: altura / 2, z: 0, ...(centro || {}) },
     giro: { ...GIRO_DO_PLANO[escolhido], ...(giro || {}) },
     grupo,
+    forma: forma ? forma.map((ponto) => [...ponto]) : null,
+    encaixesFixos: encaixesFixos ? JSON.parse(JSON.stringify(encaixesFixos)) : null,
+    furosFixos: furosFixos ? JSON.parse(JSON.stringify(furosFixos)) : null,
+    vincos: vincos ? vincos.map((linha) => linha.map((ponto) => [...ponto])) : null,
+    tira,
+    ordemNaTira,
+    semJuntaAutomatica,
   };
+}
+
+// O tamanho que a forma ocupa, para virar largura e altura da chapa. A forma
+// chega já encostada no zero, então basta o maior ponto.
+export function medirForma(pontos) {
+  let maxU = 0;
+  let maxV = 0;
+  for (const [u, v] of pontos) {
+    maxU = Math.max(maxU, u);
+    maxV = Math.max(maxV, v);
+  }
+  return { largura: maxU, altura: maxV };
 }
 
 export function reiniciarContagem(quantas = 0) {
@@ -165,29 +201,59 @@ function tamanhoLocal(chapa, espessura) {
   return { u: chapa.largura, v: chapa.altura, n: espessura };
 }
 
-// Os oito cantos da chapa no mundo. Vale para qualquer giro.
+// Os cantos da chapa no mundo. Numa chapa retangular são os oito do
+// paralelepípedo; numa chapa com forma própria são os pontos do contorno, nas
+// duas faces. A diferença importa: a caixa envolvente de um pentágono girado
+// é bem maior que o pentágono, e quem usasse ela para medir, para o ímã ou
+// para o status estaria medindo ar.
 export function cantos(chapa, espessura) {
   const eixos = eixosDaChapa(chapa);
   const meio = tamanhoLocal(chapa, espessura);
+  const noMundo = (u, v, sn) => ({
+    x: chapa.centro.x + eixos.u[0] * u + eixos.v[0] * v + (eixos.n[0] * sn * meio.n) / 2,
+    y: chapa.centro.y + eixos.u[1] * u + eixos.v[1] * v + (eixos.n[1] * sn * meio.n) / 2,
+    z: chapa.centro.z + eixos.u[2] * u + eixos.v[2] * v + (eixos.n[2] * sn * meio.n) / 2,
+  });
+
   const lista = [];
+  if (chapa.forma && chapa.forma.length >= 3) {
+    // A forma mora em 0..largura, 0..altura; o centro da chapa é o meio dessa
+    // caixa, então cada ponto entra descontado do meio.
+    for (const [u, v] of chapa.forma) {
+      for (const sn of [-1, 1]) lista.push(noMundo(u - meio.u / 2, v - meio.v / 2, sn));
+    }
+    return lista;
+  }
   for (const su of [-1, 1]) {
     for (const sv of [-1, 1]) {
       for (const sn of [-1, 1]) {
-        lista.push({
-          x:
-            chapa.centro.x +
-            (eixos.u[0] * su * meio.u + eixos.v[0] * sv * meio.v + eixos.n[0] * sn * meio.n) / 2,
-          y:
-            chapa.centro.y +
-            (eixos.u[1] * su * meio.u + eixos.v[1] * sv * meio.v + eixos.n[1] * sn * meio.n) / 2,
-          z:
-            chapa.centro.z +
-            (eixos.u[2] * su * meio.u + eixos.v[2] * sv * meio.v + eixos.n[2] * sn * meio.n) / 2,
-        });
+        lista.push(noMundo((su * meio.u) / 2, (sv * meio.v) / 2, sn));
       }
     }
   }
   return lista;
+}
+
+// O contorno da chapa no mundo, no meio da espessura. É a peça sem a casca:
+// serve para medir de verdade, sem a espessura entrando na conta.
+export function pontosDoContorno(chapa) {
+  const eixos = eixosDaChapa(chapa);
+  const meio = tamanhoLocal(chapa, 0);
+  const noMundo = (u, v) => ({
+    x: chapa.centro.x + eixos.u[0] * u + eixos.v[0] * v,
+    y: chapa.centro.y + eixos.u[1] * u + eixos.v[1] * v,
+    z: chapa.centro.z + eixos.u[2] * u + eixos.v[2] * v,
+  });
+  const local =
+    chapa.forma && chapa.forma.length >= 3
+      ? chapa.forma
+      : [
+          [0, 0],
+          [chapa.largura, 0],
+          [chapa.largura, chapa.altura],
+          [0, chapa.altura],
+        ];
+  return local.map(([u, v]) => noMundo(u - meio.u / 2, v - meio.v / 2));
 }
 
 // Onde a chapa começa e termina em cada eixo do mundo. Para chapa alinhada dá
@@ -258,6 +324,30 @@ export function aplicarGiroDoMundo(lista, giroDoMundo, pivo) {
     chapa.giro = giroDaMatriz(multiplicar(giroDoMundo, matrizDoGiro(chapa.giro)));
   }
   return lista;
+}
+
+// Rotação em volta de um eixo qualquer (fórmula de Rodrigues). É o que faz a
+// parede de uma pirâmide dobrar em volta da aresta da base: dobrar em volta
+// de uma aresta é a única conta que sai certa em qualquer ângulo, e compor
+// giros de X, Y e Z na mão dá errado toda vez.
+export function matrizDoEixo(eixo, graus) {
+  const comprimento = Math.hypot(eixo[0], eixo[1], eixo[2]) || 1;
+  const kx = eixo[0] / comprimento;
+  const ky = eixo[1] / comprimento;
+  const kz = eixo[2] / comprimento;
+  const c = Math.cos(graus * GRAU);
+  const s = Math.sin(graus * GRAU);
+  const t = 1 - c;
+  return [
+    [t * kx * kx + c, t * kx * ky - s * kz, t * kx * kz + s * ky],
+    [t * kx * ky + s * kz, t * ky * ky + c, t * ky * kz - s * kx],
+    [t * kx * kz - s * ky, t * ky * kz + s * kx, t * kz * kz + c],
+  ];
+}
+
+export function dobrarEmVoltaDaAresta(lista, ponto, direcao, graus) {
+  if (!graus) return lista;
+  return aplicarGiroDoMundo(lista, matrizDoEixo(direcao, graus), ponto);
 }
 
 export function centroDasChapas(lista, espessura = 0) {

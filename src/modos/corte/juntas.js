@@ -92,7 +92,10 @@ export function detectarJuntas(chapas, espessura, opcoes = {}) {
 
   // Chapa em ângulo ainda não tem encaixe automático. Avisar é melhor do que
   // desenhar um dente que não vai encaixar em lugar nenhum.
-  const tortas = chapas.filter((chapa) => !alinhada(chapa));
+  // Parede em ângulo de forma pronta já trouxe o encaixe dela calculado pela
+  // própria forma, que sabe qual borda casa com qual. Avisar sobre ela seria
+  // assustar o aluno à toa.
+  const tortas = chapas.filter((chapa) => !alinhada(chapa) && !chapa.semJuntaAutomatica);
   if (tortas.length) {
     avisos.push(
       `${tortas.length} chapa(s) em ângulo ficaram sem encaixe automático: ${tortas
@@ -106,6 +109,7 @@ export function detectarJuntas(chapas, espessura, opcoes = {}) {
     for (let j = i + 1; j < chapas.length; j += 1) {
       const um = chapas[i];
       const outro = chapas[j];
+      if (um.semJuntaAutomatica || outro.semJuntaAutomatica) continue;
       const quadroUm = quadro(um);
       const quadroOutro = quadro(outro);
       if (!quadroUm || !quadroOutro) continue;
