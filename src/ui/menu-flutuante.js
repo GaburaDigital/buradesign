@@ -12,9 +12,26 @@ function fecharAberto() {
   if (!abertoAgora) return;
   abertoAgora.menu.remove();
   abertoAgora.botao.setAttribute("aria-expanded", "false");
-  window.removeEventListener("resize", fecharAberto);
-  window.removeEventListener("scroll", fecharAberto, true);
+  window.removeEventListener("resize", acompanharOBotao);
+  window.removeEventListener("scroll", acompanharOBotao, true);
   abertoAgora = null;
+}
+
+// O menu acompanha o botão em vez de fechar quando a página rola.
+//
+// Fechar parecia a escolha segura e não era. A barra de ferramentas rola na
+// horizontal quando não cabe inteira; clicar num botão perto da ponta faz o
+// navegador rolar essa barra para mostrar o botão todo — e esse rolar, em
+// menos de um quadro, fechava o menu que o clique tinha acabado de abrir. O
+// botão piscava e nada acontecia. Reposicionar resolve o problema de verdade
+// e ainda deixa o menu grudado no botão enquanto a barra rola.
+function acompanharOBotao() {
+  if (!abertoAgora) return;
+  if (!document.contains(abertoAgora.botao)) {
+    fecharAberto();
+    return;
+  }
+  posicionar(abertoAgora.menu, abertoAgora.botao);
 }
 
 // O menu vive no corpo da página, com posição fixa. Se ficasse dentro da
@@ -24,9 +41,13 @@ function posicionar(menu, botao) {
   const area = botao.getBoundingClientRect();
   const folga = 8;
   menu.style.visibility = "hidden";
-  menu.style.left = "0px";
-  menu.style.top = "0px";
-  document.body.append(menu);
+  if (menu.parentNode !== document.body) {
+    // Só na primeira vez: reanexar um menu já aberto tiraria o foco do item
+    // que o teclado estava usando.
+    menu.style.left = "0px";
+    menu.style.top = "0px";
+    document.body.append(menu);
+  }
   const tamanho = menu.getBoundingClientRect();
   const larguraTela = window.innerWidth;
   const alturaTela = window.innerHeight;
@@ -106,8 +127,8 @@ export function grupoDeFerramentas({ id, icone, rotulo, opcoes, aoEscolher, modo
     posicionar(menu, botao);
     botao.setAttribute("aria-expanded", "true");
     abertoAgora = { raiz, menu, botao };
-    window.addEventListener("resize", fecharAberto);
-    window.addEventListener("scroll", fecharAberto, true);
+    window.addEventListener("resize", acompanharOBotao);
+    window.addEventListener("scroll", acompanharOBotao, true);
     menu.querySelector("button")?.focus();
   };
 

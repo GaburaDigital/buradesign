@@ -101,6 +101,7 @@ export default {
     boot: "Inicialização",
     bootRapido: "Pular a abertura do sistema",
     avisoDispositivo: "Mostrar aviso em telas pequenas",
+    avisoSimulacao: "Avisar antes de entrar na simulação",
     dados: "Dados guardados",
     dadosAjuda:
       "As preferências ficam no navegador deste computador. A Bolsa fica em um depósito separado e não some ao limpar as preferências.",

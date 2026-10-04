@@ -152,6 +152,7 @@ export function abrirAjustes() {
     interruptor("gridMilimetros", t("ajustes.gridMilimetros")),
     interruptor("bootRapido", t("ajustes.bootRapido")),
     interruptor("avisoDispositivo", t("ajustes.avisoDispositivo")),
+    interruptor("avisoSimulacao", t("ajustes.avisoSimulacao")),
   );
 
   const dados = document.createElement("section");

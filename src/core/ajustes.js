@@ -13,6 +13,7 @@ export const PADRAO = Object.freeze({
   snap: 5,
   bootRapido: false,
   avisoDispositivo: true,
+  avisoSimulacao: true,
   alcas: 1,
   opacidadeBase: 0.35,
   gridMilimetros: false,

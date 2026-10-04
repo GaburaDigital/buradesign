@@ -170,6 +170,10 @@ export function novaMarca(dados) {
     escala: 1,
     giro: 0,
     espelhado: false,
+    // Em que face da chapa a gravação mora. O plano de corte desenha a peça
+    // vista pela frente, então o que for gravado atrás sai espelhado — como
+    // acontece de verdade quando a peça é virada na mesa da máquina.
+    lado: "frente",
     preenchido: false,
     passoDoRisco: 0.8,
     base: [],
@@ -178,15 +182,20 @@ export function novaMarca(dados) {
 }
 
 // Os traços que a marca vira na chapa, prontos para o SVG e para a prévia.
-export function tracosDaMarca(marca) {
-  const posto = posicionar(marca.base, marca);
+//
+// `comoFica`: "plano" devolve do jeito que vai para a cortadora (a peça
+// deitada, vista pela frente, então o que é de trás sai espelhado) e "aqui"
+// devolve do jeito que se vê naquela face, para a prévia e para o 3D.
+export function tracosDaMarca(marca, comoFica = "plano", largura = 0) {
+  const vira = comoFica === "plano" && marca.lado === "tras" && largura > 0;
+  const posto = posicionar(marca.base, vira ? { ...marca, x: largura - marca.x, espelhado: !marca.espelhado } : marca);
   if (!marca.preenchido) return posto;
   return [...posto, ...riscarPorDentro(posto, marca.passoDoRisco || 0.8)];
 }
 
-export function tracosDasMarcas(marcas) {
+export function tracosDasMarcas(marcas, comoFica = "plano", largura = 0) {
   const saida = [];
-  for (const marca of marcas || []) saida.push(...tracosDaMarca(marca));
+  for (const marca of marcas || []) saida.push(...tracosDaMarca(marca, comoFica, largura));
   return saida;
 }
 

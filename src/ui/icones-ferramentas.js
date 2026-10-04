@@ -266,6 +266,65 @@ const FERRAMENTAS = {
   listaDesafios: `<path d="M3.5 6.5 H14 M3.5 12 H14 M3.5 17.5 H14" ${D}/>
     <path d="M18 4.5 L18.9 6.6 L21.2 6.8 L19.5 8.3 L20 10.5 L18 9.3 L16 10.5 L16.5 8.3 L14.8 6.8 L17.1 6.6 Z" ${V}/>
     <path d="M18 14 L18.9 16.1 L21.2 16.3 L19.5 17.8 L20 20 L18 18.8 L16 20 L16.5 17.8 L14.8 16.3 L17.1 16.1 Z" ${D}/>`,
+
+  // --- Simulação de mecânica ---------------------------------------------
+  //
+  // As peças do mecanismo levam todas um furo de eixo no meio. Não é enfeite:
+  // é o que distingue uma placa que vai girar de um retângulo que vai ser
+  // cortado, e mantém cada desenho com uma função só.
+  pecaBarra: `<rect x="2.5" y="9" width="19" height="6" rx="1" ${D}/>
+    <circle cx="6" cy="12" r="1.5" ${V}/><circle cx="12" cy="12" r="1.5" ${V}/><circle cx="18" cy="12" r="1.5" ${V}/>`,
+  pecaPlaca: `<rect x="4" y="6" width="16" height="12" ${D}/><circle cx="12" cy="12" r="2" ${V}/>`,
+  pecaTriangulo: `<path d="M12 4 L20.5 19 H3.5 Z" ${D}/><circle cx="12" cy="14" r="2" ${V}/>`,
+  pecaDisco: `<circle cx="12" cy="12" r="8.5" ${D}/><circle cx="12" cy="12" r="2" ${V}/>`,
+  // A roda se distingue do disco pela banda de rodagem.
+  pecaRoda: `<circle cx="12" cy="12" r="8.5" ${D}/><circle cx="12" cy="12" r="5" ${D}/>
+    <circle cx="12" cy="12" r="1.6" ${V}/>
+    <path d="M12 3.5 V6.5 M12 17.5 V20.5 M3.5 12 H6.5 M17.5 12 H20.5 M6 6 L8.1 8.1 M15.9 15.9 L18 18 M18 6 L15.9 8.1 M8.1 15.9 L6 18" ${D}/>`,
+  // A engrenagem-peça: o dente e, no meio, o mesmo furo de eixo das outras
+  // peças de mecanismo. O ícone de "engrenar" mostra DUAS em contato.
+  pecaEngrenagem: `<circle cx="12" cy="12" r="6" ${D}/><circle cx="12" cy="12" r="2.2" ${V}/>
+    <path d="M12 3 V5.4 M12 18.6 V21 M3 12 H5.4 M18.6 12 H21 M5.6 5.6 L7.3 7.3 M16.7 16.7 L18.4 18.4 M18.4 5.6 L16.7 7.3 M7.3 16.7 L5.6 18.4" ${D}/>`,
+  pecaSolido: `<rect x="2.5" y="6" width="19" height="12" ${D}/>
+    <path d="M2.5 12 H21.5 M8 6 V12 M15 6 V12 M4.5 12 V18 M11.5 12 V18 M18.5 12 V18" fill="none" stroke="var(--metal-escuro)" stroke-width="1.3"/>`,
+
+  // As cinco restrições. Cada ícone mostra o que ela DEIXA a peça fazer.
+  juntaPino: `<path d="M4 8.5 H20" ${D}/><circle cx="12" cy="12" r="3" ${V}/>
+    <path d="M12 15 L7 20.5 H17 Z" ${D}/><path d="M5 20.5 H19" ${D}/>`,
+  juntaSolda: `<rect x="3" y="7" width="9" height="10" ${D}/><rect x="12" y="7" width="9" height="10" ${D}/>
+    <path d="M12 5.5 V18.5" fill="none" stroke="var(--verde)" stroke-width="2.6" stroke-linecap="round"/>`,
+  juntaTrilho: `<path d="M2.5 8.5 H21.5 M2.5 15.5 H21.5" ${D}/>
+    <rect x="8" y="8.5" width="8" height="7" ${V}/>
+    <path d="M4.5 12 H7 M17 12 H19.5 M6 10.5 L4.5 12 L6 13.5 M18 10.5 L19.5 12 L18 13.5" ${V}/>`,
+  juntaVareta: `<circle cx="5.5" cy="18.5" r="2.5" ${D}/><circle cx="18.5" cy="5.5" r="2.5" ${D}/>
+    <path d="M7.3 16.7 L16.7 7.3" fill="none" stroke="var(--verde)" stroke-width="2.4" stroke-linecap="round"/>`,
+  // Engrenar são DUAS engrenagens em contato; o ícone de uma só já é a peça.
+  juntaEngrenar: `<circle cx="8.5" cy="13.5" r="5" ${D}/><circle cx="8.5" cy="13.5" r="1.4" ${D}/>
+    <path d="M8.5 7 V8.5 M8.5 18.5 V20 M2 13.5 H3.5 M13.5 13.5 H15" ${D}/>
+    <circle cx="17.5" cy="8" r="3.4" ${V}/><circle cx="17.5" cy="8" r="1" ${V}/>
+    <path d="M17.5 3.4 V4.6 M17.5 11.4 V12.6 M12.9 8 H14.1 M20.9 8 H22.1" ${V}/>`,
+
+  // Motor: gira sem parar, por isso a volta fechada.
+  motor: `<rect x="4" y="5.5" width="13" height="13" rx="1" ${D}/>
+    <path d="M17 12 H21.5" ${D}/>
+    <path d="M10.5 9 A3.5 3.5 0 1 1 7.3 14.4" ${V}/><path d="M5.9 11.4 L7.3 14.6 L10.4 13.1" ${V}/>`,
+  // Servo: vai até um ângulo e para lá, por isso o arco com batente.
+  servo: `<rect x="4" y="5.5" width="13" height="13" rx="1" ${D}/>
+    <path d="M17 12 H21.5" ${D}/>
+    <path d="M7 15.4 A4.4 4.4 0 0 1 14.6 12.3" ${V}/><path d="M12.7 10.7 L15 12.2 L13.4 14.4" ${V}/>
+    <path d="M6.4 17 V18.4" ${D}/>`,
+  // Fixar no lugar: a peça pregada no chão hachurado.
+  fixarNoLugar: `<rect x="6" y="4.5" width="12" height="8.5" ${D}/>
+    <path d="M12 8.5 V18" ${V}/><path d="M9.5 15.5 L12 18.5 L14.5 15.5" ${V}/>
+    <path d="M2.5 20.5 H21.5" ${D}/>
+    <path d="M4 20.5 L6 23.2 M8 20.5 L10 23.2 M12 20.5 L14 23.2 M16 20.5 L18 23.2" fill="none" stroke="var(--metal-escuro)" stroke-width="1.2"/>`,
+  // Ver colisões: a peça desenhada e, por fora, o contorno pontilhado com que
+  // o motor de física realmente trabalha.
+  verColisao: `<path d="M7 7 H17 V12 H12 V17 H7 Z" ${D}/>
+    <path d="M4 4 H20 V14.5 H14.5 V20 H4 Z" fill="none" stroke="var(--verde)" stroke-width="1.5" stroke-dasharray="2.6 2.2"/>`,
+  // Gravidade: o corpo caindo.
+  gravidade: `<circle cx="12" cy="5" r="2.6" ${D}/>
+    <path d="M12 8.5 V19" ${V}/><path d="M8.5 15.5 L12 19.8 L15.5 15.5" ${V}/>`,
 };
 
 export function ferramenta(nome, titulo) {

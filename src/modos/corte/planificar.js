@@ -151,7 +151,7 @@ function montarPeca(chapa, contorno, furos, espessura) {
     // perder a peça.
     gravacoes: [
       ...(chapa.vincos || []).map((linha) => linha.map((ponto) => [...ponto])),
-      ...tracosDasMarcas(chapa.marcas),
+      ...tracosDasMarcas(chapa.marcas, "plano", chapa.largura),
     ],
     limites,
     area: areaDe(contorno) - rasgos.reduce((soma, furo) => soma + Math.abs(areaDe(furo)), 0),

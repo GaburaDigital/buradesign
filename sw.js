@@ -2,7 +2,7 @@
 // Ao somar ou renomear arquivos, atualize a lista ARQUIVOS e suba o número da
 // VERSAO. O cache antigo é apagado sozinho na ativação.
 
-const VERSAO = "2.3.0";
+const VERSAO = "2.5.0";
 const CACHE = `buradesign-${VERSAO}`;
 
 const ARQUIVOS = [
@@ -31,8 +31,10 @@ const ARQUIVOS = [
   "libs/blockly/msg-pt-br.js",
   "libs/csg/three-bvh-csg.module.js",
   "libs/csg/three-mesh-bvh.module.js",
+  "libs/decomp/decomp.min.js",
   "libs/opentype/opentype.min.js",
   "libs/paper/paper-core.min.js",
+  "libs/planck/planck.min.js",
   "libs/three/jsm/BufferGeometryUtils.js",
   "libs/three/jsm/controls/OrbitControls.js",
   "libs/three/jsm/controls/TransformControls.js",
@@ -83,15 +85,24 @@ const ARQUIVOS = [
   "src/modos/corte/formas.js",
   "src/modos/corte/gravar.js",
   "src/modos/corte/ima.js",
-  "src/modos/corte/marcas.js",
   "src/modos/corte/juntar.js",
   "src/modos/corte/juntas.js",
+  "src/modos/corte/marcas.js",
   "src/modos/corte/materiais.js",
   "src/modos/corte/menu.js",
   "src/modos/corte/montagem.js",
   "src/modos/corte/planificar.js",
   "src/modos/corte/planosvg.js",
   "src/modos/em-obras.js",
+  "src/modos/fisica/atuadores.js",
+  "src/modos/fisica/cena2d.js",
+  "src/modos/fisica/desenho2d.js",
+  "src/modos/fisica/exemplos2d.js",
+  "src/modos/fisica/formas2d.js",
+  "src/modos/fisica/menu.js",
+  "src/modos/fisica/mundo2d.js",
+  "src/modos/fisica/sim2d.js",
+  "src/modos/fisica/unidades.js",
   "src/modos/livre/caneta.js",
   "src/modos/livre/combinar.js",
   "src/modos/livre/estado.js",
@@ -129,6 +140,7 @@ const ARQUIVOS = [
   "styles/base.css",
   "styles/blocos.css",
   "styles/corte.css",
+  "styles/fisica.css",
   "styles/livre.css",
   "styles/shell.css",
   "styles/telas.css",

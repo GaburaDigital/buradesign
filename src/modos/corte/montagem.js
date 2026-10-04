@@ -18,7 +18,13 @@ import { ouvir } from "../../core/eventos.js";
 import { tocar } from "../../core/som.js";
 import { valor as ajuste } from "../../core/ajustes.js";
 import { t } from "../../core/idioma.js";
-import { baixarTexto, carimboDeData } from "../../core/arquivos.js";
+import {
+  baixarTexto,
+  baixarJSON,
+  escolherArquivo,
+  lerJSON,
+  carimboDeData,
+} from "../../core/arquivos.js";
 import * as bolsa from "../../core/bolsa.js";
 import { icone } from "../../ui/icones.js";
 import { ferramenta as iconeFerramenta } from "../../ui/icones-ferramentas.js";
@@ -45,6 +51,7 @@ import { abrirGravacao, importarSVG } from "./gravar.js";
 import { separarEmPecas, contornosDoSVG } from "./desvg.js";
 import * as brocaMod from "./broca.js";
 import * as juntarMod from "./juntar.js";
+import * as marcasMod from "./marcas.js";
 import { detectarJuntas } from "./juntas.js";
 import { planificarTudo, juntarTiras, seCruza } from "./planificar.js";
 import { arranjar } from "./arranjo.js";
@@ -276,24 +283,32 @@ function geometriaDaChapa(peca, espessura, chapa) {
 // A gravação desenhada na própria peça, no 3D. Sem isto o aluno gravava, via
 // a janela fechar e não via nada mudar na mesa — e concluía, com razão, que a
 // gravação tinha sido jogada fora.
-function desenhoDasGravacoes(peca, chapa, espessura) {
-  if (!peca || !peca.gravacoes || !peca.gravacoes.length) return null;
+function desenhoDasGravacoes(chapa, espessura) {
   const pontos = [];
   const meioU = chapa.largura / 2;
   const meioV = chapa.altura / 2;
-  // Um fio de milímetro acima da face, para a linha não brigar com ela.
-  const z = espessura / 2 + 0.05;
-  for (const traco of peca.gravacoes) {
-    if (!traco || traco.length < 2) continue;
+  const porLado = (lado) => (lado === "tras" ? -1 : 1);
+
+  const somar = (traco, face) => {
+    // Um fio de milímetro fora da face, para a linha não brigar com ela.
+    const z = (face * (espessura + 0.1)) / 2;
     for (let i = 0; i + 1 < traco.length; i += 1) {
       pontos.push(traco[i][0] - meioU, traco[i][1] - meioV, z);
       pontos.push(traco[i + 1][0] - meioU, traco[i + 1][1] - meioV, z);
     }
-    // Contorno de letra é volta fechada: fecha o laço.
     if (traco.length > 2) {
       const ultimo = traco[traco.length - 1];
       pontos.push(ultimo[0] - meioU, ultimo[1] - meioV, z);
       pontos.push(traco[0][0] - meioU, traco[0][1] - meioV, z);
+    }
+  };
+
+  // Vinco é dobra: vale para a chapa inteira, não tem lado.
+  for (const vinco of chapa.vincos || []) somar(vinco, 1);
+  // Gravação mora na face que o aluno escolheu, e aparece nela.
+  for (const marca of chapa.marcas || []) {
+    for (const traco of marcasMod.tracosDaMarca(marca, "aqui")) {
+      somar(traco, porLado(marca.lado));
     }
   }
   if (!pontos.length) return null;
@@ -345,7 +360,7 @@ function redesenhar() {
       new THREE.LineBasicMaterial({ color: cena.paleta3d().borda }),
     );
     malha.add(contorno);
-    const marcada = desenhoDasGravacoes(planificadas.get(chapa.id), chapa, espessura);
+    const marcada = desenhoDasGravacoes(chapa, espessura);
     if (marcada) malha.add(marcada);
     grupo.add(malha);
   }
@@ -1159,6 +1174,7 @@ function gravarNaSelecao() {
   }
   abrirGravacao({
     pecas,
+    marcasDe: (id) => chapaPorId(id)?.marcas || [],
     aoGravar: (id, marcasDaPeca) => {
       const chapa = chapaPorId(id);
       if (chapa) chapa.marcas = marcasDaPeca;
@@ -1409,6 +1425,86 @@ function colocarDaBolsa(item) {
   selecionar(criadas.map((chapa) => chapa.id));
   cena.enquadrar();
   return true;
+}
+
+// --- Guardar e abrir o projeto ------------------------------------------
+
+const FORMATO = "buradesign.montagem";
+
+function empacotar(nome) {
+  return {
+    formato: FORMATO,
+    versao: 1,
+    nome,
+    criadoEm: new Date().toISOString(),
+    ajustes: config(),
+    // As chapas vão inteiras, com forma, encaixes, furos e gravação. O que
+    // não for salvo aqui é trabalho perdido quando o aluno voltar amanhã.
+    chapas: chapas.map((chapa) => ({ ...chapa })),
+    broca: broca ? { ...broca } : null,
+  };
+}
+
+async function baixarProjeto() {
+  if (!chapas.length) {
+    tocar("erro");
+    mostrarAviso("Não há montagem para guardar.", "alerta");
+    return;
+  }
+  const nome = await perguntarTexto("Baixar o projeto", "Nome do arquivo:", "montagem");
+  if (nome === null) return;
+  baixarJSON(`${nomeDeArquivo(nome)}_${carimboDeData()}.json`, empacotar(nome));
+  tocar("salvar");
+  mostrarAviso(`Projeto guardado com ${chapas.length} chapa(s). Guarde o arquivo para continuar depois.`);
+}
+
+async function importarProjeto() {
+  const arquivo = await escolherArquivo(".json,application/json");
+  if (!arquivo) return;
+  let pacote;
+  try {
+    pacote = await lerJSON(arquivo);
+  } catch {
+    tocar("erro");
+    mostrarAviso("Esse arquivo não é um projeto do BuraDESIGN.", "erro");
+    return;
+  }
+  if (pacote?.formato !== FORMATO || !Array.isArray(pacote.chapas)) {
+    tocar("erro");
+    mostrarAviso("Esse arquivo não é um projeto de montagem com chapas.", "erro");
+    return;
+  }
+  if (chapas.length) {
+    const certeza = await confirmar(
+      "Abrir o projeto troca o que está na mesa agora. Continuar?",
+    );
+    if (!certeza) return;
+  }
+
+  if (pacote.ajustes) materiais.definir(pacote.ajustes);
+  chapasMod.reiniciarContagem(0);
+  grupoContador = 0;
+  // Os nomes de grupo são refeitos, para não baterem com os de outra
+  // montagem que o aluno abra depois no mesmo dia.
+  const mapaDeGrupos = new Map();
+  chapas = pacote.chapas.map((guardada) => {
+    let grupo = null;
+    if (guardada.grupo) {
+      if (!mapaDeGrupos.has(guardada.grupo)) {
+        grupoContador += 1;
+        mapaDeGrupos.set(guardada.grupo, `grupo${grupoContador}`);
+      }
+      grupo = mapaDeGrupos.get(guardada.grupo);
+    }
+    return chapasMod.novaChapa({ ...guardada, grupo });
+  });
+  broca = pacote.broca ? { ...pacote.broca } : null;
+  tocar("pronto");
+  selecionar([]);
+  cena.enquadrar();
+  mostrarAviso(
+    `"${pacote.nome || arquivo.name}" aberto com ${chapas.length} chapa(s).`,
+  );
 }
 
 // --- Plano de corte ----------------------------------------------------
@@ -1982,6 +2078,8 @@ function montarEsqueleto(area, aoVoltar) {
     botaoBarra("texto", "Gravação", gravarNaSelecao, "com-rotulo"),
     risco(),
     botaoBarra("guardarBolsa", "Guardar na bolsa", guardarNaBolsa, "com-rotulo"),
+    botaoBarra("disquete", "Baixar o projeto", baixarProjeto, "com-rotulo", true),
+    botaoBarra("enviar", "Abrir projeto", importarProjeto, "com-rotulo", true),
     botaoBarra("planoCorte", "Plano de corte", abrirPlano, "com-rotulo botao--destaque"),
     risco(),
     botaoBarra("lixo", "Limpar montagem", limparTudo, "botao--perigo com-rotulo"),

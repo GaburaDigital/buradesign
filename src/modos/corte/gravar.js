@@ -67,7 +67,7 @@ function desenharPeca(peca, listaDeMarcas, escolhida) {
   const gravadas = [];
   for (const marca of listaDeMarcas) {
     const cor = marca.id === escolhida ? ESCOLHIDA : GRAVACAO;
-    for (const traco of marcas.tracosDaMarca(marca)) {
+    for (const traco of marcas.tracosDaMarca(marca, "aqui")) {
       gravadas.push(
         `<path d="${caminho(traco, traco.length > 2)}" fill="none" stroke="${cor}" stroke-width="0.35" vector-effect="non-scaling-stroke"/>`,
       );
@@ -88,15 +88,20 @@ function desenharPeca(peca, listaDeMarcas, escolhida) {
 
 // `pecas` é a lista das peças planificadas das chapas escolhidas, na ordem.
 // `aoGravar(idDaChapa, marcas)` é chamado quando o aluno confirma.
-export function abrirGravacao({ pecas, aoGravar, aoFim }) {
+export function abrirGravacao({ pecas, aoGravar, marcasDe, aoFim }) {
   if (!pecas.length) {
     mostrarAviso("Escolha uma peça para gravar.", "alerta");
     return;
   }
 
   let indice = 0;
-  let marcasDaPeca = [];
-  let escolhida = null;
+  // A janela abre com o que a peça já tinha gravado. Antes ela abria vazia, e
+  // ao salvar trocava a gravação antiga pela nova em vez de somar — quem
+  // queria pôr um segundo nome perdia o primeiro.
+  const carregarMarcas = (peca) =>
+    (marcasDe ? marcasDe(peca.id) || [] : []).map((item) => marcas.novaMarca({ ...item }));
+  let marcasDaPeca = carregarMarcas(pecas[0]);
+  let escolhida = marcasDaPeca.length ? marcasDaPeca[marcasDaPeca.length - 1].id : null;
   let ultimasCopiadas = null;
   // Abrir outro painel fecha este, e o "aoFechar" dispara junto. Estas duas
   // travas dizem se o fechamento foi de verdade ou só uma troca de tela.
@@ -268,7 +273,7 @@ export function abrirGravacao({ pecas, aoGravar, aoFim }) {
       for (const marca of marcasDaPeca) {
         lista.append(
           botao(
-            marca.tipo === "texto" ? `"${marca.texto}"` : marca.nome,
+            `${marca.tipo === "texto" ? `"${marca.texto}"` : marca.nome}${(marca.lado || "frente") === "tras" ? " (atrás)" : ""}`,
             () => {
               escolhida = marca.id;
               redesenhar();
@@ -329,6 +334,39 @@ export function abrirGravacao({ pecas, aoGravar, aoFim }) {
           redesenhar();
         }, { min: -180, max: 180, passo: 5 }),
       );
+
+      // Qual face recebe a gravação. O que for de trás sai espelhado no plano,
+      // porque é a mesma peça virada na mesa da cortadora.
+      const lados = document.createElement("div");
+      lados.className = "linha-botoes";
+      for (const [id, nome] of [["frente", "Gravar na frente"], ["tras", "Gravar atrás"]]) {
+        lados.append(
+          botao(
+            nome,
+            () => {
+              marca.lado = id;
+              redesenhar();
+            },
+            (marca.lado || "frente") === id ? "botao--destaque botao--curto" : "botao--curto",
+          ),
+        );
+      }
+      lados.append(
+        botao(
+          "Copiar para o outro lado",
+          () => {
+            const copia = marcas.novaMarca({
+              ...marca,
+              lado: (marca.lado || "frente") === "frente" ? "tras" : "frente",
+            });
+            marcasDaPeca.push(copia);
+            escolhida = copia.id;
+            redesenhar();
+          },
+          "botao--curto",
+        ),
+      );
+      lado.append(lados);
 
       const opcoes = document.createElement("div");
       opcoes.className = "linha-botoes";
@@ -417,8 +455,8 @@ export function abrirGravacao({ pecas, aoGravar, aoFim }) {
         aoClicar: () => {
           guardar();
           indice += 1;
-          marcasDaPeca = [];
-          escolhida = null;
+          marcasDaPeca = carregarMarcas(pecas[indice]);
+          escolhida = marcasDaPeca.length ? marcasDaPeca[marcasDaPeca.length - 1].id : null;
           trocandoDeJanela = true;
           fecharPainel({ silencioso: true });
           abrirJanela();

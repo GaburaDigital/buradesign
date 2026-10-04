@@ -38,6 +38,12 @@ a { color: var(--verde); }
 
 /* Botões ------------------------------------------------------------- */
 
+/* O atributo `hidden` tem que ganhar de qualquer regra de display. Sem isto,
+   um botão com a classe .botao continua aparecendo depois de receber o
+   atributo: a regra de classe vence a do navegador, e o resultado foi um
+   "Parar simulação" convivendo com o "Iniciar simulação" na mesma barra. */
+[hidden] { display: none !important; }
+
 .botao {
   font-family: var(--fonte-mono);
   font-size: var(--t-14);

@@ -60,14 +60,15 @@ de substituir.
 
 ### Estado atual
 
-As fases 1, 2, 3 e 4 estão no ar: **Criação Livre 2D**, **Criação Livre 3D**,
-**Design com Programação** (modo livre e os três lotes de desafios) e
-**Montagem com Peças Cortadas** (montagem com chapas e fatiador). Dá para
-desenhar formas, escrever texto com acento, curvar caminhos com a caneta,
-combinar peças com peça negativa, ajustar tudo por número, exportar o SVG para
-a cortadora, o STL para a impressora, montar o modelo programando em blocos e
-tirar da peça 3D o plano de corte em chapa. Falta o último setor, o de
-simulação de mecânica.
+Os cinco setores estão no ar: **Criação Livre 2D**, **Criação Livre 3D**,
+**Design com Programação** (modo livre e os três lotes de desafios),
+**Montagem com Peças Cortadas** (montagem com chapas e fatiador) e
+**Simulação de Mecânica**, cuja bancada 2D já funciona. Dá para desenhar
+formas, escrever texto com acento, curvar caminhos com a caneta, combinar
+peças com peça negativa, ajustar tudo por número, exportar o SVG para a
+cortadora, o STL para a impressora, montar o modelo programando em blocos,
+tirar da peça 3D o plano de corte em chapa e testar a mecânica da montagem com
+física de verdade antes de cortar. Falta a bancada 3D da simulação.
 
 ### O que fazer no setor Criação Livre
 
@@ -554,9 +555,20 @@ desenho e também tem todos os números ao lado (posição, tamanho, giro,
 espelho), para quem quer colocar por medida. Cada marcação sai **só em
 contorno** ou **preenchida por riscos** — contorno é rápido e serve para
 caneta e faca de vinil; preenchido fica cheio e bonito no MDF, mas a máquina
-demora bem mais. Com várias peças escolhidas, a janela vai de uma em uma, e um
-botão copia a gravação da peça anterior. No plano de corte a gravação sai numa
+demora bem mais. Cada peça aceita **quantas gravações você quiser** — ao reabrir a
+janela, o que já estava lá aparece e a marcação nova soma em vez de substituir.
+Dá para escolher **em que face** cada marcação fica: o que for gravado atrás
+sai espelhado no plano de corte, como acontece de verdade ao virar a peça na
+mesa da máquina, e um botão copia a marcação para o outro lado. Com várias
+peças escolhidas, a janela vai de uma em uma, e um botão copia a gravação da
+peça anterior. No plano de corte a gravação sai numa
 cor só dela, para a máquina riscar e não cortar.
+
+**Guardar e continuar depois.** **Baixar o projeto** grava um arquivo com
+tudo — chapas, formas, encaixes, furos, gravações, grupos e os ajustes de
+material — e **Abrir projeto** traz de volta. É o que permite começar a caixa
+numa aula e terminar na outra. A Bolsa continua servindo para guardar uma
+peça para usar noutro projeto; o arquivo serve para guardar o projeto inteiro.
 
 **Juntar, negativo, espelhar e distribuir.** Duas chapas encostadas e no mesmo
 plano são, para a cortadora, uma peça só: **Juntar no plano** faz delas um
@@ -588,6 +600,118 @@ turma descobrir qual encaixa; mande fatiar a mão de um colega escaneada, ou um
 morro inventado no Design 3D, e monte a pilha em papelão; peça o plano de
 corte com o melhor aproveitamento de chapa, que é uma aula de área sem
 parecer uma aula de área.
+
+### Simulação de Mecânica (fase 5)
+
+O último setor é onde a peça deixa de ser desenho e vira mecanismo. Ele tem
+duas bancadas; a **Simulação física 2D** está pronta e a **3D** está sendo
+construída.
+
+Antes de entrar, aparece um aviso pedindo confirmação. Não é formalidade:
+simular física é a coisa mais pesada que esta aplicação faz, e num computador
+de sala de aula ela pode engasgar. Quem já sabe disso desliga o aviso em
+Ajustes, em **Avisar antes de entrar na simulação**.
+
+**A regra que deixa a turma testar sem medo.** Parar a simulação devolve todas
+as peças exatamente para onde estavam antes de começar. Testar nunca estraga a
+montagem, então não existe motivo para ter receio de apertar Iniciar.
+
+**As peças.** Barra, placa, triângulo, disco, roda, engrenagem e sólido. A
+roda é um disco com borracha, que agarra muito mais no chão — sem ela o
+carrinho patina, e descobrir isso sozinho vale mais do que ler. O sólido já
+nasce ancorado e com textura de tijolos: é chão, parede e pilar. Qualquer
+outra peça pode ser ancorada com **Fixar no lugar**.
+
+**O peso é de verdade.** Cada peça tem um material — madeira (MDF), plástico,
+metal (alumínio), papelão ou **customizado**, onde o aluno escolhe o peso do
+material, a espessura, o atrito e o quique. O painel mostra o peso em gramas:
+uma placa de MDF de 100 × 100 × 6 mm pesa 42 g, e pesa 42 g na balança da
+escola também. É esse número que faz a conta do motor fechar.
+
+**As restrições, do jeito do Roblox Studio.** A ferramenta funciona em dois
+toques: você toca na primeira peça e marca o ponto onde a restrição entra;
+depois toca na segunda peça e marca o ponto dela. O ponto gruda sozinho no
+centro e nos furos da barra, para ninguém precisar mirar no milímetro com o
+mouse. Tocando no vazio em vez da segunda peça, a restrição prende na própria
+bancada. São cinco:
+
+| Restrição | O que ela deixa a peça fazer |
+| --- | --- |
+| **Pino** | girar em volta do ponto; é o parafuso da montagem, e é nele que entra o motor |
+| **Solda** | nada: as duas viram uma peça só |
+| **Trilho** | escorregar numa direção só, como gaveta ou pistão |
+| **Vareta** | manter a distância entre dois pontos; marcando "elástica", vira mola |
+| **Engrenar** | travar a razão entre duas engrenagens que já tenham eixo |
+
+**Motor e servo com os números dos bichos de verdade.** O motor amarelo de
+redução 1:48 faz 200 rpm e tem 0,8 kgf·cm; o micro servo SG90 faz 500°/s com
+1,8 kgf·cm; o servo de alto torque MG996R faz 350°/s com 11 kgf·cm. O slider
+manda a **velocidade** (ou o ângulo, no servo) e o torque é o **limite de
+força** que o atuador tem para chegar lá. É assim que motor funciona: ligado
+solto ele vai na velocidade da caixa, pendurando peso ele desacelera, e
+pendurando peso demais ele para. Quando isso acontece, o painel acende
+**forçando** em vermelho. Esse é o momento da aula.
+
+Os sliders ficam numa faixa própria embaixo da bancada e funcionam com a
+simulação rodando. Ao lado de cada um aparece a leitura ao vivo: rotação (ou
+ângulo) e torque usado de torque disponível.
+
+**A engrenagem.** O dente é desenhado de verdade, com perfil de involuta, do
+jeito que sai na cortadora — e a razão de transmissão é garantida pela
+restrição Engrenar, não por dente batendo em dente. Dente colidindo com dente
+escorrega e atravessa em simulador de navegador; a razão travada em 48:12
+nunca erra. Ao engrenar, a bancada encosta as duas na distância certa sozinha,
+que é a soma dos raios primitivos. Duas engrenagens só engrenam com o mesmo
+módulo, e a bancada diz isso em vez de deixar o aluno adivinhar.
+
+**Duas vistas.** *De lado* é a vista em pé, com a gravidade apontando para
+baixo da tela: alavanca, gangorra, catapulta. *De cima* é a mesa vista do
+alto, sem gravidade na tela: engrenagem, came, mesa giratória. Na vista de
+lado dá para **desligar a gravidade**, o que ajuda muito a estudar transmissão
+sem o peso atrapalhando.
+
+**Visualizar colisões.** Mostra na tela a forma com que o motor de física
+realmente trabalha, que nem sempre é o desenho. Serve para entender por que
+existe a opção de colisão exata: na simplificada, o vão de uma peça em "C"
+aparece preenchido.
+
+**Nove montagens prontas**, cada uma com uma ideia de mecânica dentro e um
+experimento concreto para fazer nela:
+
+| Montagem | A ideia | O experimento |
+| --- | --- | --- |
+| Gangorra | braço de força | mudar o ponto do pino de 150 para 280 mm equilibra |
+| Redução de engrenagens | força contra velocidade | sem a redução, o mesmo motor não levanta o bloco |
+| Trem de engrenagens | a do meio só inverte o sentido | trocar a do meio não muda as pontas |
+| Braço robótico | dois servos em série | trocar o servo do ombro pelo micro faz o braço cair |
+| Carrinho | atrito e tração | sem borracha nas rodas, ele patina |
+| Biela e manivela | giro virando vai-e-vem | o curso é sempre o dobro da excentricidade |
+| Came e seguidor | giro virando subida medida | pino a 28 mm sobe 56 mm; a 10 mm sobe 20 mm |
+| Catapulta de contrapeso | energia guardada na altura | contrapeso de madeira joga menos da metade da altura |
+| Mola e vareta | o que cede e o que não cede | marcar "elástica" na vareta faz o peso balançar |
+
+**Quando o aparelho não dá conta.** A simulação anda em passo fixo de 1/60 de
+segundo, sempre, para que a mesma montagem dê o mesmo resultado em qualquer
+computador. Se a máquina ficar para trás, a bancada **para e pergunta**, e
+oferece o **modo lento** — que reduz o tempo simulado por segundo em vez de
+aumentar o passo. Isto é regra, não detalhe: passo grande é o que faz peça
+atravessar peça. Devagar e certo, nunca rápido e errado.
+
+Acima de 40 peças a barra de status avisa que a montagem vai ficar lenta;
+acima de 80 o aviso vira crítico e vermelho. Nos dois casos dá para continuar
+montando — travar a edição de quem está no meio do trabalho é pior do que
+deixar pesado.
+
+**Bolsa, salvar e importar.** Um caminho 2D guardado na Bolsa vira corpo na
+bancada, o que fecha o ciclo "desenhei no Criação Livre, testei a mecânica".
+A cena inteira sai em `.json` com **Baixar a cena** e volta com **Importar
+cena**, e a montagem fica guardada no navegador entre as aulas.
+
+**Ideias para a aula.** Dê a mesma gangorra para dois grupos e peça para
+equilibrar mexendo só na posição, sem trocar peso; peça uma redução que
+levante um bloco que o motor sozinho não levanta, e depois a conta de quantas
+vezes; monte um braço robótico e pergunte qual servo comprar antes de comprar;
+deixe a turma medir o curso da biela e descobrir sozinha a regra do dobro.
 
 ### Temas
 
@@ -645,6 +769,7 @@ buradesign/
     livre/ livre3d/        Criação Livre em 2D e em 3D
     blocos/               Design com Programação (blocos, interpretador, tela)
     corte/                Montagem com Peças Cortadas (chapas, juntas, fatiador)
+    fisica/               Simulação de Mecânica (cena, física 2D, peças, motores)
   styles/                 tokens, base, casca, telas
   libs/                 bibliotecas versionadas (ver libs/LEIA-ME.md)
   ATIVIDADES/             conteúdo dos exercícios (ver ATIVIDADES/LEIA-ME.md)
@@ -726,11 +851,18 @@ O seletor de idioma aparece nos Ajustes assim que existir mais de uma opção.
 ### Bibliotecas previstas
 
 Paper.js e opentype.js na fase 1, Three.js e three-bvh-csg na fase 2, Blockly
-11 na fase 3, Rapier na fase 5. A fase 4 não trouxe biblioteca nenhuma: as
-juntas, a planificação, o arranjo na chapa e o fatiador são geometria escrita
-à mão, em módulos que rodam sem a tela e por isso dá para testar sozinhos. Todas entram em `libs/`, com a versão anotada.
-O Blockly entra como UMD (`window.Blockly`), carregado só quando o setor de
-programação abre, junto do arquivo de mensagens em português.
+11 na fase 3, Planck.js e poly-decomp na fase 5. A fase 4 não trouxe
+biblioteca nenhuma: as juntas, a planificação, o arranjo na chapa e o fatiador
+são geometria escrita à mão, em módulos que rodam sem a tela e por isso dá
+para testar sozinhos. Todas entram em `libs/`, com a versão anotada.
+
+Blockly, Planck.js e poly-decomp entram como UMD (`window.Blockly`,
+`window.planck`, `window.decomp`), carregados só quando o setor que precisa
+deles abre. A escolha do Planck.js no lugar do Rapier, que estava previsto,
+está explicada em `libs/LEIA-ME.md`: ele é o Box2D em JavaScript puro, a junta
+de rotação dele tem o par velocidade-alvo mais limite-de-torque que a oficina
+precisa, e a junta de engrenagem garante a razão por cálculo em vez de por
+colisão de dente.
 
 ### Testes manuais
 
@@ -751,6 +883,16 @@ vermelho); o plano de corte abre com todas as peças numeradas e a lista
 bate com o desenho; o fatiador aceita modelo do Design 3D, da Bolsa e de
 arquivo; e o SVG baixado abre no Inkscape com as medidas certas em
 milímetros.
+
+No setor de simulação, vale conferir: o aviso de entrada aparece e o botão de
+cancelar não deixa entrar; a bancada abre vazia e as nove prévias das
+montagens prontas aparecem desenhadas; a ferramenta de restrição pede os dois
+toques na ordem certa e o ponto gruda no furo da barra; pôr motor no pino faz
+o slider aparecer embaixo; o slider mexe no motor com a simulação rodando e a
+leitura ao vivo acompanha; o acelerador em -100 gira para o outro lado;
+parar devolve todas as peças para o lugar; baixar e importar a cena devolve a
+mesma montagem com motor e tudo; empurrar uma peça com o dedo durante a
+simulação funciona; e dois dedos dão pinça de zoom no celular.
 
 ### Publicar no GitHub Pages
 

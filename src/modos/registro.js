@@ -34,9 +34,9 @@ export const SETORES = [
     alien: "pip",
     chaveNome: "setores.fisica.nome",
     chaveDescricao: "setores.fisica.descricao",
-    aberto: false,
+    aberto: true,
     fase: 5,
-    carregar: () => import("./em-obras.js"),
+    carregar: () => import("./fisica/menu.js"),
   },
 ];
 
