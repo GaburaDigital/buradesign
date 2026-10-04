@@ -57,6 +57,8 @@ export function novaChapa({
   ordemNaTira = 0,
   // Parede em ângulo cujo encaixe já veio pronto: não é caso de aviso.
   semJuntaAutomatica = false,
+  // Peça negativa: ao juntar, ela é descontada em vez de somada.
+  negativa = false,
 } = {}) {
   contador += 1;
   const escolhido = PLANOS[plano] ? plano : "XY";
@@ -77,6 +79,7 @@ export function novaChapa({
     tira,
     ordemNaTira,
     semJuntaAutomatica,
+    negativa,
   };
 }
 

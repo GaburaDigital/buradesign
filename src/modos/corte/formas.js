@@ -49,6 +49,13 @@ function encostarNoZero(pontos) {
   return { pontos: movidos, ...medirForma(movidos), minU, minV };
 }
 
+// Quanto a parede recua da borda do prato. Precisa dar para o rasgo inteiro
+// mais um pedaço de material segurando: meia espessura de cada lado do rasgo
+// já é o mínimo, e 2 mm é o mínimo absoluto em material fino.
+export function beiradaDoPrato(espessura) {
+  return Math.max(2, espessura * 1.5);
+}
+
 // Quantas abas cabem numa borda e onde. O que importa é sobrar material nas
 // pontas: aba colada na quina rasga o canto na hora de montar.
 export function abasNaBorda(comprimento, dedo = 12, espessura = 3) {
@@ -149,13 +156,16 @@ export function montarPrisma({
   const raio = Math.max(espessura * 4, diametro / 2);
   const alto = Math.max(espessura * 3, altura);
   const apotema = raio * Math.cos(Math.PI / n);
-  // A parede fica com a face de fora rente à aresta do polígono, então o meio
-  // dela recua meia espessura.
-  const raioDoMeio = apotema - espessura / 2;
+  // A parede recua da borda do prato. Sem esse recuo o rasgo nascia rente à
+  // aresta e rompia ela: o prato virava um pente em vez de um prato com
+  // encaixes, e não sobrava material segurando a parede.
+  const beirada = beiradaDoPrato(espessura);
+  const apoio = apotema - beirada;
   // O comprimento da parede é medido no plano do meio dela, e não na aresta
   // do polígono. Com a medida da aresta, duas paredes vizinhas em ângulo
   // entravam uma dentro da outra — que é o defeito que aparecia na tela,
   // pior quanto menos lados a forma tem.
+  const raioDoMeio = apoio - espessura / 2;
   const lado = 2 * raioDoMeio * Math.tan(Math.PI / n);
   const chapas = [];
 
@@ -229,13 +239,17 @@ export function montarPiramide({
   const n = Math.max(3, Math.round(lados));
   const raio = Math.max(espessura * 4, diametro / 2);
   const alto = Math.max(espessura * 3, altura);
-  const lado = 2 * raio * Math.sin(Math.PI / n);
   const apotema = raio * Math.cos(Math.PI / n);
+  // Mesmo recuo do prisma: a face apoia um pouco para dentro da borda, para o
+  // rasgo caber inteiro na base e sobrar material segurando ela.
+  const beirada = beiradaDoPrato(espessura);
+  const apoio = apotema - beirada;
+  const lado = 2 * apoio * Math.tan(Math.PI / n);
   // A altura da face triangular não é a altura da pirâmide: é a hipotenusa
-  // entre a altura e o apótema. É o erro clássico de quem monta na mão, e
+  // entre a altura e o apoio. É o erro clássico de quem monta na mão, e
   // rende uma boa conversa com a turma.
-  const alturaDaFace = Math.hypot(alto, apotema);
-  const inclinacao = Math.atan2(alto, apotema) / GRAU;
+  const alturaDaFace = Math.hypot(alto, apoio);
+  const inclinacao = Math.atan2(alto, apoio) / GRAU;
 
   const base = pratoPoligonal({ lados: n, raio, nome: "Base", y: espessura / 2, grupo });
   const chapas = [base];
@@ -244,7 +258,7 @@ export function montarPiramide({
     const anguloDaFace = (i * 2 * Math.PI) / n;
     const face = paredeEmPe({
       anguloDaFace,
-      raioDoMeio: apotema,
+      raioDoMeio: apoio,
       largura: lado,
       altura: alturaDaFace,
       baseY: espessura,
@@ -263,9 +277,9 @@ export function montarPiramide({
     // volta da tangente pela regra da mão direita leva a face para dentro.
     const aresta = [-Math.sin(anguloDaFace), 0, Math.cos(anguloDaFace)];
     const ponto = {
-      x: apotema * Math.cos(anguloDaFace),
+      x: apoio * Math.cos(anguloDaFace),
       y: espessura,
-      z: apotema * Math.sin(anguloDaFace),
+      z: apoio * Math.sin(anguloDaFace),
     };
     dobrarEmVoltaDaAresta([face], ponto, aresta, 90 - inclinacao);
     // Só depois de deitada é que a aba pode ser calculada: é a inclinação

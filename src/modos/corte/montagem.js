@@ -42,8 +42,9 @@ import * as chapasMod from "./chapas.js";
 import * as imaMod from "./ima.js";
 import * as formas from "./formas.js";
 import { abrirGravacao, importarSVG } from "./gravar.js";
-import { separarEmPecas } from "./desvg.js";
+import { separarEmPecas, contornosDoSVG } from "./desvg.js";
 import * as brocaMod from "./broca.js";
+import * as juntarMod from "./juntar.js";
 import { detectarJuntas } from "./juntas.js";
 import { planificarTudo, juntarTiras, seCruza } from "./planificar.js";
 import { arranjar } from "./arranjo.js";
@@ -212,6 +213,9 @@ function quantosGrupos() {
 // --- Desenho ------------------------------------------------------------
 
 function corDaChapa(chapa) {
+  // Negativa é buraco esperando acontecer: cor de alerta, para ninguém
+  // confundir com material.
+  if (chapa.negativa) return 0xd05050;
   // Chapa agrupada ganha um tom próprio, para o grupo se enxergar de longe.
   if (chapa.grupo) {
     const numero = Number(String(chapa.grupo).replace(/\D/g, "")) || 1;
@@ -269,6 +273,40 @@ function geometriaDaChapa(peca, espessura, chapa) {
   return geometria;
 }
 
+// A gravação desenhada na própria peça, no 3D. Sem isto o aluno gravava, via
+// a janela fechar e não via nada mudar na mesa — e concluía, com razão, que a
+// gravação tinha sido jogada fora.
+function desenhoDasGravacoes(peca, chapa, espessura) {
+  if (!peca || !peca.gravacoes || !peca.gravacoes.length) return null;
+  const pontos = [];
+  const meioU = chapa.largura / 2;
+  const meioV = chapa.altura / 2;
+  // Um fio de milímetro acima da face, para a linha não brigar com ela.
+  const z = espessura / 2 + 0.05;
+  for (const traco of peca.gravacoes) {
+    if (!traco || traco.length < 2) continue;
+    for (let i = 0; i + 1 < traco.length; i += 1) {
+      pontos.push(traco[i][0] - meioU, traco[i][1] - meioV, z);
+      pontos.push(traco[i + 1][0] - meioU, traco[i + 1][1] - meioV, z);
+    }
+    // Contorno de letra é volta fechada: fecha o laço.
+    if (traco.length > 2) {
+      const ultimo = traco[traco.length - 1];
+      pontos.push(ultimo[0] - meioU, ultimo[1] - meioV, z);
+      pontos.push(traco[0][0] - meioU, traco[0][1] - meioV, z);
+    }
+  }
+  if (!pontos.length) return null;
+  const geometria = new THREE.BufferGeometry();
+  geometria.setAttribute("position", new THREE.Float32BufferAttribute(pontos, 3));
+  const linhas = new THREE.LineSegments(
+    geometria,
+    new THREE.LineBasicMaterial({ color: 0xe03131, transparent: true, opacity: 0.95 }),
+  );
+  linhas.renderOrder = 4;
+  return linhas;
+}
+
 function redesenhar() {
   if (!grupo) return;
   for (const filho of grupo.children.slice()) {
@@ -307,6 +345,8 @@ function redesenhar() {
       new THREE.LineBasicMaterial({ color: cena.paleta3d().borda }),
     );
     malha.add(contorno);
+    const marcada = desenhoDasGravacoes(planificadas.get(chapa.id), chapa, espessura);
+    if (marcada) malha.add(marcada);
     grupo.add(malha);
   }
   desenharFaixasDasJuntas();
@@ -469,17 +509,44 @@ function furarComABroca() {
   }
   const alvo = selecionadas();
   const lista = alvo.length ? alvo : chapas;
-  const { folga } = config();
-  const quantas = brocaMod.furar(broca, lista, { folga: folga / 2 });
-  if (!quantas) {
+  const { folga, espessura } = config();
+  // O furo é conferido contra o contorno de verdade da peça, com os dentes.
+  // Sem isso, broca passando raspando numa parede inclinada deixava um rasgo
+  // vazando pela borda, que na tela parecia uma forma solta flutuando.
+  const planificadas = new Map(
+    planificarTudo(chapas, espessura, ultimoResultado).map((peca) => [peca.id, peca.contorno]),
+  );
+  const resultado = brocaMod.furar(broca, lista, {
+    folga: folga / 2,
+    contornoDe: (chapa) => planificadas.get(chapa.id) || null,
+  });
+
+  const recados = [];
+  if (resultado.vazaram.length) {
+    recados.push(
+      `${resultado.vazaram.length} peça(s) não foram furadas porque o furo vazaria pela borda: ${resultado.vazaram.slice(0, 3).join(", ")}. Puxe a broca mais para dentro.`,
+    );
+  }
+  if (resultado.deitadas.length) {
+    recados.push(
+      `A broca está quase deitada em ${resultado.deitadas.length} peça(s), e aí o furo sai esticado feito um rasgo. Endireite ela.`,
+    );
+  }
+  if (!resultado.quantas) {
     tocar("erro");
-    mostrarAviso("A broca não está atravessando nenhuma das peças escolhidas.", "alerta");
+    mostrarAviso(
+      recados[0] || "A broca não está atravessando nenhuma das peças escolhidas.",
+      "alerta",
+    );
     return;
   }
   tocar("pronto");
   redesenhar();
   atualizarPainel();
-  mostrarAviso(`${quantas} peça(s) furada(s). A broca continua na mesa para furar de novo.`);
+  mostrarAviso(
+    `${resultado.quantas} peça(s) furada(s). A broca continua na mesa para furar de novo.${recados.length ? ` ${recados[0]}` : ""}`,
+    recados.length ? "alerta" : "ok",
+  );
 }
 
 function limparFuros() {
@@ -754,7 +821,9 @@ async function gerarCaixa() {
     diametro: 100,
     lados: 6,
     comTampa: false,
-    modo: "vinco",
+    // Paredes soltas por padrão: é o que o aluno espera de "caixa pronta".
+    // A tira com vinco é a escolha especial, para papelão e EVA.
+    modo: "soltas",
   };
 
   const campo = (rotulo, chave, minimo, maximo) =>
@@ -833,8 +902,8 @@ async function gerarCaixa() {
           "Como montar a lateral",
           valores.modo,
           [
-            { id: "vinco", nome: "Planificado com vinco (papelão, EVA)" },
             { id: "soltas", nome: "Paredes soltas com abas (MDF, acrílico)" },
+            { id: "vinco", nome: "Lateral numa tira só, com vinco (papelão, EVA)" },
           ],
           (id) => {
             valores.modo = id;
@@ -976,6 +1045,97 @@ async function limparTudo() {
   chapasMod.reiniciarContagem(0);
   grupoContador = 0;
   selecionar([]);
+}
+
+// --- Juntar, negativo, inverter e distribuir -----------------------------
+
+function alternarNegativa() {
+  const lista = selecionadas();
+  if (!lista.length) {
+    tocar("erro");
+    mostrarAviso("Escolha a peça que vai virar negativa.", "alerta");
+    return;
+  }
+  const ligando = lista.some((chapa) => !chapa.negativa);
+  for (const chapa of lista) chapa.negativa = ligando;
+  tocar("clique");
+  redesenhar();
+  atualizarPainel();
+  mostrarAviso(
+    ligando
+      ? "Peça negativa: ao juntar com as vizinhas do mesmo plano, ela abre buraco em vez de somar."
+      : "Peça de volta ao normal.",
+  );
+}
+
+function juntarSelecao() {
+  const lista = selecionadas();
+  if (lista.length < 2) {
+    tocar("erro");
+    mostrarAviso("Escolha pelo menos duas peças do mesmo plano para juntar.", "alerta");
+    return;
+  }
+  const { espessura } = config();
+  const turmas = juntarMod.agruparPorPlano(lista, espessura);
+  const juntaveis = turmas.filter((turma) => turma.length > 1);
+  if (!juntaveis.length) {
+    tocar("erro");
+    mostrarAviso("Nenhuma dessas peças está no mesmo plano de outra. Só junta quem é coplanar.", "alerta");
+    return;
+  }
+
+  const escolhidas = new Set(lista.map((chapa) => chapa.id));
+  const sobraram = chapas.filter((chapa) => !escolhidas.has(chapa.id));
+  const novas = [];
+  const avisos = [];
+  for (const turma of turmas) {
+    const { chapas: saida, aviso } = juntarMod.juntarPlano(turma, espessura);
+    if (aviso) avisos.push(aviso);
+    novas.push(...saida);
+  }
+  chapas = [...sobraram, ...novas];
+  tocar("pronto");
+  selecionar(novas.map((chapa) => chapa.id));
+  mostrarAviso(
+    avisos.length
+      ? avisos[0]
+      : `${lista.length} peças viraram ${novas.length}. Uma peça só é uma emenda a menos.`,
+    avisos.length ? "alerta" : "ok",
+  );
+}
+
+function inverterSelecao() {
+  const lista = selecionadas();
+  if (!lista.length) {
+    tocar("erro");
+    mostrarAviso("Escolha a peça que vai ser espelhada.", "alerta");
+    return;
+  }
+  for (const chapa of lista) juntarMod.inverter(chapa);
+  tocar("clique");
+  redesenhar();
+  atualizarPainel();
+  mostrarAviso(`${lista.length} peça(s) espelhada(s).`);
+}
+
+function distribuirSelecao() {
+  const lista = selecionadas();
+  if (lista.length < 3) {
+    tocar("erro");
+    mostrarAviso("Escolha pelo menos três peças para distribuir.", "alerta");
+    return;
+  }
+  // O eixo é o que estiver mais espalhado: é quase sempre o que o aluno quer.
+  const espalhamento = (eixo) => {
+    const valores = lista.map((chapa) => chapa.centro[eixo]);
+    return Math.max(...valores) - Math.min(...valores);
+  };
+  const eixo = ["x", "y", "z"].sort((a, b) => espalhamento(b) - espalhamento(a))[0];
+  juntarMod.distribuir(lista, eixo);
+  tocar("clique");
+  redesenhar();
+  atualizarPainel();
+  mostrarAviso(`${lista.length} peças espaçadas igual no eixo ${eixo.toUpperCase()}.`);
 }
 
 // --- Gravação -----------------------------------------------------------
@@ -1166,11 +1326,62 @@ async function guardarNaBolsa() {
   mostrarAviso(`"${nome}" guardada na bolsa com ${lista.length} chapa(s).`);
 }
 
+// Transforma uma peça 2D da bolsa em chapa de corte. É o caminho natural:
+// o aluno desenha no Design 2D, guarda na bolsa e traz para cá virar material.
+function chapaDeUmDesenho(item) {
+  const { contornos, medida } = contornosDoSVG(item.dados.svg);
+  if (!contornos.length) {
+    mostrarAviso("Esse desenho da bolsa veio vazio.", "alerta");
+    return false;
+  }
+  const { espessura } = config();
+  const meio = meioDaMesa();
+  grupoContador += 1;
+  const nomeDoGrupo = `grupo${grupoContador}`;
+  const criadas = separarEmPecas(contornos).map((peca, i) => {
+    const minU = Math.min(...peca.contorno.map((p) => p[0]));
+    const minV = Math.min(...peca.contorno.map((p) => p[1]));
+    const forma = peca.contorno.map(([u, v]) => [u - minU, v - minV]);
+    return chapasMod.novaChapa({
+      nome: i === 0 ? item.nome : `${item.nome} ${i + 1}`,
+      plano: "XZ",
+      largura: Math.max(...forma.map((p) => p[0])),
+      altura: Math.max(...forma.map((p) => p[1])),
+      forma,
+      furosFixos: peca.furos.map((furo) => furo.map(([u, v]) => [u - minU, v - minV])),
+      centro: { x: meio.x + i * 6, y: espessura / 2, z: meio.z + i * 6 },
+      grupo: nomeDoGrupo,
+      semJuntaAutomatica: true,
+    });
+  });
+  chapas.push(...criadas);
+  selecionar(criadas.map((chapa) => chapa.id));
+  cena.enquadrar();
+  mostrarAviso(
+    `"${item.nome}" virou ${criadas.length} chapa(s) de ${Math.round(medida.largura)} × ${Math.round(medida.altura)} mm.`,
+  );
+  return true;
+}
+
 // Recebe da bolsa. Tudo que desce vira um grupo só, e desce no meio da mesa.
 function colocarDaBolsa(item) {
+  // Desenho 2D da bolsa vira chapa na hora: é o jeito de o que foi desenhado
+  // no Design 2D virar material de corte aqui.
+  if (item?.dados?.svg) {
+    try {
+      return chapaDeUmDesenho(item);
+    } catch (erro) {
+      tocar("erro");
+      mostrarAviso(erro.message || "Não consegui ler esse desenho da bolsa.", "erro");
+      return false;
+    }
+  }
   const guardadas = item?.dados?.chapas;
   if (!Array.isArray(guardadas) || !guardadas.length) {
-    mostrarAviso("Esta peça não é uma montagem de chapas. Use o fatiador ou o Design 3D.", "alerta");
+    mostrarAviso(
+      "Esta peça não é uma montagem de chapas nem um desenho 2D. Use o fatiador ou o Design 3D.",
+      "alerta",
+    );
     return false;
   }
   const antigo = new Map();
@@ -1477,6 +1688,24 @@ function secaoDaSelecao() {
         : "Chapa em ângulo. Encoste uma borda dela noutra chapa para nascer o encaixe.";
       secao.append(nota);
     }
+  }
+
+  secao.append(
+    linhaBotoes(
+      botao("unir", "Juntar no plano", juntarSelecao),
+      botao("espelhar", "Espelhar", inverterSelecao),
+    ),
+    linhaBotoes(
+      botao("negativo", lista.some((c) => c.negativa) ? "Tirar o negativo" : "Virar negativa", alternarNegativa),
+      lista.length >= 3 ? botao("distribuir", "Distribuir", distribuirSelecao) : null,
+    ),
+  );
+  if (lista.some((chapa) => chapa.negativa)) {
+    const nota = document.createElement("p");
+    nota.className = "dica dica--alerta";
+    nota.textContent =
+      "Peça negativa: ela não vira material, ela abre buraco em quem for juntada com ela no mesmo plano.";
+    secao.append(nota);
   }
 
   const comFuro = lista.filter((chapa) => (chapa.furosFixos || []).length);

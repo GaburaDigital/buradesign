@@ -127,18 +127,64 @@ export function furoNaChapa(broca, chapa, { folga = 0 } = {}) {
   return volta;
 }
 
-// Fura todas as chapas de uma vez. Devolve quantas foram furadas, para a
-// bancada poder dizer ao aluno o que aconteceu.
+// O furo cabe inteiro dentro da peça? Furo que vaza pela borda não é furo: é
+// um rabisco que a cortadora vai seguir para fora da peça, e foi isso que
+// apareceu como "forma flutuando" quando a broca passava raspando numa
+// superfície inclinada.
+export function cabeNaChapa(furo, contorno) {
+  const dentro = (ponto) => {
+    let sim = false;
+    for (let i = 0, j = contorno.length - 1; i < contorno.length; j = i, i += 1) {
+      const [xi, yi] = contorno[i];
+      const [xj, yj] = contorno[j];
+      if (yi > ponto[1] !== yj > ponto[1]) {
+        if (ponto[0] < ((xj - xi) * (ponto[1] - yi)) / (yj - yi) + xi) sim = !sim;
+      }
+    }
+    return sim;
+  };
+  return furo.every(dentro);
+}
+
+// Fura todas as chapas de uma vez. Devolve o que aconteceu com cada uma, para
+// a bancada poder contar a história ao aluno em vez de falhar calada.
 export function furar(broca, chapas, opcoes = {}) {
-  let quantas = 0;
+  const { contornoDe = null, anguloMinimo = 12 } = opcoes;
+  const feitas = [];
+  const vazaram = [];
+  const deitadas = [];
   for (const chapa of chapas) {
     const furo = furoNaChapa(broca, chapa, opcoes);
     if (!furo) continue;
+
+    // Broca quase deitada na chapa: a seção vira uma elipse comprida que não
+    // é furo nenhum. Melhor avisar do que entregar peça estragada.
+    const esticada = esticamentoDo(furo);
+    if (esticada > 1 / Math.sin((anguloMinimo * Math.PI) / 180)) {
+      deitadas.push(chapa.nome);
+      continue;
+    }
+
+    const contorno = contornoDe ? contornoDe(chapa) : null;
+    if (contorno && !cabeNaChapa(furo, contorno)) {
+      vazaram.push(chapa.nome);
+      continue;
+    }
     if (!chapa.furosFixos) chapa.furosFixos = [];
     chapa.furosFixos.push(furo);
-    quantas += 1;
+    feitas.push(chapa.nome);
   }
-  return quantas;
+  return { feitas, vazaram, deitadas, quantas: feitas.length };
+}
+
+// Quanto o furo é mais comprido que largo. Num furo redondo de broca em pé
+// vale 1; quanto mais deitada a broca, maior.
+function esticamentoDo(furo) {
+  const meioU = furo.reduce((s, p) => s + p[0], 0) / furo.length;
+  const meioV = furo.reduce((s, p) => s + p[1], 0) / furo.length;
+  const raios = furo.map((p) => Math.hypot(p[0] - meioU, p[1] - meioV));
+  const menor = Math.min(...raios);
+  return menor > 1e-6 ? Math.max(...raios) / menor : Infinity;
 }
 
 export const TIPOS = [

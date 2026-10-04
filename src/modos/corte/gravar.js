@@ -98,6 +98,10 @@ export function abrirGravacao({ pecas, aoGravar, aoFim }) {
   let marcasDaPeca = [];
   let escolhida = null;
   let ultimasCopiadas = null;
+  // Abrir outro painel fecha este, e o "aoFechar" dispara junto. Estas duas
+  // travas dizem se o fechamento foi de verdade ou só uma troca de tela.
+  let trocandoDeJanela = false;
+  let descartado = false;
 
   const corpo = document.createElement("div");
   corpo.className = "gravar";
@@ -163,6 +167,7 @@ export function abrirGravacao({ pecas, aoGravar, aoFim }) {
   // certo ou não — precisa reabrir a janela, senão o aluno responde a
   // pergunta e a gravação some da tela.
   async function inserirTexto() {
+    trocandoDeJanela = true;
     const texto = await perguntarTexto("Inserir texto", "O que gravar na peça:", "GABURA");
     if (texto === null || !texto.trim()) {
       abrirJanela();
@@ -191,6 +196,7 @@ export function abrirGravacao({ pecas, aoGravar, aoFim }) {
   }
 
   async function inserirCaminho() {
+    trocandoDeJanela = true;
     const itens = (await bolsa.listar()).filter((item) => item?.dados?.svg);
     if (!itens.length) {
       mostrarAviso("Não há desenho 2D na bolsa. Guarde um lá no Design 2D primeiro.", "alerta");
@@ -390,14 +396,20 @@ export function abrirGravacao({ pecas, aoGravar, aoFim }) {
   }
 
   function abrirJanela() {
+    trocandoDeJanela = false;
     redesenhar();
     const botoes = [
-      { rotulo: "Gravar", variante: "destaque", aoClicar: () => {
-        guardar();
-        tocar("salvar");
-        fecharPainel({ silencioso: true });
-        aoFim?.();
-      } },
+      {
+        rotulo: "Gravar",
+        variante: "destaque",
+        aoClicar: () => {
+          guardar();
+          tocar("salvar");
+          trocandoDeJanela = true;
+          fecharPainel({ silencioso: true });
+          aoFim?.();
+        },
+      },
     ];
     if (indice < pecas.length - 1) {
       botoes.push({
@@ -407,17 +419,37 @@ export function abrirGravacao({ pecas, aoGravar, aoFim }) {
           indice += 1;
           marcasDaPeca = [];
           escolhida = null;
+          trocandoDeJanela = true;
           fecharPainel({ silencioso: true });
           abrirJanela();
         },
       });
     }
-    botoes.push({ rotulo: t("acoes.cancelar"), aoClicar: () => {
-      fecharPainel({ silencioso: true });
-      aoFim?.();
-    } });
+    botoes.push({
+      rotulo: "Descartar",
+      variante: "perigo",
+      aoClicar: () => {
+        descartado = true;
+        marcasDaPeca = [];
+        aoGravar(pecaAtual().id, []);
+        fecharPainel({ silencioso: true });
+        aoFim?.();
+      },
+    });
 
-    abrirPainel({ titulo: "Gravação", corpo, botoes });
+    // Fechar no X guarda, em vez de jogar fora. Esta janela é um editor, não
+    // uma pergunta: quem posicionou o texto e fechou quer o texto gravado.
+    // Antes o X descartava tudo em silêncio, e a gravação parecia sumir.
+    abrirPainel({
+      titulo: "Gravação",
+      corpo,
+      botoes,
+      aoFechar: () => {
+        if (descartado || trocandoDeJanela) return;
+        guardar();
+        aoFim?.();
+      },
+    });
   }
 
   abrirJanela();

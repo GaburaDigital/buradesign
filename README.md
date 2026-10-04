@@ -558,7 +558,18 @@ demora bem mais. Com várias peças escolhidas, a janela vai de uma em uma, e um
 botão copia a gravação da peça anterior. No plano de corte a gravação sai numa
 cor só dela, para a máquina riscar e não cortar.
 
-**Importar SVG.** Um desenho feito fora entra como peça de corte. Quando o
+**Juntar, negativo, espelhar e distribuir.** Duas chapas encostadas e no mesmo
+plano são, para a cortadora, uma peça só: **Juntar no plano** faz delas um
+contorno único — uma emenda a menos, e uma peça a menos para colar. Uma chapa
+marcada como **negativa** não vira material: ela abre buraco em quem for
+juntada com ela, o que é o jeito de recortar uma janela com a medida que você
+quiser. **Espelhar** vira a peça de lado com os encaixes junto, que é como a
+lateral esquerda nasce da direita. **Distribuir** espaça três ou mais peças em
+vãos iguais, sem contar no dedo.
+
+**Importar SVG.** Um desenho feito fora entra como peça de corte — e um
+desenho guardado na Bolsa lá no Design 2D também: basta abrir a Bolsa aqui e
+tocar em "colocar na mesa". Quando o
 arquivo tem mais de um caminho, o programa conta quantos achou e pergunta: um
 desenho de fora com buracos por dentro, ou uma peça por desenho. A unidade do
 arquivo é lida do próprio SVG; quando ele não diz, o programa avisa que tratou
@@ -675,6 +686,7 @@ buradesign/
 | `src/modos/corte/gravar.js` | a janela de gravação e a importação de SVG |
 | `src/modos/corte/desvg.js` | lê SVG, acha a unidade e separa contorno de furo |
 | `src/modos/corte/broca.js` | o volume que atravessa as chapas e deixa o furo |
+| `src/modos/corte/juntar.js` | junta coplanares, desconta negativa, espelha e distribui |
 | `src/modos/corte/planificar.js` | abre cada chapa em contorno 2D, com abas e entalhes |
 | `src/modos/corte/fatias.js` | corta o modelo 3D em camadas, sem booleana |
 | `src/modos/corte/arranjo.js` | arruma as peças dentro do tamanho da folha |

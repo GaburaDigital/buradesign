@@ -244,6 +244,15 @@ const FERRAMENTAS = {
   encaixe: `<path d="M3 9 H7 V6 H11 V9 H15 V6 H19 V12 H3 Z" ${D}/>
     <path d="M3 13 H7 V16 H11 V13 H15 V16 H19 V19.5 H3 Z" ${V}/>`,
 
+  // Espelhar: a peça e o reflexo dela, com o eixo no meio.
+  espelhar: `<path d="M11 3 V21" stroke-dasharray="2.5 2" ${V}/>
+    <path d="M9 6 L4 12 L9 18 Z" ${D}/><path d="M13 6 L18 12 L13 18 Z" ${D}/>`,
+  // Distribuir: três peças com o mesmo vão entre elas.
+  distribuir: `<rect x="2.5" y="7" width="4" height="10" ${D}/>
+    <rect x="10" y="7" width="4" height="10" ${V}/>
+    <rect x="17.5" y="7" width="4" height="10" ${D}/>
+    <path d="M7.5 12 H9 M15 12 H16.5" ${D}/>`,
+
   // Agrupar: peças soltas entrando numa moldura só.
   agrupar: `<rect x="2.5" y="2.5" width="19" height="19" rx="1" stroke-dasharray="3 2" ${V}/>
     <rect x="6" y="6" width="6" height="5" ${D}/><rect x="13.5" y="9" width="5" height="4" ${D}/>

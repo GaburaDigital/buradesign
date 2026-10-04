@@ -82,45 +82,78 @@ function encostaNaOutra(chapa, outra, espessura, { dedo, folga }) {
   // sairia do tamanho de um braço.
   if (angulo < 12) return null;
 
+  let melhor = null;
   for (const borda of BORDAS) {
     const ficha = bordaDaChapa(chapa, borda);
-    // Três pontos da borda: se os três estiverem na superfície da outra, a
-    // borda está encostada nela de verdade, e não só passando perto.
-    const pontos = [0.15, 0.5, 0.85].map((t) =>
-      paraOMundo(
+    // Antes eu exigia que a borda inteira estivesse em cima da outra chapa, e
+    // por isso o encaixe só saía "às vezes": borda mais comprida que a chapa
+    // de baixo, ou sobrando numa ponta, não contava. Agora o que vale é o
+    // trecho que de fato encosta, e as abas nascem dentro dele.
+    const encosta = (t) => {
+      const ponto = paraOMundo(
         chapa,
         ficha.de[0] + (ficha.ate[0] - ficha.de[0]) * t,
         ficha.de[1] + (ficha.ate[1] - ficha.de[1]) * t,
-      ),
-    );
-    const encostados = pontos.every((ponto) => {
+      );
       const local = paraAChapa(outra, ponto);
       return (
-        Math.abs(local.n) < espessura / 2 + TOLERANCIA * 20 &&
+        Math.abs(local.n) < espessura / 2 + TOLERANCIA * 40 &&
         local.u > -TOLERANCIA &&
         local.u < outra.largura + TOLERANCIA &&
         local.v > -TOLERANCIA &&
         local.v < outra.altura + TOLERANCIA
       );
-    });
-    if (!encostados) continue;
-
-    const abas = repartirEmAbas(ficha.comprimento, dedo, espessura);
-    if (!abas.length) continue;
-    const encaixe = abaPassante(chapa, outra, borda, espessura, abas, { folga });
-    if (!encaixe) continue;
-    return {
-      borda,
-      angulo: encaixe.angulo,
-      abas: abas.map((aba) => ({
-        ...aba,
-        tipo: "aba",
-        profundidade: encaixe.profundidade,
-      })),
-      rasgos: encaixe.rasgos,
     };
+
+    // Varre a borda e guarda o maior pedaço encostado.
+    const passos = 64;
+    let inicio = null;
+    let faixa = null;
+    for (let i = 0; i <= passos; i += 1) {
+      const t = i / passos;
+      if (encosta(t)) {
+        if (inicio === null) inicio = t;
+        if (i === passos && (!faixa || t - inicio > faixa.ate - faixa.de)) {
+          faixa = { de: inicio, ate: t };
+        }
+      } else if (inicio !== null) {
+        const anterior = (i - 1) / passos;
+        if (!faixa || anterior - inicio > faixa.ate - faixa.de) {
+          faixa = { de: inicio, ate: anterior };
+        }
+        inicio = null;
+      }
+    }
+    if (!faixa) continue;
+
+    const comeco = faixa.de * ficha.comprimento;
+    const fim = faixa.ate * ficha.comprimento;
+    const encostado = fim - comeco;
+    // Encosto curto demais não segura nada e ainda enfraquece a peça.
+    if (encostado < Math.max(6, espessura * 3)) continue;
+    if (melhor && encostado <= melhor.encostado) continue;
+    melhor = { borda, ficha, comeco, encostado };
   }
-  return null;
+  if (!melhor) return null;
+
+  const abas = repartirEmAbas(melhor.encostado, dedo, espessura).map((aba) => ({
+    de: aba.de + melhor.comeco,
+    ate: aba.ate + melhor.comeco,
+  }));
+  if (!abas.length) return null;
+  const encaixe = abaPassante(chapa, outra, melhor.borda, espessura, abas, { folga });
+  if (!encaixe) return null;
+  return {
+    borda: melhor.borda,
+    angulo: encaixe.angulo,
+    encostado: melhor.encostado,
+    abas: abas.map((aba) => ({
+      ...aba,
+      tipo: "aba",
+      profundidade: encaixe.profundidade,
+    })),
+    rasgos: encaixe.rasgos,
+  };
 }
 
 // Abas espaçadas ao longo da borda, com folga nas pontas para não rasgar a
